@@ -24,6 +24,45 @@ KIMI_CONFIG_DIR = Path.home() / ".kimi"
 KIMI_TACHI_DIR = KIMI_CONFIG_DIR / "agents" / "kimi-tachi"
 PACKAGE_DIR = Path(__file__).parent.parent.parent
 
+# Agent definitions with anime characters
+AGENTS = {
+    "kamaji": {
+        "name": "釜爺 (Kamaji)",
+        "role": "Boiler Room Chief - Task coordinator",
+        "desc": "Six-armed coordinator managing all workers. Best for: general orchestration",
+    },
+    "shishigami": {
+        "name": "シシ神 (Shishigami)",
+        "role": "Forest Deity - Architect",
+        "desc": "Ancient wisdom for system design. Best for: architecture decisions",
+    },
+    "nekobasu": {
+        "name": "猫バス (Nekobasu)",
+        "role": "Cat Bus - Explorer",
+        "desc": "Fast exploration with twelve legs. Best for: finding code, navigation",
+    },
+    "calcifer": {
+        "name": "カルシファー (Calcifer)",
+        "role": "Fire Demon - Builder",
+        "desc": "Powers the castle with code. Best for: implementation, coding",
+    },
+    "enma": {
+        "name": "閻魔大王 (Enma)",
+        "role": "King of Afterlife - Reviewer",
+        "desc": "Strict judge of code quality. Best for: code review, audits",
+    },
+    "tasogare": {
+        "name": "黄昏時 (Tasogare)",
+        "role": "Twilight Hour - Planner",
+        "desc": "Connects problem and solution. Best for: planning, research",
+    },
+    "phoenix": {
+        "name": "火の鳥 (Phoenix)",
+        "role": "Eternal Observer - Librarian",
+        "desc": "Knowledge across time. Best for: documentation, finding info",
+    },
+}
+
 
 def _get_kimi_path() -> str:
     """Find kimi executable."""
@@ -34,9 +73,99 @@ def _get_kimi_path() -> str:
     sys.exit(1)
 
 
+def _configure_default_agent():
+    """Interactive configuration for default agent."""
+    typer.echo("\n" + "=" * 60)
+    typer.echo("🎌 Welcome to kimi-tachi (君たち) Setup")
+    typer.echo("=" * 60)
+    typer.echo("\nChoose your default agent:\n")
+    
+    agents_list = list(AGENTS.items())
+    for i, (key, info) in enumerate(agents_list, 1):
+        marker = " [Recommended]" if key == "kamaji" else ""
+        typer.echo(f"  {i}. {info['name']}")
+        typer.echo(f"     Role: {info['role']}{marker}")
+        typer.echo(f"     {info['desc']}")
+        typer.echo()
+    
+    typer.echo("  0. Skip configuration (you can change this later)")
+    typer.echo()
+    
+    # Get user choice
+    choice = typer.prompt("Enter number (0-7)", default="1")
+    
+    try:
+        idx = int(choice)
+        if idx == 0:
+            typer.echo("\n⏭️  Skipped. Run 'kimi-tachi setup' anytime to configure.")
+            return None
+        elif 1 <= idx <= len(agents_list):
+            selected = agents_list[idx - 1][0]
+            _save_default_agent(selected)
+            typer.echo(f"\n✅ Default agent set to: {AGENTS[selected]['name']}")
+            typer.echo(f"   You can now run 'kimi --agent {KIMI_TACHI_DIR / selected}.yaml'")
+            return selected
+        else:
+            typer.echo("\n⚠️  Invalid choice. Defaulting to kamaji.")
+            _save_default_agent("kamaji")
+            return "kamaji"
+    except ValueError:
+        typer.echo("\n⚠️  Invalid input. Defaulting to kamaji.")
+        _save_default_agent("kamaji")
+        return "kamaji"
+
+
+def _save_default_agent(agent: str):
+    """Save default agent to config file."""
+    config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
+    try:
+        config_file.write_text(f"default_agent={agent}\n")
+    except Exception:
+        pass  # Non-critical, can fail silently
+
+
+def _get_saved_default_agent() -> str | None:
+    """Get saved default agent from config file."""
+    config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
+    if config_file.exists():
+        try:
+            content = config_file.read_text().strip()
+            if content.startswith("default_agent="):
+                return content.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    return None
+
+
+@app.command()
+def setup():
+    """Interactive setup for kimi-tachi - choose your default agent."""
+    if not KIMI_TACHI_DIR.exists():
+        typer.echo("❌ kimi-tachi not installed. Run 'kimi-tachi install' first.")
+        sys.exit(1)
+    
+    _configure_default_agent()
+    
+    typer.echo("\n" + "=" * 60)
+    typer.echo("📚 Quick Start:")
+    typer.echo("=" * 60)
+    typer.echo("\n  1. Start Kimi CLI with your default agent:")
+    typer.echo(f"     kimi --agent {KIMI_TACHI_DIR}/<agent>.yaml")
+    typer.echo("\n  2. Or start with a specific agent:")
+    typer.echo(f"     kimi --agent {KIMI_TACHI_DIR}/kamaji.yaml")
+    typer.echo("\n  3. In conversation, switch agents with:")
+    typer.echo("     /agent:shishigami 如何设计这个？")
+    typer.echo("     /agent:calcifer 实现代码")
+    typer.echo("     /agent:enma 审查一下")
+    typer.echo("\n  4. List all agents:")
+    typer.echo("     kimi-tachi list-agents")
+    typer.echo()
+
+
 @app.command()
 def install(
-    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files")] = False
+    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files")] = False,
+    skip_setup: Annotated[bool, typer.Option("--skip-setup", help="Skip interactive setup")] = False,
 ):
     """Install kimi-tachi agents and skills to Kimi CLI."""
     
@@ -75,10 +204,19 @@ def install(
                     typer.echo(f"Installed skill: {skill_dir.name}")
     
     typer.echo("\n✨ kimi-tachi installed successfully!")
-    typer.echo(f"\nUsage:")
-    typer.echo(f"  kimi-tachi run              # Start with kamaji (default)")
-    typer.echo(f"  kimi-tachi run --agent shishigami   # Start with shishigami")
-    typer.echo(f"  kimi --agent {KIMI_TACHI_DIR / 'kamaji.yaml'}")
+    
+    # Interactive setup
+    if not skip_setup:
+        saved = _get_saved_default_agent()
+        if not saved or force:
+            _configure_default_agent()
+        else:
+            typer.echo(f"\nℹ️  Using previously configured default agent.")
+            typer.echo(f"   Run 'kimi-tachi setup' to change it.")
+    
+    typer.echo(f"\n🎌 Usage:")
+    typer.echo(f"  kimi --agent {KIMI_TACHI_DIR}/kamaji.yaml")
+    typer.echo(f"  /agent:shishigami  (switch agents in conversation)")
 
 
 @app.command()
