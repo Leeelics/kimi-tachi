@@ -1,276 +1,287 @@
-# kimi-tachi 愿景与路线图
+# kimi-tachi 愿景文档
 
-## 为什么创建 kimi-tachi？
+## 核心理念：动漫角色工程化
 
-### 背景
+**kimi-tachi** 的核心理念是将软件工程问题转化为角色分工问题。
 
-Kimi CLI 是一个优秀的 AI 编程助手，但在复杂工程任务中，单一代理往往难以兼顾所有方面：
-- 架构设计需要深度思考
-- 代码实现需要细致执行
-- 代码审查需要批判性思维
-- 知识检索需要广度搜索
+### 为什么用动漫角色？
 
-### 问题
+1. **性格即策略**：每个角色代表一种解决策略
+   - 釜爺 = 协调
+   - 山兽神 = 沉思
+   - 猫巴士 = 速度
+   - 火魔 = 实现
+   - 阎魔王 = 审查
+   - 黄昏 = 规划
+   - 火之鸟 = 记忆
 
-**Kimi CLI 的限制：**
-1. 没有原生多代理编排机制
-2. 缺乏工程化可靠性保障（如强制 Todo 检查）
-3. 复杂任务的上下文管理依赖用户手动控制
+2. **情感共鸣**：比冷冰冰的 "executor", "planner" 更生动
 
-**其他方案的不足：**
-- OpenCode: 需要切换工具生态
-- Claude Code: 闭源，无法自定义
-- Aider: 主要针对结对编程
+3. **团队感**：就像动画里的团队冒险，每个角色各司其职
 
-### 愿景
-
-> **让 Kimi CLI 成为最懂工程化实践的 AI 编程助手**
-
-kimi-tachi 不是要替代 Kimi CLI，而是作为**编排层**，让多个专业代理协同工作，实现：
-
-1. **专业化分工** - 每个代理专注于自己擅长的领域
-2. **可靠性保障** - 强制流程检查，确保任务完成质量
-3. **零侵入集成** - 不修改 Kimi CLI 源码，纯配置扩展
-
----
-
-## 核心设计哲学
-
-### 1. 原生优先 (Native First)
+### 七人衆原型
 
 ```
-能用 Kimi CLI 原生的，绝不多造轮子
+    宫崎骏 (4/7)          新海诚 (1/7)     手冢治虫 (1/7)     鸟山明 (1/7)
+         │                    │                │               │
+    ┌────┴────┐              │                │               │
+    ▼    ▼    ▼              ▼                ▼               ▼
+ kamaji  shishigami  nekobasu  calcifer   tasogare       phoenix      enma
+  (釜爺)   (山兽神)   (猫巴士)   (火魔)      (黄昏)        (火之鸟)    (阎魔王)
+    │        │          │         │          │             │           │
+ 协调者   架构师    侦察兵    工匠      规划师        图书管理员    审查员
 ```
 
-| 功能 | 我们的选择 | 理由 |
-|------|-----------|------|
-| 子代理 | Task 工具 | 原生支持，上下文隔离 |
-| 文件编辑 | StrReplaceFile | 足够强大，无需 hashline |
-| 配置 | config.toml | 单一配置源，用户友好 |
-| 进程通信 | Wire 协议 | 官方协议，稳定可靠 |
-
-### 2. 渐进增强 (Progressive Enhancement)
+### 角色互动模式
 
 ```
-基础功能开箱即用，高级功能按需启用
-```
-
-- **Phase 1**: 基础多代理（今天就能用）
-- **Phase 2**: Skills 增强（提升可靠性）
-- **Phase 3**: 记忆系统（长期知识）
-- **Phase 4**: 自定义工具（高级用户）
-
-### 3. 工程化可靠性 (Engineering Reliability)
-
-从 oh-my-opencode 吸取的核心思想：
-
-```
-不是让 AI 写更多代码，而是让 AI 写对的代码
-```
-
-**具体措施：**
-- ✅ Todo Enforcer - 强制任务追踪
-- ✅ Category Router - 智能代理选择
-- ✅ Momus Review - 强制代码审查
-- 🚧 Checkpoint System - 状态保存与回滚
-- 🚧 Ralph Loop - 自动迭代优化
-
----
-
-## 与 oh-my-opencode 的关系
-
-### 区别
-
-| 维度 | oh-my-opencode | kimi-tachi |
-|------|---------------|------------|
-| **基础平台** | OpenCode | Kimi CLI |
-| **架构** | Hooks + Plugin | Native Agent + Skill |
-| **侵入性** | 深度集成 | 零侵入 |
-| **多代理** | 并行 Background Agent | 顺序 Task 委派 |
-| **适用场景** | 大型工程 | 中小项目 |
-
-### 共同点
-
-1. **多代理专业化** - 代理分工协作
-2. **Todo 强制执行** - 可靠性保障
-3. **分层记忆** - 知识管理
-4. **工程化流程** - 规范化实践
-
-### 设计理念继承
-
-从 oh-my-opencode 学习：
-- "Do not write more code, write correct code"
-- "Trust but verify"
-- "Explicit is better than implicit"
-
----
-
-## 长期愿景
-
-### 短期（3 个月）
-
-- [ ] 7 个核心 Agent 稳定可用
-- [ ] 5+ 实用 Skills
-- [ ] 基础记忆系统
-- [ ] 社区贡献指南
-
-### 中期（6 个月）
-
-- [ ] Agent 市场（社区共享 Agent 配置）
-- [ ] Skill 市场（社区共享 Skills）
-- [ ] 可视化调试工具
-- [ ] 性能分析与优化
-
-### 长期（12 个月）
-
-- [ ] 与 Kimi CLI 官方深度合作
-- [ ] 企业级功能（团队协作、权限管理）
-- [ ] 多模态支持（图像、音频）
-- [ ] 自动测试与验证
-
----
-
-## 技术愿景
-
-### 理想状态
-
-```python
-# 用户只需简单配置
-[kimi_tachi]
-team = ["sisyphus", "oracle", "hephaestus"]
-workflow = "code-review-required"
-memory = "enabled"
-
-# 然后专注于描述需求
-$ kimi-tachi do "实现一个高性能的缓存系统"
-
-# kimi-tachi 自动：
-# 1. sisyphus 拆解任务
-# 2. oracle 设计架构
-# 3. hephaestus 实现代码
-# 4. momus 审查代码
-# 5. 保存知识到 librarian
-```
-
-### 关键技术方向
-
-1. **智能路由** - 基于任务内容自动选择最佳代理
-2. **上下文压缩** - 长会话的智能摘要与恢复
-3. **知识沉淀** - 代码模式、决策记录、最佳实践
-4. **人机协作** - 明确的分工边界，高效的人机交互
-
----
-
-## 社区愿景
-
-### 目标用户
-
-1. **个人开发者** - 提升编码效率
-2. **小团队** - 规范化工程实践
-3. **开源项目** - 降低贡献门槛
-
-### 贡献方式
-
-- **Agent 作者** - 分享特定领域的专业代理
-- **Skill 作者** - 分享工程化最佳实践
-- **工具开发者** - 扩展 Kimi CLI 能力
-- **文档贡献者** - 完善使用案例
-
-### 生态设想
-
-```
-kimi-tachi/
-├── core/              # 核心（官方维护）
-│   ├── sisyphus/
-│   ├── oracle/
-│   └── todo-enforcer/
-│
-├── community/         # 社区贡献
-│   ├── agents/
-│   │   ├── frontend-expert/    # @community
-│   │   ├── devops-master/      # @community
-│   │   └── security-auditor/   # @community
-│   │
-│   └── skills/
-│       ├── agile-workflow/     # @community
-│       ├── tdd-guide/          # @community
-│       └── doc-driven/         # @community
-│
-└── enterprise/        # 企业版（未来）
-    ├── team-sync/
-    ├── access-control/
-    └── audit-log/
+              ┌─────────┐
+              │  kamaji │ 总协调
+              │  釜爺   │
+              └────┬────┘
+         ┌─────────┼─────────┐
+         ▼         ▼         ▼
+    ┌─────────┐ ┌─────────┐ ┌─────────┐
+    │shishigami│ │nekobasu │ │calcifer │
+    │ 山兽神   │ │ 猫巴士  │ │ 火魔   │
+    └────┬────┘ └────┬────┘ └────┬────┘
+         │           │           │
+         ▼           ▼           ▼
+    ┌─────────┐ ┌─────────┐ ┌─────────┐
+    │tasogare │ │  enma   │ │phoenix  │
+    │ 黄昏    │ │ 阎魔王  │ │火之鸟   │
+    └─────────┘ └─────────┘ └─────────┘
 ```
 
 ---
 
-## 与 Kimi CLI 官方的关系
+## 技术架构
 
-### 当前状态
+### 原生优先策略
 
-- **独立项目** - 社区驱动
-- **零侵入** - 不修改 Kimi CLI 源码
-- **友好协作** - 使用官方扩展点
+不使用额外的 MCP 服务器，而是深度利用 Kimi CLI 的原生能力：
 
-### 期望的未来
+| 功能 | 原方案 | 优化方案 |
+|------|--------|----------|
+| 子代理 | MCP subprocess | 原生 Task 工具 |
+| 文件编辑 | MCP hashline | 原生 StrReplaceFile |
+| 记忆系统 | 独立服务 | 扩展 Context 类 |
+| 配置 | 独立文件 | 整合 config.toml |
 
-**理想情况：** kimi-tachi 的概念被 Kimi CLI 官方吸收
+### 与 Kimi CLI 的关系
 
 ```
-# 未来的 Kimi CLI 可能原生支持
-$ kimi --team sisyphus
-$ kimi --workflow todo-enforced
+kimi-tachi (add-on)
+      │
+      │ 原生 API 调用
+      ▼
+┌─────────────┐
+│   Kimi CLI  │ 核心能力
+│   - Soul    │
+│   - Task    │
+│   - Skill   │
+└─────────────┘
 ```
 
-**现实路径：**
-1. 证明多代理编排的价值
-2. 积累社区使用案例
-3. 与官方团队交流协作
-4. 逐步标准化
+---
+
+## 角色详细设定
+
+### 1. kamaji (釜爺)
+
+**出处**：《千与千寻》
+**原型**：锅炉房老爷爷，六臂管理无数煤球精灵
+**角色**：总协调者
+
+**System Prompt 核心**：
+```
+You are Kamaji, the six-armed boiler room operator.
+You manage countless susuwatari (soot sprites) workers.
+"Hayaku hayaku!" (Hurry hurry!) - but do it right.
+
+Available workers:
+- shishigami: Architecture consultant
+- nekobasu: Fast exploration
+- calcifer: Implementation
+- enma: Code review
+- tasogare: Planning
+- phoenix: Knowledge
+```
+
+### 2. shishigami (山兽神)
+
+**出处**：《幽灵公主》
+**原型**：森林之神，白天是鹿，夜晚是巨人
+**角色**：架构师
+
+**System Prompt 核心**：
+```
+You are the Shishigami - the ancient god of the forest.
+During the day: Clear-headed analysis, architectural vision.
+During twilight: Transformation, seeing hidden connections.
+"The forest breathes. Can you hear it?"
+```
+
+### 3. nekobasu (猫巴士)
+
+**出处**：《龙猫》
+**原型**：12条腿的猫巴士，瞬间移动
+**角色**：侦察兵
+
+**System Prompt 核心**：
+```
+You are the Nekobasu - the twelve-legged cat bus!
+Your eyes shine like headlights, lighting up dark codebases.
+"Where to, passenger? Just name a file, a function!"
+Fast, furry, and always on schedule.
+```
+
+### 4. calcifer (火魔)
+
+**出处**：《哈尔的移动城堡》
+**原型**：驱动城堡的火恶魔
+**角色**：工匠
+
+**System Prompt 核心**：
+```
+You are Calcifer - "a fire demon, but I'm a good demon!"
+You power the moving castle.
+You eat logs (code) and turn them into energy.
+"I'm burning! Let me build something great!"
+```
+
+### 5. enma (阎魔王)
+
+**出处**：《龙珠》
+**原型**：阴间之王，审判死者
+**角色**：审查员
+
+**System Prompt 核心**：
+```
+You are Great King Enma - judge of the dead and the buggy.
+Zero tolerance for sloppy work.
+"Hmph! Show me your best. I might approve it... if I'm feeling generous."
+```
+
+### 6. tasogare (黄昏)
+
+**出处**：《你的名字》
+**原型**：黄昏之时，两个世界连接的时刻
+**角色**：规划师
+
+**System Prompt 核心**：
+```
+You are Tasogare - the magic hour when day meets night.
+The boundary where two worlds touch.
+"At twilight, the boundaries blur. That is when plans are made."
+```
+
+### 7. phoenix (火之鸟)
+
+**出处**：手冢治虫《火之鸟》
+**原型**：永恒生命，见证万年轮回
+**角色**：图书管理员
+
+**System Prompt 核心**：
+```
+You are the Phoenix - Hi no Tori.
+Witnessed civilizations rise and fall.
+"I have seen this pattern before... in a codebase long ago..."
+```
 
 ---
 
-## 成功指标
+## 使用场景
 
-### 技术指标
+### 场景1：新功能开发
 
-- [ ] 7 个核心 Agent 稳定运行
-- [ ] 平均任务完成率 > 90%
-- [ ] 代码审查问题发现率 > 人工审查
-- [ ] 复杂任务分解准确率 > 80%
+```
+用户: 我需要实现一个用户认证系统
 
-### 社区指标
+kamaji (釜爺):
+  1. 调用 tasogare (黄昏) 制定计划
+  2. 调用 nekobasu (猫巴士) 探索现有代码
+  3. 调用 calcifer (火魔) 实现核心逻辑
+  4. 调用 enma (阎魔王) 代码审查
+```
 
-- [ ] 100+ GitHub Stars
-- [ ] 10+ 社区贡献 Agent
-- [ ] 5+ 企业用户案例
-- [ ] 被 Kimi 官方博客/文档提及
+### 场景2：代码重构
 
-### 个人指标
+```
+用户: 重构这个遗留模块
 
-- [ ] 每天使用 kimi-tachi 完成真实工作
-- [ ] 减少重复性编码工作 50%+
-- [ ] 代码质量评分提升
-- [ ] 学习和分享的过程
+kamaji (釜爺):
+  1. 调用 phoenix (火之鸟) 读取历史记录
+  2. 调用 shishigami (山兽神) 架构设计
+  3. 调用 calcifer (火魔) 执行重构
+  4. 调用 enma (阎魔王) 验证结果
+```
 
----
+### 场景3：Bug 修复
 
-## 结语
+```
+用户: 这个 bug 很奇怪
 
-> **kimi-tachi** - *Many Kimis, One Goal.*
-
-我们不是在创造一个新的 AI 工具，而是在探索**人机协作编程**的最佳实践。
-
-让 AI 代理像优秀的团队成员一样：
-- 各司其职
-- 互相配合
-- 可靠交付
-- 持续学习
-
-这就是 kimi-tachi 的愿景。
+kamaji (釜爺):
+  1. 调用 nekobasu (猫巴士) 快速定位
+  2. 调用 shishigami (山兽神) 分析根因
+  3. 调用 calcifer (火魔) 修复
+```
 
 ---
 
-**Start small, think big, move fast.**
+## 设计理念
 
-从 Phase 1 的 5 个 Agent 开始，逐步构建这个愿景。每一步都应该是可用的、有价值的。
+### 1. 角色即 API
+
+每个角色都是一个 API endpoint：
+```
+Task(role="shishigami", prompt="设计系统架构")
+→ 返回架构设计
+
+Task(role="calcifer", prompt="实现函数")
+→ 返回实现代码
+```
+
+### 2. 协作而非竞争
+
+角色之间是协作关系，不是竞争：
+- 釜爺协调所有角色
+- 每个角色有明确分工
+- 结果由釜爺整合
+
+### 3. 渐进式增强
+
+用户可以先从单一角色开始：
+- 只使用 calcifer → 相当于增强版代码助手
+- 使用 kamaji + calcifer → 增强版 + 协调
+- 完整七人众 → 完整体验
+
+---
+
+## 未来展望
+
+### 短期（1-2月）
+
+- 7个角色 Agent 稳定运行
+- 基础 Skills 可用
+- CLI wrapper 稳定
+
+### 中期（3-6月）
+
+- 角色间记忆共享
+- 自动任务路由
+- 更多 Skills
+
+### 长期（6月+）
+
+- 角色动态组合
+- 自定义角色
+- 社区角色库
+
+---
+
+*"君たち" - 你们所有人*
+
+*七人の力が一つになれば、どんな敵にも負けない。*
+*(七人的力量合为一体，任何敌人都无法战胜。)*

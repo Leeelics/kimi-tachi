@@ -1,107 +1,139 @@
 # Quick Start
 
-## 1. 安装
+快速开始使用 kimi-tachi 七人众
+
+## 安装
 
 ```bash
 # 安装 kimi-tachi
-pip install -e .
+pip install kimi-tachi
 
-# 安装到 Kimi CLI
+# 安装到 Kimi CLI（复制 agents 和 skills）
 kimi-tachi install
 ```
 
-## 2. 验证安装
+## 基础使用
+
+### 1. 使用总协调启动
 
 ```bash
-kimi-tachi status
-```
-
-## 3. 基础使用
-
-```bash
-# 使用默认的 sisyphus 启动
+# 默认使用 kamaji (釜爺)
 kimi-tachi run
 
-# 使用特定代理
-kimi-tachi run --agent oracle
-
-# Plan Mode
-kimi-tachi run --agent prometheus --plan
-
-# One-shot 模式
-kimi-tachi do "Implement user authentication"
+# 等同于
+kimi-tachi run --agent kamaji
 ```
 
-## 4. 查看可用代理
+### 2. 使用特定角色
+
+```bash
+# 架构咨询 - 山兽神
+kimi-tachi run --agent shishigami
+
+# 快速探索 - 猫巴士
+kimi-tachi run --agent nekobasu
+
+# 代码实现 - 火魔
+kimi-tachi run --agent calcifer
+
+# 代码审查 - 阎魔王
+kimi-tachi run --agent enma
+
+# Plan Mode - 黄昏
+kimi-tachi run --agent tasogare --plan
+
+# 知识查询 - 火之鸟
+kimi-tachi run --agent phoenix
+```
+
+### 3. One-shot 模式
+
+```bash
+# 单次任务，无需交互
+kimi-tachi do "实现用户登录功能"
+
+# 指定角色
+kimi-tachi do --agent calcifer "重构这个函数"
+```
+
+## 使用示例
+
+### 新功能开发流程
+
+```bash
+# 启动总协调
+kimi-tachi run
+
+# 在对话中：
+> 帮我实现一个用户认证系统
+
+# kamaji 会自动：
+# 1. 调用 tasogare 制定计划
+# 2. 调用 nekobasu 探索代码
+# 3. 调用 calcifer 实现
+# 4. 调用 enma 审查
+```
+
+### 直接调用 Kimi CLI
+
+```bash
+# 安装后，Agent 已复制到 ~/.kimi/agents/kimi-tachi/
+kimi --agent ~/.kimi/agents/kimi-tachi/calcifer.yaml
+```
+
+## 查看可用角色
 
 ```bash
 kimi-tachi list-agents
 ```
 
-## 5. 在 Kimi CLI 中直接使用
+输出：
+```
+Available Agents:
+  - kamaji     (釜爺)    - 总协调
+  - shishigami (山兽神)  - 架构师
+  - nekobasu   (猫巴士)  - 侦察兵
+  - calcifer   (火魔)    - 工匠
+  - enma       (阎魔王)  - 审查员
+  - tasogare   (黄昏)    - 规划师
+  - phoenix    (火之鸟)  - 记忆
+```
+
+## 配置
+
+编辑 `~/.kimi/config.toml`：
+
+```toml
+[kimi_tachi]
+default_agent = "kamaji"
+
+[kimi_tachi.agents]
+kamaji.model = "kimi-k2.5"
+calcifer.yolo = false
+```
+
+## 故障排查
+
+### 检查安装
 
 ```bash
-# 安装后，可以直接在 Kimi CLI 中加载代理
-kimi --agent ~/.kimi/agents/kimi-tachi/sisyphus.yaml
-
-# 或使用其他代理
-kimi --agent ~/.kimi/agents/kimi-tachi/oracle.yaml
+kimi-tachi status
 ```
 
-## 6. 使用 Skills
+### 重新安装
 
-在 Kimi 中通过斜杠命令使用 Skills：
+```bash
+# 删除旧配置
+rm -rf ~/.kimi/agents/kimi-tachi
+rm -rf ~/.kimi/skills/todo-enforcer
+rm -rf ~/.kimi/skills/category-router
 
-```
-/skill:todo-enforcer
-/skill:category-router
-```
-
-## 架构
-
-```
-kimi-tachi/
-├── agents/              # Agent YAML 配置
-│   ├── sisyphus.yaml   # 总指挥官
-│   ├── oracle.yaml     # 架构师
-│   ├── hermes.yaml     # 侦察兵
-│   ├── hephaestus.yaml # 工匠
-│   ├── momus.yaml      # 审查员
-│   ├── prometheus.yaml # 规划师
-│   └── librarian.yaml  # 图书管理员
-├── skills/             # Skill 定义
-│   ├── todo-enforcer/
-│   └── category-router/
-└── src/kimi_tachi/     # CLI 代码
+# 重新安装
+kimi-tachi install
 ```
 
-## 七人衆 (The Seven)
+## 下一步
 
-| 代理 | 角色 | 职责 |
-|------|------|------|
-| sisyphus | 総指揮 | 任务编排、代理调度 |
-| oracle | 神託 | 架构决策、技术选型 |
-| hermes | 探索 | 代码探索、快速定位 |
-| hephaestus | 工匠 | 深度实现、代码编写 |
-| momus | 監視 | 代码审查、质量保障 |
-| prometheus | 予見 | 规划分析、调研 |
-| librarian | 知識 | 文档管理、知识整理 |
-
-## 多代理委派示例
-
-在 sisyphus 中，可以直接使用 Task 工具委派给其他代理：
-
-```python
-# sisyphus 会自动使用 Task 工具
-Task(
-    description="Explore codebase structure",
-    subagent_name="hermes",
-    prompt="Find all API endpoint definitions in this project"
-)
-```
-
-## 注意事项
-
-- 需要 Kimi CLI >= 1.19.0（支持原生 Task 工具）
-- Agents 安装在 `~/.kimi/agents/kimi-tachi/`
-- Skills 安装在 `~/.kimi/skills/`
+- 阅读 [VISION.md](VISION.md) 了解设计理念
+- 阅读 [README.md](README.md) 查看完整文档
+- 尝试不同的角色，找到最适合你的工作流

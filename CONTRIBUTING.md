@@ -61,9 +61,10 @@ Agents are YAML configurations that define specialized AI assistants.
 
 #### Agent Naming
 
-- Use lowercase Greek mythology names (e.g., `athena`, `apollo`)
-- Should reflect the agent's role
+- Use anime character names in romanized form (e.g., `kamaji`, `calcifer`)
+- Should reflect the agent's role and personality
 - Check existing agents for inspiration
+- See [VISION.md](VISION.md) for the character system design
 
 #### Agent Structure
 
@@ -71,7 +72,7 @@ Agents are YAML configurations that define specialized AI assistants.
 version: 1
 agent:
   name: "your-agent"
-  extend: ./sisyphus.yaml  # or default
+  extend: ./kamaji.yaml  # or default
   system_prompt_args:
     ROLE: "Role Name"
     ROLE_ADDITIONAL: |
@@ -223,7 +224,7 @@ Examples:
 - agent: Add athena for testing strategies
 - skill: Add debug-helper for troubleshooting
 - docs: Update installation guide
-- fix: Correct typo in sisyphus.yaml
+- fix: Correct typo in kamaji.yaml
 ```
 
 ## 🧪 Testing

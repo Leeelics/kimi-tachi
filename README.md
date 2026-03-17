@@ -2,11 +2,13 @@
 
 > Multi-agent task orchestration for Kimi CLI
 > 
-> *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized Kimi agents working together.
+> *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized agents working together.
 
-## 🎯 核心理念
+## 🎭 核心理念
 
-**kimi-tachi** 是 Kimi CLI 的多代理编排层，通过原生扩展机制（Agent YAML + Skill + Tools）实现工程化可靠性，无需修改 Kimi CLI 源码。
+**kimi-tachi** 是 Kimi CLI 的多代理编排层，灵感来自吉卜力、新海诚、手冢治虫、鸟山明的作品。
+
+通过将不同性格、能力的"角色"分配给不同任务，实现工程化的可靠性——就像动画中的团队一样，各司其职，共同完成冒险。
 
 ### 与 Kimi CLI 的关系
 
@@ -15,7 +17,7 @@
 │           kimi-tachi                    │
 │  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
 │  │ Agents  │ │ Skills  │ │  Tools   │  │
-│  │ (YAML)  │ │(.md)    │ │(Python)  │  │
+│  │(Anime)  │ │(.md)    │ │(Python)  │  │
 │  └────┬────┘ └────┬────┘ └────┬─────┘  │
 │       └─────────────┴───────────┘       │
 │                   │                     │
@@ -32,17 +34,30 @@
 └─────────────────────────────────────────┘
 ```
 
-## 🏛️ Agent 体系（七人衆）
+---
 
-| Agent | 角色 | 职责 | 模型建议 |
-|-------|------|------|----------|
-| **sisyphus** | 总指挥官 | 任务拆解、代理调度、结果整合 | kimi-k2.5 |
-| **oracle** | 架构师 | 技术决策、架构设计、难点攻关 | kimi-k2.5 |
-| **hermes** | 侦察兵 | 代码探索、快速定位、信息收集 | kimi-k2.5 |
-| **hephaestus** | 工匠 | 深度实现、代码编写、重构 | kimi-k2.5 |
-| **prometheus** | 规划师 | Plan Mode 专用、调研分析 | kimi-k2.5 |
-| **momus** | 审查员 | 代码审查、安全审计、最佳实践 | kimi-k2.5 |
-| **librarian** | 图书管理员 | 文档管理、知识整理、搜索 | kimi-k2.5 |
+## 🎌 角色体系（七人衆）
+
+每位角色都来自经典动漫作品，拥有独特的性格和能力：
+
+| Agent | 角色 | 来源 | 职责 | 特性 |
+|-------|------|------|------|------|
+| **kamaji** | 釜爺 | 宫崎骏《千与千寻》| 总协调 | 六臂锅炉工，管理无数煤球精灵 |
+| **shishigami** | シシ神 | 宫崎骏《幽灵公主》| 架构师 | 山兽神，白天是鹿，夜晚是巨人 |
+| **nekobasu** | 猫バス | 宫崎骏《龙猫》| 侦察兵 | 12条腿猫巴士，瞬间移动 |
+| **calcifer** | カルシファー | 宫崎骏《哈尔的移动城堡》| 工匠 | 火恶魔，驱动城堡的核心 |
+| **enma** | 閻魔大王 | 鸟山明《龙珠》| 审查员 | 阴间之王，严格审判 |
+| **tasogare** | 黄昏時 | 新海诚《你的名字》| 规划师 | 黄昏之时，连接两个世界 |
+| **phoenix** | 火の鳥 | 手冢治虫《火之鸟》| 图书管理员 | 永恒生命，见证万年轮回 |
+
+### 作者分布
+
+- **宫崎骏**（吉卜力）: 4/7 - 釜爺、山兽神、猫巴士、火魔
+- **新海诚**: 1/7 - 黄昏之时
+- **手冢治虫**: 1/7 - 火之鸟
+- **鸟山明**: 1/7 - 阎魔王
+
+---
 
 ## 🛠️ 技术架构
 
@@ -56,40 +71,34 @@
 | 配置管理 | 独立配置文件 | **整合 config.toml** | 用户无需维护多份配置 |
 | Wrapper | subprocess | **Typer CLI + import** | 直接调用 KimiCLI 类 |
 
-### 2. 简化架构
+### 2. 项目结构
 
 ```
 kimi-tachi/
-├── agents/                 # Agent YAML 定义
-│   ├── sisyphus.yaml      # 总指挥官
-│   ├── oracle.yaml        # 架构师
-│   ├── hermes.yaml        # 侦察兵
-│   ├── hephaestus.yaml    # 工匠
-│   ├── prometheus.yaml    # 规划师
-│   ├── momus.yaml         # 审查员
-│   └── librarian.yaml     # 图书管理员
+├── agents/                 # 动漫角色 Agent YAML
+│   ├── kamaji.yaml        # 釜爺 - 总协调
+│   ├── shishigami.yaml    # 山兽神 - 架构师
+│   ├── nekobasu.yaml      # 猫巴士 - 侦察兵
+│   ├── calcifer.yaml      # 火魔 - 工匠
+│   ├── enma.yaml          # 阎魔王 - 审查员
+│   ├── tasogare.yaml      # 黄昏 - 规划师
+│   └── phoenix.yaml       # 火之鸟 - 记忆
 │
 ├── skills/                # Skill 定义（Markdown）
 │   ├── todo-enforcer/
 │   │   └── SKILL.md       # Todo 强制执行
-│   ├── category-router/
-│   │   └── SKILL.md       # 智能路由
-│   └── prometheus/
-│       └── SKILL.md       # Plan Mode 引导
+│   └── category-router/
+│       └── SKILL.md       # 智能路由
 │
 ├── tools/                 # 原生 Tools（可选增强）
-│   ├── __init__.py
 │   └── checkpoint.py      # 扩展 D-Mail 系统
 │
-├── src/
-│   └── kimi_tachi/
-│       ├── __init__.py
-│       ├── cli.py         # Typer CLI
-│       ├── config.py      # 配置整合
-│       └── memory.py      # 增强记忆（Phase 2）
-│
-└── pyproject.toml
+└── src/kimi_tachi/
+    ├── cli.py             # Typer CLI
+    └── config.py          # 配置整合
 ```
+
+---
 
 ## 🚀 使用方式
 
@@ -109,15 +118,16 @@ kimi-tachi install
 ### 基础使用
 
 ```bash
-# 使用总指挥官启动
+# 使用釜爺启动（总协调）
 kimi-tachi run
 
-# 使用特定代理
-kimi-tachi run --agent oracle
-kimi-tachi run --agent hephaestus --yolo
+# 使用特定角色
+kimi-tachi run --agent shishigami  # 架构咨询
+kimi-tachi run --agent calcifer    # 代码实现
+kimi-tachi run --agent nekobasu    # 快速探索
 
-# Plan Mode 启动
-kimi-tachi run --agent prometheus --plan
+# Plan Mode 启动（黄昏之时）
+kimi-tachi run --agent tasogare --plan
 
 # One-shot 模式
 kimi-tachi do "实现用户认证系统"
@@ -126,114 +136,109 @@ kimi-tachi do "实现用户认证系统"
 ### 在 Kimi CLI 中直接使用
 
 ```bash
-# 安装后，可以直接在 Kimi CLI 中加载
-kimi --agent ~/.kimi/agents/kimi-tachi/sisyphus.yaml
+# 安装后，可以直接在 Kimi CLI 中加载角色
+kimi --agent ~/.kimi/agents/kimi-tachi/kamaji.yaml
 ```
 
-## 📝 Agent 详细定义
+---
 
-### sisyphus.yaml（总指挥官）
+## 📝 角色详细设定
+
+### kamaji.yaml（釜爺 - 总协调）
 
 ```yaml
 version: 1
 agent:
-  name: "sisyphus"
+  name: "kamaji"
   extend: default
-  system_prompt_path: ./system.md
   system_prompt_args:
-    ROLE: "Task Orchestrator"
+    ROLE: "Boiler Room Chief"
     ROLE_ADDITIONAL: |
-      You are the commander of the kimi-tachi squad. Your job is to:
-      1. Analyze user requests and categorize them
-      2. Delegate to appropriate subagents using Task tool
-      3. Integrate results and ensure quality
+      You are Kamaji (釜爺) - the six-armed boiler room operator.
+      You manage countless susuwatari (soot sprites) workers.
+      "Hayaku hayaku!" (Hurry hurry!) - but do it right.
       
-      Available subagents:
-      - oracle: For architecture decisions and complex technical questions
-      - hermes: For fast codebase exploration and finding code
-      - hephaestus: For deep implementation tasks
-      - momus: For code review and quality assurance
-      - librarian: For documentation and knowledge management
+      ## Available Workers (仲間たち)
       
-      Always use SetTodoList for multi-step tasks.
-      Always check todo completion before claiming done.
-  
-  tools:
-    # 基础工具
-    - "kimi_cli.tools.shell:Shell"
-    - "kimi_cli.tools.file:ReadFile"
-    - "kimi_cli.tools.file:WriteFile"
-    - "kimi_cli.tools.file:StrReplaceFile"
-    - "kimi_cli.tools.file:Glob"
-    - "kimi_cli.tools.file:Grep"
-    - "kimi_cli.tools.todo:SetTodoList"
-    - "kimi_cli.tools.ask_user:AskUserQuestion"
-    # 多代理工具（核心）
-    - "kimi_cli.tools.multiagent:Task"
-    - "kimi_cli.tools.multiagent:CreateSubagent"
+      | Worker | Origin | Role |
+      |--------|--------|------|
+      | shishigami | Princess Mononoke | Architecture, ancient wisdom |
+      | nekobasu | My Neighbor Totoro | Fast exploration |
+      | calcifer | Howl's Moving Castle | Implementation |
+      | enma | Dragon Ball | Code review |
+      | tasogare | Your Name | Planning |
+      | phoenix | Phoenix (Tezuka) | Knowledge |
   
   subagents:
-    oracle:
-      path: ./oracle.yaml
-      description: "Architecture consultant for complex technical decisions. Use for: system design, technology selection, hard problems."
+    shishigami:
+      path: ./shishigami.yaml
+      description: "Forest Deity (シシ神) - Ancient wisdom and architecture."
     
-    hermes:
-      path: ./hermes.yaml
-      description: "Fast codebase exploration specialist. Use for: finding code, understanding structure, quick research."
+    nekobasu:
+      path: ./nekobasu.yaml
+      description: "Cat Bus (猫バス) - Fast information transport."
     
-    hephaestus:
-      path: ./hephaestus.yaml
-      description: "Deep implementation expert. Use for: writing code, refactoring, complex implementations."
+    calcifer:
+      path: ./calcifer.yaml
+      description: "Fire Demon (カルシファー) - Powers the system."
     
-    momus:
-      path: ./momus.yaml
-      description: "Code reviewer and quality auditor. Use for: reviewing code, security checks, best practices."
+    enma:
+      path: ./enma.yaml
+      description: "King Enma (閻魔大王) - Judge of the afterlife."
     
-    librarian:
-      path: ./librarian.yaml
-      description: "Documentation and search specialist. Use for: finding docs, managing knowledge, documentation tasks."
+    tasogare:
+      path: ./tasogare.yaml
+      description: "Twilight Hour (黄昏時) - The magic moment."
+    
+    phoenix:
+      path: ./phoenix.yaml
+      description: "Phoenix (火の鳥) - Eternal observer."
 ```
 
-### Skill 示例：todo-enforcer
+### 各角色特色
 
-```markdown
+**shishigami（山兽神）**: 
+- "The forest breathes. Can you hear it?"
+- 白天冷静分析，夜晚看透真相
+- 适合架构决策
+
+**nekobasu（猫巴士）**:
+- "Where to, passenger? I'll find it fast!"
+- 12条腿瞬间移动
+- 适合代码探索
+
+**calcifer（火魔）**:
+- "I'm burning! I'm burning! Let me build something great!"
+- 边抱怨边高效工作
+- 适合代码实现
+
+**enma（阎魔王）**:
+- "Hmph! Is that all? I've seen bugs that would make you cry!"
+- 严格但公正
+- 适合代码审查
+
+**tasogare（黄昏）**:
+- "At twilight, the boundaries blur. That is when plans are made."
+- 连接问题与解决方案
+- 适合 Plan Mode
+
+**phoenix（火之鸟）**:
+- "I have seen this pattern before... in a codebase long ago..."
+- 永恒的记忆守护者
+- 适合知识管理
+
 ---
-name: todo-enforcer
-description: Ensure tasks are completed before claiming done
----
-
-# Todo Enforcement Protocol
-
-You MUST follow this protocol for all multi-step tasks:
-
-## Rules
-
-1. **Always create todos** at the start of multi-step tasks
-2. **Update status** as you progress (pending → in_progress → completed)
-3. **Verify completion** before claiming done - ALL todos must be completed
-4. **Never skip** - If you can't complete a todo, explain why and create alternative todos
-
-## Workflow
-
-```
-User Request → Analyze → Create Todos → Execute → Update Todos → Verify → Done
-```
-
-## Example
-
-User: "Implement auth system"
-
-Your response:
-1. Create todos: [design schema, implement API, add tests, update docs]
-2. Execute step by step
-3. Update todo status using SetTodoList
-4. Before saying "Done", verify all todos are completed
-```
-```
 
 ## 🔧 关键技术决策
 
-### 1. 子代理委派：使用原生 Task 工具
+### 为什么用动漫角色命名？
+
+1. **性格鲜明** - 每个角色都有独特的说话风格和决策方式
+2. **易于理解** - 看过动画的人 instantly 知道角色的分工
+3. **文化趣味** - 致敬经典，增加使用的愉悦感
+4. **团队感** - 就像动画中的队伍一样协作
+
+### 子代理委派：使用原生 Task 工具
 
 **为什么不用 MCP？**
 - Task 工具已经提供上下文隔离
@@ -241,107 +246,62 @@ Your response:
 - 内置并行执行支持
 - 无需额外进程管理
 
-```python
-# 在 sisyphus 中直接调用
-# 无需额外代码，通过 YAML 配置即可
-```
-
-### 2. 配置整合到 Kimi CLI
+### 配置整合到 Kimi CLI
 
 ```toml
 # ~/.kimi/config.toml
 
 [kimi_tachi]
-default_agent = "sisyphus"
+default_agent = "kamaji"
 enabled_skills = ["todo-enforcer", "category-router"]
 
 [kimi_tachi.models]
-sisyphus = "kimi-k2.5"
-oracle = "kimi-k2.5"
-hermes = "kimi-k2.5"
+kamaji = "kimi-k2.5"
+shishigami = "kimi-k2.5"
+nekobasu = "kimi-k2.5"
 ```
 
-### 3. 记忆系统（Phase 2）
-
-利用 Kimi CLI 的 Context 持久化 + SQLite 增强：
-
-```python
-# 可选：在 Phase 2 实现
-class EnhancedContext(Context):
-    """支持向量检索的增强上下文"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 添加 Chroma/SQLite 支持
-```
+---
 
 ## 📅 实施路线图
 
 ### Phase 1: MVP (Week 1-2)
 
-目标：基础多代理系统可用
+目标：基础多角色系统可用
 
-- [ ] 项目骨架搭建
-- [ ] 7 个 Agent YAML 定义
-- [ ] sisyphus 编排逻辑
-- [ ] todo-enforcer Skill
-- [ ] CLI wrapper (`kimi-tachi run`)
-- [ ] 安装脚本
+- [x] 项目骨架搭建
+- [x] 7 个角色 Agent YAML
+- [x] kamaji 协调逻辑
+- [x] todo-enforcer Skill
+- [x] CLI wrapper
+- [ ] 安装脚本测试
 
 ### Phase 2: 增强 (Week 3-4)
 
-目标：更智能的代理协作
-
 - [ ] category-router Skill
-- [ ] prometheus Plan Mode Skill
-- [ ] 代理间上下文传递优化
+- [ ] 角色间上下文传递优化
 - [ ] 基础测试覆盖
 
 ### Phase 3: 记忆系统 (Week 5-6)
 
-目标：长期记忆与知识管理
-
 - [ ] 增强 Context 类
-- [ ] SQLite 短期记忆
-- [ ] Chroma 长期记忆
-- [ ] librarian 代理增强
+- [ ] phoenix 记忆增强
 
-### Phase 4: 工具增强 (Week 7-8)
-
-目标：更好的代码编辑能力
-
-- [ ] checkpoint 工具（扩展 D-Mail）
-- [ ] 可选：hashline edit 工具
-- [ ] 性能优化
-- [ ] 完整文档
-
-## 🎨 命名规范
-
-### 项目命名
-- **kimi-tachi**: 项目名，小写，连字符
-- **Kimi-tachi**: 标题，首字母大写
-- **君たち**: 日文汉字，用于装饰
-
-### 代理命名（希腊神话）
-- 小写，如 `sisyphus`, `oracle`, `hermes`
-- 保持神话色彩，易于理解角色
-
-### 文件命名
-- Agent: `{agent-name}.yaml`
-- Skill: `SKILL.md` (Skill 目录内)
-- Tool: `{tool-name}.py`
+---
 
 ## 🤝 与 Kimi CLI 的协作
 
 ### 我们不做的
 - ❌ 修改 Kimi CLI 源码
-- ❌ 重复实现已有功能（如 StrReplaceFile）
+- ❌ 重复实现已有功能
 - ❌ 复杂的进程间通信
 
 ### 我们做的
-- ✅ 提供高质量的 Agent YAML
+- ✅ 提供高质量的角色 Agent YAML
 - ✅ 编写实用的 Skills
 - ✅ 轻量级 CLI wrapper
-- ✅ 可选的原生 Tools 增强
+
+---
 
 ## 📄 License
 
@@ -350,3 +310,5 @@ MIT - 与 Kimi CLI 保持一致
 ---
 
 **kimi-tachi** - *Many Kimis, One Goal.*
+
+**キャラクターたち、準備はいいか？** (Characters, ready?)

@@ -11,19 +11,19 @@ Route user requests to the appropriate kimi-tachi agent.
 
 | Category | Description | Delegate To |
 |----------|-------------|-------------|
-| **explore** | Code exploration, finding files | hermes |
-| **architect** | System design, technology decisions | oracle |
-| **implement** | Deep coding, refactoring | hephaestus |
-| **review** | Code review, audit | momus |
-| **research** | Large-scale analysis | prometheus |
-| **document** | Documentation | librarian |
+| **explore** | Code exploration, finding files | nekobasu |
+| **architect** | System design, technology decisions | shishigami |
+| **implement** | Deep coding, refactoring | calcifer |
+| **review** | Code review, audit | enma |
+| **research** | Large-scale analysis | tasogare |
+| **document** | Documentation | phoenix |
 
 ## Routing Patterns
 
-- `@explore [query]` → hermes
-- `@architect [question]` → oracle
-- `@implement [task]` → hephaestus
-- `@review [code]` → momus
+- `@explore [query]` → nekobasu (猫巴士)
+- `@architect [question]` → shishigami (山兽神)
+- `@implement [task]` → calcifer (火魔)
+- `@review [code]` → enma (阎魔王)
 
 ## Auto-Routing
 

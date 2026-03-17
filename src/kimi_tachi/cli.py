@@ -76,14 +76,14 @@ def install(
     
     typer.echo("\n✨ kimi-tachi installed successfully!")
     typer.echo(f"\nUsage:")
-    typer.echo(f"  kimi-tachi run              # Start with sisyphus (default)")
-    typer.echo(f"  kimi-tachi run --agent oracle   # Start with oracle")
-    typer.echo(f"  kimi --agent {KIMI_TACHI_DIR / 'sisyphus.yaml'}")
+    typer.echo(f"  kimi-tachi run              # Start with kamaji (default)")
+    typer.echo(f"  kimi-tachi run --agent shishigami   # Start with shishigami")
+    typer.echo(f"  kimi --agent {KIMI_TACHI_DIR / 'kamaji.yaml'}")
 
 
 @app.command()
 def run(
-    agent: Annotated[str, typer.Option("--agent", "-a", help="Agent to use")] = "sisyphus",
+    agent: Annotated[str, typer.Option("--agent", "-a", help="Agent to use")] = "kamaji",
     yolo: Annotated[bool, typer.Option("--yolo", "-y", help="Auto-approve all actions")] = False,
     plan: Annotated[bool, typer.Option("--plan", "-p", help="Start in plan mode")] = False,
     work_dir: Annotated[str, typer.Option("--work-dir", "-w", help="Working directory")] = ".",
@@ -105,14 +105,14 @@ def run(
         # Note: Kimi CLI may not have --plan flag, use /plan command instead
         typer.echo("Note: Plan mode will be activated via /plan command after startup")
     
-    typer.echo(f"🚀 Starting kimi-tachi with {agent}...")
+    typer.echo(f"🎌 Starting kimi-tachi with {agent}...")
     subprocess.run(cmd)
 
 
 @app.command()
 def do(
     prompt: str,
-    agent: Annotated[str, typer.Option("--agent", "-a")] = "sisyphus",
+    agent: Annotated[str, typer.Option("--agent", "-a")] = "kamaji",
     yolo: Annotated[bool, typer.Option("--yolo", "-y")] = True,
 ):
     """One-shot mode: execute a single prompt and exit."""
@@ -145,13 +145,13 @@ def list_agents():
     typer.echo("Available agents (七人衆):\n")
     
     agents = {
-        "sisyphus": "Task Orchestrator - The commander who coordinates the squad",
-        "oracle": "Architecture Consultant - For complex technical decisions",
-        "hermes": "Code Explorer - Fast exploration and navigation",
-        "hephaestus": "Implementation Expert - Deep coding and refactoring",
-        "momus": "Code Reviewer - Quality assurance and audits",
-        "prometheus": "Research Planner - Large-scale analysis and planning",
-        "librarian": "Knowledge Manager - Documentation and information retrieval",
+        "kamaji": "Boiler Room Chief - The six-armed coordinator (釜爺)",
+        "shishigami": "Forest Deity - Architecture and ancient wisdom (シシ神)",
+        "nekobasu": "Cat Bus Express - Fast exploration with twelve legs (猫バス)",
+        "calcifer": "Fire Demon - Powers the castle with code (カルシファー)",
+        "enma": "King of Afterlife - Judges code quality strictly (閻魔大王)",
+        "tasogare": "Twilight Hour - Connects problem and solution (黄昏時)",
+        "phoenix": "Eternal Observer - Knowledge across time (火の鳥)",
     }
     
     for agent_file in sorted(KIMI_TACHI_DIR.glob("*.yaml")):
