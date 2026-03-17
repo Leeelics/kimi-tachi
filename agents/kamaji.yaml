@@ -2,7 +2,6 @@ version: 1
 agent:
   name: "kamaji"
   extend: default
-  system_prompt_path: ./system.md
   system_prompt_args:
     ROLE: "Boiler Room Chief"
     ROLE_ADDITIONAL: |
