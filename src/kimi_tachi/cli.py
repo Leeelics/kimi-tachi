@@ -326,6 +326,157 @@ def status():
         typer.echo(f"  ✓ Skills installed: {skill_count}")
     else:
         typer.echo(f"  ✗ Skills: Not installed")
+    
+    # Check config
+    config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
+    if config_file.exists():
+        default = _get_saved_default_agent()
+        typer.echo(f"  ✓ Config: Default agent = {default or 'not set'}")
+
+
+@app.command()
+def uninstall(
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation prompt")] = False,
+    keep_config: Annotated[bool, typer.Option("--keep-config", help="Keep configuration file")] = False,
+):
+    """Uninstall kimi-tachi - remove agents, skills, and configuration."""
+    
+    typer.echo("🗑️  kimi-tachi Uninstall\n")
+    
+    # Check if installed
+    if not KIMI_TACHI_DIR.exists() and not (KIMI_CONFIG_DIR / "skills").exists():
+        typer.echo("❌ kimi-tachi is not installed.")
+        return
+    
+    # Show what will be removed
+    typer.echo("The following will be removed:\n")
+    
+    if KIMI_TACHI_DIR.exists():
+        agent_count = len(list(KIMI_TACHI_DIR.glob("*.yaml")))
+        typer.echo(f"  📁 Agents: {KIMI_TACHI_DIR}")
+        typer.echo(f"     ({agent_count} agents)")
+    
+    skills_dir = KIMI_CONFIG_DIR / "skills"
+    if skills_dir.exists():
+        kimi_skills = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        if kimi_skills:
+            typer.echo(f"  📁 Skills: {skills_dir}")
+            for skill in kimi_skills:
+                typer.echo(f"     - {skill}")
+    
+    if not keep_config:
+        config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
+        if config_file.exists():
+            typer.echo(f"  ⚙️  Config: {config_file}")
+    
+    typer.echo()
+    
+    # Confirmation
+    if not force:
+        confirm = typer.prompt("Are you sure you want to uninstall? [y/N]", default="n")
+        if confirm.lower() not in ("y", "yes"):
+            typer.echo("\n❌ Uninstall cancelled.")
+            return
+    
+    # Remove agents
+    if KIMI_TACHI_DIR.exists():
+        try:
+            shutil.rmtree(KIMI_TACHI_DIR)
+            typer.echo(f"  ✓ Removed agents")
+        except Exception as e:
+            typer.echo(f"  ✗ Failed to remove agents: {e}", err=True)
+    
+    # Remove skills
+    skills_dir = KIMI_CONFIG_DIR / "skills"
+    if skills_dir.exists():
+        for skill_dir in skills_dir.iterdir():
+            if skill_dir.is_dir():
+                try:
+                    shutil.rmtree(skill_dir)
+                    typer.echo(f"  ✓ Removed skill: {skill_dir.name}")
+                except Exception as e:
+                    typer.echo(f"  ✗ Failed to remove skill {skill_dir.name}: {e}", err=True)
+    
+    # Remove config
+    if not keep_config:
+        config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
+        if config_file.exists():
+            try:
+                config_file.unlink()
+                typer.echo(f"  ✓ Removed config")
+            except Exception as e:
+                typer.echo(f"  ✗ Failed to remove config: {e}", err=True)
+    
+    typer.echo("\n✨ kimi-tachi uninstalled successfully!")
+    typer.echo("\nTo reinstall, run:")
+    typer.echo("  kimi-tachi install")
+
+
+@app.command()
+def reset(
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation prompt")] = False,
+):
+    """Reset kimi-tachi to fresh install state (uninstall + install)."""
+    
+    typer.echo("🔄 kimi-tachi Reset\n")
+    typer.echo("This will uninstall and then reinstall kimi-tachi.\n")
+    
+    # Confirmation
+    if not force:
+        confirm = typer.prompt("Are you sure? [y/N]", default="n")
+        if confirm.lower() not in ("y", "yes"):
+            typer.echo("\n❌ Reset cancelled.")
+            return
+    
+    # Uninstall (keep config temporarily)
+    typer.echo("\n📦 Step 1: Uninstalling...")
+    try:
+        # Remove agents
+        if KIMI_TACHI_DIR.exists():
+            shutil.rmtree(KIMI_TACHI_DIR)
+            typer.echo("  ✓ Removed agents")
+        
+        # Remove skills
+        skills_dir = KIMI_CONFIG_DIR / "skills"
+        if skills_dir.exists():
+            for skill_dir in list(skills_dir.iterdir()):
+                if skill_dir.is_dir():
+                    shutil.rmtree(skill_dir)
+            typer.echo("  ✓ Removed skills")
+    except Exception as e:
+        typer.echo(f"  ✗ Error during uninstall: {e}", err=True)
+        return
+    
+    # Reinstall
+    typer.echo("\n📦 Step 2: Reinstalling...")
+    try:
+        # Re-run install logic
+        KIMI_TACHI_DIR.mkdir(parents=True, exist_ok=True)
+        (KIMI_CONFIG_DIR / "skills").mkdir(exist_ok=True)
+        
+        # Copy agents
+        agents_source = PACKAGE_DIR / "agents"
+        if agents_source.exists():
+            for agent_file in agents_source.glob("*.yaml"):
+                shutil.copy2(agent_file, KIMI_TACHI_DIR / agent_file.name)
+            typer.echo(f"  ✓ Installed {len(list(agents_source.glob('*.yaml')))} agents")
+        
+        # Copy skills
+        skills_source = PACKAGE_DIR / "skills"
+        if skills_source.exists():
+            for skill_dir in skills_source.iterdir():
+                if skill_dir.is_dir():
+                    dest = KIMI_CONFIG_DIR / "skills" / skill_dir.name
+                    shutil.copytree(skill_dir, dest)
+            typer.echo(f"  ✓ Installed {len(list(skills_source.iterdir()))} skills")
+        
+    except Exception as e:
+        typer.echo(f"  ✗ Error during reinstall: {e}", err=True)
+        return
+    
+    typer.echo("\n✨ kimi-tachi reset complete!")
+    typer.echo("\nYour configuration has been preserved.")
+    typer.echo("Run 'kimi-tachi setup' to reconfigure if needed.")
 
 
 def main():
