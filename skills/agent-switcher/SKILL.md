@@ -11,7 +11,19 @@ Switch to a specialized kimi-tachi anime agent.
 
 ## Usage
 
-Type `/agent:<name>` followed by your request:
+### Starting kimi-tachi
+
+```bash
+# Start with kamaji (coordinator)
+kimi --agent-file ~/.kimi/agents/kimi-tachi/kamaji.yaml
+
+# Or start with a specific agent directly
+kimi --agent-file ~/.kimi/agents/kimi-tachi/shishigami.yaml
+```
+
+### Switching Agents in Conversation
+
+Once inside kimi, type `/agent:<name>` followed by your request:
 
 ```
 /agent:shishigami 如何设计这个缓存系统？

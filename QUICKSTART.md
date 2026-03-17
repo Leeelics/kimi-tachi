@@ -10,50 +10,49 @@ pip install kimi-tachi
 
 # 安装到 Kimi CLI（复制 agents 和 skills）
 kimi-tachi install
+
+# 配置默认角色（可选）
+kimi-tachi setup
 ```
 
 ## 基础使用
 
-### 1. 使用总协调启动
+### 1. 启动 kimi-tachi
 
 ```bash
-# 默认使用 kamaji (釜爺)
-kimi-tachi run
+# 使用 kamaji (釜爺) 启动 - 总协调角色
+kimi --agent-file ~/.kimi/agents/kimi-tachi/kamaji.yaml
 
-# 等同于
-kimi-tachi run --agent kamaji
+# 或者使用其他角色直接启动
+kimi --agent-file ~/.kimi/agents/kimi-tachi/shishigami.yaml  # 架构师
+kimi --agent-file ~/.kimi/agents/kimi-tachi/calcifer.yaml    # 实现专家
 ```
 
-### 2. 使用特定角色
+### 2. 在对话中切换角色
 
-```bash
+启动 kimi 后，使用 `/agent:<name>` 切换角色：
+
+```
 # 架构咨询 - 山兽神
-kimi-tachi run --agent shishigami
+> /agent:shishigami 如何设计这个缓存系统？
 
-# 快速探索 - 猫巴士
-kimi-tachi run --agent nekobasu
+# 快速探索 - 猫巴士  
+> /agent:nekobasu 找出所有 API 端点
 
 # 代码实现 - 火魔
-kimi-tachi run --agent calcifer
+> /agent:calcifer 实现用户认证功能
 
 # 代码审查 - 阎魔王
-kimi-tachi run --agent enma
+> /agent:enma 审查这段代码
 
-# Plan Mode - 黄昏
-kimi-tachi run --agent tasogare --plan
+# 规划研究 - 黄昏
+> /agent:tasogare 帮我规划这个项目
 
 # 知识查询 - 火之鸟
-kimi-tachi run --agent phoenix
-```
+> /agent:phoenix 找一下相关文档
 
-### 3. One-shot 模式
-
-```bash
-# 单次任务，无需交互
-kimi-tachi do "实现用户登录功能"
-
-# 指定角色
-kimi-tachi do --agent calcifer "重构这个函数"
+# 返回总协调
+> /agent:kamaji 总结一下
 ```
 
 ## 使用示例
@@ -61,24 +60,27 @@ kimi-tachi do --agent calcifer "重构这个函数"
 ### 新功能开发流程
 
 ```bash
-# 启动总协调
-kimi-tachi run
-
-# 在对话中：
-> 帮我实现一个用户认证系统
-
-# kamaji 会自动：
-# 1. 调用 tasogare 制定计划
-# 2. 调用 nekobasu 探索代码
-# 3. 调用 calcifer 实现
-# 4. 调用 enma 审查
+# 1. 启动总协调
+kimi --agent-file ~/.kimi/agents/kimi-tachi/kamaji.yaml
 ```
 
-### 直接调用 Kimi CLI
+在对话中：
+```
+> 帮我实现一个用户认证系统
 
-```bash
-# 安装后，Agent 已复制到 ~/.kimi/agents/kimi-tachi/
-kimi --agent ~/.kimi/agents/kimi-tachi/calcifer.yaml
+[kamaji 分析任务并协调]
+
+> /agent:shishigami 设计架构
+[shishigami 提供架构建议]
+
+> /agent:calcifer 按照架构实现
+[calcifer 编写代码]
+
+> /agent:enma 审查代码
+[enma 审查并提供反馈]
+
+> /agent:calcifer 修复问题
+[calcifer 修复代码]
 ```
 
 ## 查看可用角色
@@ -89,27 +91,31 @@ kimi-tachi list-agents
 
 输出：
 ```
-Available Agents:
-  - kamaji     (釜爺)    - 总协调
-  - shishigami (山兽神)  - 架构师
-  - nekobasu   (猫巴士)  - 侦察兵
-  - calcifer   (火魔)    - 工匠
-  - enma       (阎魔王)  - 审查员
-  - tasogare   (黄昏)    - 规划师
-  - phoenix    (火之鸟)  - 记忆
+Available agents (七人衆):
+
+  calcifer        - Fire Demon - Powers the castle with code (カルシファー)
+  enma            - King of Afterlife - Judges code quality strictly (閻魔大王)
+  kamaji          - Boiler Room Chief - The six-armed coordinator (釜爺)
+  nekobasu        - Cat Bus Express - Fast exploration with twelve legs (猫バス)
+  phoenix         - Eternal Observer - Knowledge across time (火の鳥)
+  shishigami      - Forest Deity - Architecture and ancient wisdom (シシ神)
+  tasogare        - Twilight Hour - Connects problem and solution (黄昏時)
 ```
 
-## 配置
+## CLI 命令
 
-编辑 `~/.kimi/config.toml`：
+```bash
+# 查看状态
+kimi-tachi status
 
-```toml
-[kimi_tachi]
-default_agent = "kamaji"
+# 重新配置默认角色
+kimi-tachi setup
 
-[kimi_tachi.agents]
-kamaji.model = "kimi-k2.5"
-calcifer.yolo = false
+# 重置安装
+kimi-tachi reset
+
+# 完全卸载
+kimi-tachi uninstall
 ```
 
 ## 故障排查
@@ -123,12 +129,11 @@ kimi-tachi status
 ### 重新安装
 
 ```bash
-# 删除旧配置
-rm -rf ~/.kimi/agents/kimi-tachi
-rm -rf ~/.kimi/skills/todo-enforcer
-rm -rf ~/.kimi/skills/category-router
+# 重置到干净状态
+kimi-tachi reset
 
-# 重新安装
+# 或者手动删除后重装
+kimi-tachi uninstall
 kimi-tachi install
 ```
 

@@ -103,7 +103,7 @@ def _configure_default_agent():
             selected = agents_list[idx - 1][0]
             _save_default_agent(selected)
             typer.echo(f"\n✅ Default agent set to: {AGENTS[selected]['name']}")
-            typer.echo(f"   You can now run 'kimi --agent {KIMI_TACHI_DIR / selected}.yaml'")
+            typer.echo(f"   You can now run 'kimi --agent-file {KIMI_TACHI_DIR / selected}.yaml'")
             return selected
         else:
             typer.echo("\n⚠️  Invalid choice. Defaulting to kamaji.")
@@ -215,7 +215,7 @@ def install(
             typer.echo(f"   Run 'kimi-tachi setup' to change it.")
     
     typer.echo(f"\n🎌 Usage:")
-    typer.echo(f"  kimi --agent {KIMI_TACHI_DIR}/kamaji.yaml")
+    typer.echo(f"  kimi --agent-file {KIMI_TACHI_DIR}/kamaji.yaml")
     typer.echo(f"  /agent:shishigami  (switch agents in conversation)")
 
 
@@ -475,8 +475,9 @@ def reset(
         return
     
     typer.echo("\n✨ kimi-tachi reset complete!")
-    typer.echo("\nYour configuration has been preserved.")
-    typer.echo("Run 'kimi-tachi setup' to reconfigure if needed.")
+    typer.echo("\nStart using kimi-tachi:")
+    typer.echo(f"  kimi --agent-file {KIMI_TACHI_DIR}/kamaji.yaml")
+    typer.echo("\nOr run 'kimi-tachi setup' to configure default agent.")
 
 
 def main():
