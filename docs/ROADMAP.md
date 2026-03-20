@@ -1,6 +1,6 @@
 # kimi-tachi Roadmap
 
-> 基于 kimi-cli 源码分析的策略性迭代计划
+> 基于 kimi-cli 源码分析和 hello-agents 最佳实践的策略性迭代计划
 > 
 > 最后更新: 2026-03-20
 
@@ -39,15 +39,126 @@ for subagent_name, subagent_spec in agent_spec.subagents.items():
 | **Session 持久化** | 1.14+ | ⭐⭐⭐ 高 | 动态 subagent 可恢复 |
 | **Context Compaction** | - | ⭐⭐⭐ 高 | 自动上下文压缩 |
 
+### hello-agents 关键洞察
+
+通过分析 [hello-agents](https://github.com/datawhalechina/hello-agents) 项目，我们获得以下核心启示：
+
+#### 1. Skill 三级分层架构（核心抽象）
+
+```
+┌─────────────────────────────────────────┐
+│ L1: Metadata                            │
+│     始终加载 (~100 词)                   │
+│     → AI 判断是否激活该技能              │
+├─────────────────────────────────────────┤
+│ L2: SKILL.md body                       │
+│     触发后加载 (< 5k 词)                 │
+│     → 具体操作指令                       │
+├─────────────────────────────────────────┤
+│ L3: Bundled resources                   │
+│     按需加载 (无上限)                     │
+│     - scripts/: 确定性脚本               │
+│     - references/: 参考资料              │
+│     - assets/: 产出物模板                │
+└─────────────────────────────────────────┘
+```
+
+**关键原则**: Scripts 执行而不读入，零 token 成本
+
+#### 2. 自由度光谱设计
+
+| 自由度 | 实现方式 | 适用场景 | kimi-tachi 应用 |
+|--------|----------|----------|-----------------|
+| **高** | 文字指令 | 创造性任务 | tasogare（规划） |
+| **中** | 伪代码/带参数脚本 | 有最佳实践但允许变通 | shishigami（架构） |
+| **低** | 具体脚本、少量参数 | 脆弱操作 | calcifer（代码生成） |
+
+#### 3. 多 Agent 协作模式
+
+| 模式 | 特点 | kimi-tachi 适用性 |
+|------|------|-------------------|
+| **对话驱动** (AutoGen) | 自然语言协商 | ⭐⭐⭐ 当前设计 |
+| **消息驱动** (AgentScope) | MsgHub 解耦通信 | ⭐⭐⭐ 优化方向 |
+| **角色扮演** (CAMEL) | Inception Prompting | ⭐⭐ 人设增强 |
+| **状态机驱动** (LangGraph) | 图结构控制 | ⭐⭐ workflow 模式 |
+
+#### 4. 反模式清单（Anti-Patterns）
+
+> **给 AI 写指令，而不是给人写文档**
+
+用"不要做什么"代替正面描述，统一使用祈使语气：
+
+```markdown
+## 不要这样做
+
+| 反模式 | 症状 | 修正方式 |
+|--------|------|----------|
+| 响应过长 | 超过 500 字 | 精简到核心要点 |
+| 缺少代码示例 | 纯文字描述 | 每个概念配代码 |
+```
+
 ---
 
 ## 🗺️ 迭代路线图
+
+### Phase 0: Skill 架构升级（2-3 周）【前置阶段】
+
+**目标**: 建立 Skill 三级分层架构，优化提示词工程
+
+#### 0.1 Skill 结构重构
+
+```
+skills/
+└── example/
+    ├── SKILL.md              # L2: 指令（精简）
+    ├── scripts/              # L3: 确定性脚本
+    │   └── generate.py
+    └── references/           # L3: 参考资料
+        └── best-practices.md
+```
+
+**具体行动**:
+- [ ] 设计 Skill 目录新标准（三级分层）
+- [ ] 重构现有 skills（todo-enforcer, category-router）
+- [ ] 创建 Skill 模板和开发指南
+- [ ] 更新 AGENTS.md 中的 Skill 开发规范
+
+#### 0.2 Agent 提示词优化
+
+**应用自由度光谱设计**:
+
+| Agent | 自由度 | 优化方向 |
+|-------|--------|----------|
+| **tasogare** | 高 | 增加创造性指令，减少约束 |
+| **shishigami** | 中 | 提供架构模式选项，允许变通 |
+| **calcifer** | 低 | 提供代码生成脚本，锁定风格 |
+| **enma** | 中 | 提供检查清单，标准化审查 |
+
+**引入反模式清单**:
+
+```markdown
+## kamaji 的反模式清单
+
+| 反模式 | 症状 | 修正方式 |
+|--------|------|----------|
+| 直接暴露子 Agent 输出 | 用户看到原始 JSON | 必须整合后输出 |
+| 跳过 Credits 部分 | 忘记致谢工作人员 | 每次响应必须包含 |
+```
+
+**具体行动**:
+- [ ] 为每个 Agent 编写反模式清单
+- [ ] 优化 system prompt 为祈使语气
+- [ ] 测试优化后的 Agent 表现
+
+**里程碑**: v0.1.5 - Skill 架构升级版
+
+---
 
 ### Phase 1: 适配与稳定（4-6 周）
 
 **目标**: 解决 MCP 问题，适配 kimi-cli 最新能力
 
-#### Week 1-2: MCP 问题 Workaround
+#### 1.1 MCP 问题 Workaround
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -71,7 +182,7 @@ for subagent_name, subagent_spec in agent_spec.subagents.items():
 - [ ] 更新 `agents/*.yaml`，确保 subagent 不重复加载 MCP
 - [ ] 在文档中添加 MCP 使用注意事项
 
-#### Week 3-4: Plan Mode 集成
+#### 1.2 Plan Mode 集成
 
 利用 kimi-cli 原生的 Plan Mode 优化编排流程：
 
@@ -103,7 +214,7 @@ tasogare 规划 ──→ 执行          kamaji 分析
 - [ ] 测试复杂任务的 Plan Mode 自动触发
 - [ ] 优化 `tasogare.yaml`，专注于计划生成
 
-#### Week 5-6: Background Bash 集成
+#### 1.3 Background Bash 集成
 
 ```
 使用场景:
@@ -132,7 +243,7 @@ tasogare 规划 ──→ 执行          kamaji 分析
 
 ### Phase 2: 架构优化（6-8 周）
 
-**目标**: 重构 Agent 层级，优化上下文传递
+**目标**: 重构 Agent 层级，引入消息驱动架构
 
 #### 2.1 Agent 层级重新设计
 
@@ -160,7 +271,47 @@ tasogare 规划 ──→ 执行          kamaji 分析
 结果: 只有 kamaji 加载 MCP（如果需要）
 ```
 
-#### 2.2 Workflow 引擎完善
+#### 2.2 消息总线架构（新增）
+
+参考 AgentScope 的消息驱动设计：
+
+```python
+# 消息总线设计
+class MessageHub:
+    """Agent 间消息中心"""
+    
+    async def send(self, from_agent: str, to_agent: str, message: Message):
+        """点对点消息"""
+        
+    async def broadcast(self, from_agent: str, message: Message):
+        """广播消息"""
+        
+    async def multicast(self, from_agent: str, to_agents: list[str], message: Message):
+        """组播消息"""
+```
+
+**应用场景**:
+```
+协作场景:
+┌─────────────────────────────────────────┐
+│  kamaji (协调器)                         │
+│     │                                   │
+│     ├── 发送任务给 nekobasu              │
+│     │     ↓                             │
+│     ├── nekobasu 完成后广播结果          │
+│     │     ↓                             │
+│     ├── calcifer 和 enma 并行处理        │
+│     │     ↓                             │
+│     └── 收集结果，整合输出               │
+└─────────────────────────────────────────┘
+```
+
+**具体行动**:
+- [ ] 设计 MessageHub 接口
+- [ ] 改造 Task 工具为消息驱动模式
+- [ ] 实现消息持久化和重放
+
+#### 2.3 Workflow 引擎完善
 
 ```python
 # 目标: 完善的 workflow 类型支持
@@ -183,7 +334,7 @@ workflows = {
 }
 ```
 
-#### 2.3 上下文传递优化
+#### 2.4 上下文传递优化
 
 ```
 优化方向:
@@ -210,34 +361,38 @@ workflows = {
 
 ### Phase 3: 记忆与智能（8-12 周）
 
-**目标**: 实现跨角色记忆共享，提升智能化水平
+**目标**: 实现跨角色记忆共享，参考 hello-agents 记忆分层设计
 
-#### 3.1 记忆系统层级
+#### 3.1 记忆系统层级（基于 hello-agents Chapter 8）
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  记忆层级设计                                            │
+│  记忆层级设计（参考 hello-agents）                        │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  ┌─────────────┐  Session 级（kimi-cli 原生）           │
-│  │  短期记忆   │  - approval 状态                        │
-│  │  (自动)     │  - 动态 subagent 状态                   │
-│  │             │  - 当前会话上下文                       │
+│  ┌─────────────┐  Working Memory（工作记忆）             │
+│  │  短期记忆   │  - 当前会话上下文                       │
+│  │  (kimi-cli) │  - approval 状态                        │
+│  │             │  - 动态 subagent 状态                   │
 │  └──────┬──────┘                                        │
 │         │                                               │
-│  ┌──────▼──────┐  Project 级（kimi-tachi 实现）         │
+│  ┌──────▼──────┐  Episodic Memory（情景记忆）            │
 │  │  中期记忆   │  - .kimi-tachi/memory/                  │
-│  │  (持久化)   │    - codebase/symbols.json              │
-│  │             │    - codebase/patterns.json             │
-│  │             │    - sessions/history.json              │
-│  │             │    - learnings/user_prefs.json          │
-│  │             │    - learnings/project_rules.json       │
+│  │  (kimi-     │    - sessions/history.json              │
+│  │   tachi)    │    - sessions/summary.json              │
+│  │             │    - sessions/decisions.json            │
 │  └──────┬──────┘                                        │
 │         │                                               │
-│  ┌──────▼──────┐  Knowledge 级（phoenix 角色）          │
-│  │  长期知识   │  - 跨项目最佳实践                       │
-│  │  (知识库)   │  - 技术栈文档索引                       │
-│  │             │  - 常见模式库                           │
+│  ┌──────▼──────┐  Semantic Memory（语义记忆）            │
+│  │  长期知识   │  - 代码库理解（符号、模式）              │
+│  │  (phoenix)  │  - 技术栈文档索引                       │
+│  │             │  - 跨项目最佳实践                       │
+│  └──────┬──────┘                                        │
+│         │                                               │
+│  ┌──────▼──────┐  Procedural Memory（程序记忆）          │
+│  │  技能记忆   │  - Skill 执行记录                       │
+│  │  (skills)   │  - 常用操作序列                         │
+│  │             │  - 用户习惯模式                         │
 │  └─────────────┘                                        │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
@@ -248,24 +403,61 @@ workflows = {
 ```
 .kimi-tachi/
 ├── memory/
-│   ├── codebase/              # 代码库理解缓存
-│   │   ├── symbols.json       # 符号索引（类、函数、变量）
-│   │   ├── patterns.json      # 代码模式（架构、约定）
-│   │   └── dependencies.json  # 依赖关系图
-│   ├── sessions/              # 会话历史
-│   │   ├── summary.json       # 会话摘要
-│   │   └── decisions.json     # 关键决策记录
-│   └── learnings/             # 学习到的知识
-│       ├── user_prefs.json    # 用户偏好
-│       ├── project_rules.json # 项目特定规则
-│       └── common_fixes.json  # 常见修复模式
+│   ├── working/               # Working Memory 快照
+│   │   └── current_session.json
+│   │
+│   ├── episodic/              # Episodic Memory
+│   │   ├── sessions/          # 会话历史
+│   │   │   ├── 2026-03-20-001.json
+│   │   │   └── summary.json   # 会话摘要索引
+│   │   ├── decisions.json     # 关键决策记录
+│   │   └── learnings.json     # 学习到的经验
+│   │
+│   ├── semantic/              # Semantic Memory
+│   │   ├── codebase/          # 代码库理解
+│   │   │   ├── symbols.json   # 符号索引（类、函数、变量）
+│   │   │   ├── patterns.json  # 代码模式（架构、约定）
+│   │   │   └── dependencies.json  # 依赖关系图
+│   │   ├── docs/              # 文档索引
+│   │   │   └── tech_stack.json
+│   │   └── best_practices/    # 最佳实践库
+│   │
+│   └── procedural/            # Procedural Memory
+│       ├── skill_history/     # Skill 执行记录
+│       └── user_patterns.json # 用户操作模式
+│
 ├── state/
 │   └── workflow_state.json    # 当前 workflow 状态
+│
 └── cache/
     └── file_index.json        # 文件索引缓存
 ```
 
-#### 3.3 智能路由
+#### 3.3 记忆增强 Agent 设计
+
+**phoenix（图书管理员）记忆增强**:
+
+```yaml
+# phoenix.yaml 增强
+system_prompt_additions: |
+  你是火之鸟，拥有永恒的记忆。你可以访问以下记忆：
+  
+  ## Working Memory（当前会话）
+  - 当前任务上下文
+  - 已执行的操作序列
+  
+  ## Episodic Memory（历史经验）
+  - 类似任务的过往解决方案
+  - 用户的历史偏好
+  
+  ## Semantic Memory（知识库）
+  - 项目代码结构和模式
+  - 技术栈文档
+  
+  当用户询问时，主动检索相关记忆提供上下文。
+```
+
+**智能任务路由**:
 
 ```
 基于历史学习的 Agent 选择:
@@ -274,13 +466,13 @@ workflows = {
    │
    ▼
 ┌─────────────┐
-│  模式匹配   │ ← 查询 project_rules.json
+│  模式匹配   │ ← 查询 procedural/skill_history.json
 │  (phoenix)  │
 └──────┬──────┘
        │
        ▼
 ┌─────────────┐
-│  历史相似度 │ ← 查询 sessions/summary.json
+│  历史相似度 │ ← 查询 episodic/summary.json
 │  分析       │
 └──────┬──────┘
        │
@@ -295,9 +487,10 @@ workflows = {
 ```
 
 **具体行动**:
-- [ ] 实现代码库符号索引（nekobasu 增强）
-- [ ] 实现项目记忆存储机制
-- [ ] 增强 phoenix 角色的知识检索能力
+- [ ] 实现 Working Memory 管理器
+- [ ] 实现 Episodic Memory（会话存储与检索）
+- [ ] 实现 Semantic Memory（代码库索引）
+- [ ] 增强 phoenix 角色的记忆检索能力
 - [ ] 开发智能任务路由算法
 
 **里程碑**: v0.4.0 - 记忆增强版
@@ -308,33 +501,29 @@ workflows = {
 
 **目标**: 构建 Skills 生态，支持自定义角色
 
-#### 4.1 Skills 扩展
+#### 4.1 Skills 扩展（基于三级分层架构）
 
 ```
 skills/
 ├── dev/                          # 开发相关
 │   ├── code-generator/           # 代码生成
-│   │   └── SKILL.md
+│   │   ├── SKILL.md              # L2: 指令
+│   │   └── scripts/              # L3: 确定性脚本
+│   │       └── generate.py
 │   ├── test-writer/              # 测试编写
-│   │   └── SKILL.md
 │   ├── doc-generator/            # 文档生成
-│   │   └── SKILL.md
 │   └── api-client/               # API 客户端生成
-│       └── SKILL.md
+│
 ├── review/                       # 代码审查
 │   ├── security-check/           # 安全检查
-│   │   └── SKILL.md
 │   ├── performance/              # 性能分析
-│   │   └── SKILL.md
 │   └── style-check/              # 代码风格
-│       └── SKILL.md
+│
 ├── project/                      # 项目管理
 │   ├── onboarding/               # 新成员引导
-│   │   └── SKILL.md
 │   ├── release/                  # 发布助手
-│   │   └── SKILL.md
 │   └── changelog/                # 变更日志
-│       └── SKILL.md
+│
 └── anime/                        # 动漫角色（示例）
     ├── ghibli-style/             # 吉卜力风格建议
     └── character-voice/          # 角色语气转换
@@ -353,6 +542,11 @@ custom_agent_template:
       你专注于前端开发，擅长 React 和 TypeScript。
       你重视组件的可复用性和可访问性。
     
+    # 反模式清单（新增）
+    anti_patterns: |
+      | 反模式 | 症状 | 修正方式 |
+      | 忽略 TypeScript 类型 | any 滥用 | 强制类型定义 |
+    
     skills:                      # 关联的 skills
       - "dev/code-generator"
       - "review/style-check"
@@ -360,6 +554,9 @@ custom_agent_template:
     tools_priority:              # 工具使用偏好
       high: ["Glob", "Grep", "StrReplaceFile"]
       low: ["Shell"]
+    
+    # 自由度设置（新增）
+    freedom_level: "medium"      # high/medium/low
 ```
 
 #### 4.3 社区与分享
@@ -392,15 +589,26 @@ custom_agent_template:
 
 ## 🎯 近期行动项（本周可开始）
 
+### 优先级 0: Skill 架构升级
+
+```bash
+# 1. 设计新的 Skill 目录结构
+mkdir -p skills/example/{scripts,references}
+
+# 2. 编写反模式清单模板
+# 参考 hello-agents Extra08
+```
+
+**Action Items**:
+- [ ] 为现有 skills 添加 scripts/ 目录
+- [ ] 为每个 Agent 编写反模式清单
+- [ ] 优化 system prompt 为祈使语气
+
 ### 优先级 1: MCP 问题缓解
 
 ```bash
-# 1. 测试无 MCP 环境下的表现
+# 测试无 MCP 环境下的表现
 kimi --agent-file agents/kamaji.yaml
-
-# 2. 量化 MCP 重复启动的影响
-# 在启用 MCP 时观察进程数量
-ps aux | grep -E "playwright|context7" | wc -l
 ```
 
 **Action Items**:
@@ -423,17 +631,6 @@ kimi --agent-file agents/kamaji.yaml
 - [ ] 测试 3-5 个复杂任务的 Plan Mode 流程
 - [ ] 收集反馈，优化触发条件和呈现方式
 
-### 优先级 3: Agent 配置优化
-
-```yaml
-# 目标: 简化 fixed subagents，避免 MCP 重复加载
-# 方式: 在 system_prompt 中指导 kamaji 如何使用 Task 工具
-
-# kamaji.yaml 变更:
-# - 可选: 完全移除 subagents 定义
-# - 或: 保留定义但确保每个 subagent YAML 最小化
-```
-
 ---
 
 ## 📋 与上游协作计划
@@ -444,6 +641,7 @@ kimi --agent-file agents/kamaji.yaml
 | Subagent 间工具共享 | 提议 `shared_toolset` 参数 | Medium | 待评估 |
 | Agent 编排 API | 提议高层编排接口 | Low | 规划中 |
 | Session 状态扩展 | 提议 workflow 状态持久化 | Low | 待评估 |
+| **Skill 三级加载** | 提议标准 Skill 结构规范 | Medium | 待评估 |
 
 ---
 
@@ -451,14 +649,19 @@ kimi --agent-file agents/kamaji.yaml
 
 | 阶段 | 指标 | 目标值 |
 |------|------|--------|
-| Phase 1 | MCP 进程数 | ≤ 2（如使用） |
-| Phase 1 | Plan Mode 触发准确率 | ≥ 80% |
-| Phase 2 | Workflow 完成率 | ≥ 90% |
-| Phase 2 | 上下文重复加载减少 | ≥ 50% |
-| Phase 3 | 记忆命中率 | ≥ 70% |
-| Phase 3 | 任务路由准确率 | ≥ 85% |
-| Phase 4 | Skills 数量 | ≥ 10 |
-| Phase 4 | 社区贡献角色 | ≥ 5 |
+| **Phase 0** | Skill 完成三级分层迁移 | 100% |
+| **Phase 0** | Agent 提示词优化覆盖率 | 100% |
+| **Phase 1** | MCP 进程数 | ≤ 2（如使用） |
+| **Phase 1** | Plan Mode 触发准确率 | ≥ 80% |
+| **Phase 2** | Workflow 完成率 | ≥ 90% |
+| **Phase 2** | 上下文重复加载减少 | ≥ 50% |
+| **Phase 2** | 消息总线延迟 | < 100ms |
+| **Phase 3** | Working Memory 命中率 | ≥ 90% |
+| **Phase 3** | Episodic Memory 检索准确率 | ≥ 80% |
+| **Phase 3** | Semantic Memory 代码库覆盖率 | ≥ 70% |
+| **Phase 3** | 任务路由准确率 | ≥ 85% |
+| **Phase 4** | Skills 数量 | ≥ 10 |
+| **Phase 4** | 社区贡献角色 | ≥ 5 |
 
 ---
 
@@ -466,7 +669,10 @@ kimi --agent-file agents/kamaji.yaml
 
 - [VISION.md](./VISION.md) - 设计理念与角色设定
 - [STATUS.md](./STATUS.md) - 当前状态与进度
+- [AGENTS.md](./AGENTS.md) - 开发指南与规范
 - [BUG_REPORT_MCP_DUPLICATION.md](./BUG_REPORT_MCP_DUPLICATION.md) - MCP 问题详细分析
+- [GITHUB_SETUP.md](./GITHUB_SETUP.md) - CI/CD 配置指南
+- [hello-agents](https://github.com/datawhalechina/hello-agents) - 智能体系统最佳实践参考
 - [kimi-cli CHANGELOG](https://github.com/your-org/kimi-cli/blob/main/CHANGELOG.md) - 上游更新日志
 
 ---
