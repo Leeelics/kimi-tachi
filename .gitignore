@@ -1,4 +1,11 @@
+# ============================================
+# kimi-tachi (君たち) - Python .gitignore
+# Multi-agent task orchestration for Kimi CLI
+# ============================================
+
+# ----------------------------------------
 # Python
+# ----------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -22,15 +29,21 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# ----------------------------------------
 # PyInstaller
+# ----------------------------------------
 *.manifest
 *.spec
 
+# ----------------------------------------
 # Installer logs
+# ----------------------------------------
 pip-log.txt
 pip-delete-this-directory.txt
 
+# ----------------------------------------
 # Unit test / coverage reports
+# ----------------------------------------
 htmlcov/
 .tox/
 .nox/
@@ -45,97 +58,122 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# ----------------------------------------
 # Translations
+# ----------------------------------------
 *.mo
 *.pot
 
-# Django stuff:
+# ----------------------------------------
+# Django/Flask (not used but keep for safety)
+# ----------------------------------------
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
-# Flask stuff:
 instance/
 .webassets-cache
 
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
+# ----------------------------------------
 # Jupyter Notebook
+# ----------------------------------------
 .ipynb_checkpoints
 
+# ----------------------------------------
 # IPython
+# ----------------------------------------
 profile_default/
 ipython_config.py
 
+# ----------------------------------------
 # pyenv
+# ----------------------------------------
 .python-version
 
+# ----------------------------------------
 # pipenv
+# ----------------------------------------
 Pipfile.lock
 
+# ----------------------------------------
 # poetry
+# ----------------------------------------
 poetry.lock
 
+# ----------------------------------------
 # pdm
+# ----------------------------------------
 .pdm.toml
 
+# ----------------------------------------
 # PEP 582
+# ----------------------------------------
 __pypackages__/
 
-# Celery stuff
+# ----------------------------------------
+# Celery
+# ----------------------------------------
 celerybeat-schedule
 celerybeat.pid
 
-# SageMath parsed files
+# ----------------------------------------
+# SageMath
+# ----------------------------------------
 *.sage.py
 
+# ----------------------------------------
 # Environments
+# ----------------------------------------
 .env
-.venv
+.env.local
+.env.*.local
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
 
+# ----------------------------------------
 # Spyder project settings
+# ----------------------------------------
 .spyderproject
 .spyproject
 
+# ----------------------------------------
 # Rope project settings
+# ----------------------------------------
 .ropeproject
 
+# ----------------------------------------
 # mkdocs documentation
+# ----------------------------------------
 /site
 
-# mypy
+# ----------------------------------------
+# Type checkers
+# ----------------------------------------
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
-
-# pytype static type analyzer
 .pytype/
 
+# ----------------------------------------
 # Cython debug symbols
+# ----------------------------------------
 cython_debug/
+
+# ----------------------------------------
+# IDEs and Editors
+# ----------------------------------------
 
 # PyCharm
 .idea/
 
 # VS Code
 .vscode/
+*.code-workspace
 
 # Vim
 *.swp
@@ -147,16 +185,64 @@ cython_debug/
 \#*\#
 \.\#*
 
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------------------
+# Operating Systems
+# ----------------------------------------
+
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
 
 # Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
 
+# Linux
+*~
+.nfs*
+
+# ----------------------------------------
 # kimi-tachi specific
+# ----------------------------------------
+
+# Kimi CLI local config (may contain sensitive info)
 .kimi/
+
+# Backup files
 *.bak
+*.backup
+*~
+
+# Session and state files (user-specific)
+.kimi-tachi/
+sessions/
+
+# Temporary files during development
+/tmp/
+temp/
+.tmp/
+
+# Local test data
+test_data/
+fixtures/local/
+
+# Coverage and reports (generated)
+reports/
+
+# Build artifacts (additional)
+*.zip
+*.tar.gz
+out/
