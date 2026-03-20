@@ -10,6 +10,7 @@
 | [AGENTS.md](./AGENTS.md) | 开发指南、贡献规范、架构说明 | 贡献者、开发者 |
 | [STATUS.md](./STATUS.md) | 当前状态、路线图 | 贡献者、用户 |
 | [ROADMAP.md](./ROADMAP.md) | 详细路线图（基于 kimi-cli 分析） | 贡献者、核心用户 |
+| [GITHUB_SETUP.md](./GITHUB_SETUP.md) | GitHub 设置和 CI/CD 配置 | 维护者 |
 
 ## 角色文档
 

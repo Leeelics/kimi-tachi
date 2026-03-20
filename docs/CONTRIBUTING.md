@@ -233,6 +233,43 @@ Allowed types: `feat`, `fix`, `test`, `refactor`, `chore`, `style`, `docs`, `per
 
 Common scopes: `agent/<name>`, `skill/<name>`, `cli`, `orchestrator`, `docs`
 
+## 🔄 Continuous Integration
+
+We use GitHub Actions for CI/CD. All PRs must pass the following checks:
+
+### Automated Checks
+
+| Check | Tool | Description |
+|-------|------|-------------|
+| **Code Quality** | ruff | Format and lint checking |
+| **Type Check** | ty | Static type analysis |
+| **Tests** | pytest | Unit and integration tests |
+| **Agent Validation** | pyyaml | YAML syntax and consistency |
+| **Documentation** | - | README and docs completeness |
+| **Build** | build | Package build verification |
+
+### Before Submitting PR
+
+Ensure all checks pass locally:
+
+```bash
+# Run all quality checks
+make lint
+make type-check
+make test
+
+# Validate agents
+python -c "import yaml; [yaml.safe_load(open(f)) for f in __import__('glob').glob('agents/*.yaml')]"
+```
+
+### CI Configuration
+
+CI workflows are defined in `.github/workflows/`:
+- `ci.yml` - Runs on every push and PR
+- `release.yml` - Runs on version tags for PyPI release
+
+See [GITHUB_SETUP.md](./GITHUB_SETUP.md) for detailed CI/CD setup instructions.
+
 ## 🧪 Testing
 
 ### Running Tests
