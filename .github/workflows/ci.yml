@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # Job 1: 代码质量检查
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Check code formatting
+        run: ruff format --check src/ tests/
+
+      - name: Lint with ruff
+        run: ruff check src/ tests/
+
+  # Job 2: 类型检查
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Type check with ty
+        run: ty check src/ || true  # ty is optional for now
+
+  # Job 3: 测试
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=src/kimi_tachi --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # Job 4: Agent YAML 验证
+  validate-agents:
+    name: Validate Agent YAMLs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv pip install pyyaml --system
+
+      - name: Validate Agent YAML syntax
+        run: |
+          python << 'EOF'
+          import yaml
+          import sys
+          from pathlib import Path
+
+          agents_dir = Path("agents")
+          errors = []
+
+          for yaml_file in agents_dir.glob("*.yaml"):
+              try:
+                  with open(yaml_file) as f:
+                      yaml.safe_load(f)
+                  print(f"✅ {yaml_file.name}")
+              except yaml.YAMLError as e:
+                  errors.append(f"❌ {yaml_file.name}: {e}")
+
+          if errors:
+              print("\nErrors found:")
+              for error in errors:
+                  print(error)
+              sys.exit(1)
+          else:
+              print("\n✅ All Agent YAMLs are valid!")
+          EOF
+
+      - name: Check Agent consistency
+        run: |
+          python << 'EOF'
+          import yaml
+          import sys
+          from pathlib import Path
+
+          # Check kamaji has all subagents
+          with open("agents/kamaji.yaml") as f:
+              kamaji = yaml.safe_load(f)
+
+          subagents = kamaji.get("agent", {}).get("subagents", {})
+          required = ["shishigami", "nekobasu", "calcifer", "enma", "tasogare", "phoenix"]
+
+          missing = [a for a in required if a not in subagents]
+          if missing:
+              print(f"❌ kamaji.yaml missing subagents: {missing}")
+              sys.exit(1)
+
+          print("✅ kamaji.yaml has all required subagents")
+
+          # Check all subagent files exist
+          for agent in required:
+              agent_file = Path(f"agents/{agent}.yaml")
+              if not agent_file.exists():
+                  print(f"❌ Missing agent file: {agent_file}")
+                  sys.exit(1)
+              print(f"✅ {agent_file.name} exists")
+
+          print("\n✅ All consistency checks passed!")
+          EOF
+
+  # Job 5: 文档检查
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check README.md exists
+        run: |
+          if [ ! -f "README.md" ]; then
+            echo "❌ README.md is missing!"
+            exit 1
+          fi
+          echo "✅ README.md exists"
+
+      - name: Check docs/ directory
+        run: |
+          required_docs=("AGENTS.md" "ROADMAP.md" "CHANGELOG.md")
+          for doc in "${required_docs[@]}"; do
+            if [ ! -f "docs/$doc" ]; then
+              echo "❌ docs/$doc is missing!"
+              exit 1
+            fi
+            echo "✅ docs/$doc exists"
+          done
+
+      - name: Check for broken links (basic)
+        run: |
+          # Check for relative links that might be broken
+          if grep -r "\.md)" docs/ | grep -v "\./" | grep -v "\.\./"; then
+            echo "⚠️ Found potential broken links (links without proper relative path)"
+          fi
+          echo "✅ Link check complete"
+
+  # Job 6: 构建测试
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build dependencies
+        run: pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package with twine
+        run: twine check dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

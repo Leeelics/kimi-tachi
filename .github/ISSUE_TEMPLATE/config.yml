@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/yourusername/kimi-tachi/tree/main/docs
+    about: Check the documentation before creating an issue
+  - name: Discussions
+    url: https://github.com/yourusername/kimi-tachi/discussions
+    about: Ask questions and share ideas

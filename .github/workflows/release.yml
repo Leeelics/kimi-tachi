@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # Job 1: 验证发布
+  verify:
+    name: Verify Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Check version consistency
+        run: |
+          TAG_VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Check pyproject.toml
+          PYPROJECT_VERSION=$(grep "^version" pyproject.toml | head -1 | cut -d'"' -f2)
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "❌ Version mismatch: tag=$TAG_VERSION, pyproject.toml=$PYPROJECT_VERSION"
+            exit 1
+          fi
+          
+          # Check __init__.py
+          INIT_VERSION=$(grep "__version__" src/kimi_tachi/__init__.py | cut -d'"' -f2)
+          if [ "$TAG_VERSION" != "$INIT_VERSION" ]; then
+            echo "❌ Version mismatch: tag=$TAG_VERSION, __init__.py=$INIT_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version consistency check passed: $TAG_VERSION"
+
+      - name: Check CHANGELOG.md
+        run: |
+          TAG_VERSION=${{ steps.get_version.outputs.VERSION }}
+          if ! grep -q "## \[$TAG_VERSION\]" CHANGELOG.md; then
+            echo "❌ CHANGELOG.md does not contain version $TAG_VERSION"
+            exit 1
+          fi
+          echo "✅ CHANGELOG.md contains version $TAG_VERSION"
+
+  # Job 2: 发布到 PyPI
+  release-pypi:
+    name: Release to PyPI
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kimi-tachi
+    permissions:
+      id-token: write  # Required for trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build dependencies
+        run: pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Job 3: 创建 GitHub Release
+  release-github:
+    name: Create GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Extract changelog section for this version
+          NOTES=$(awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1)
+          
+          # If no notes found, use default
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $VERSION"
+          fi
+          
+          # Write to file (handling multiline)
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.release_notes.outputs.NOTES }}
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'a') || contains(steps.get_version.outputs.VERSION, 'b') || contains(steps.get_version.outputs.VERSION, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
