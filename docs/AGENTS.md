@@ -168,7 +168,7 @@ agent:
 ```
 
 **Important**: Due to MCP server duplication issues (see
-[BUG_REPORT_MCP_DUPLICATION.md](BUG_REPORT_MCP_DUPLICATION.md)), subagents should
+[BUG_REPORT_MCP_DUPLICATION.md](./BUG_REPORT_MCP_DUPLICATION.md)), subagents should
 minimize MCP dependencies. Consider using `CreateSubagent` for MCP-requiring tasks.
 
 #### CLI (`src/kimi_tachi/cli.py`)
@@ -496,16 +496,16 @@ its own MCP servers, causing resource duplication.
 2. Use `CreateSubagent` for MCP-requiring tasks
 3. Document MCP usage limitations
 
-See [BUG_REPORT_MCP_DUPLICATION.md](BUG_REPORT_MCP_DUPLICATION.md) for details.
+See [BUG_REPORT_MCP_DUPLICATION.md](./BUG_REPORT_MCP_DUPLICATION.md) for details.
 
 ---
 
 ## Resources
 
-- [VISION.md](VISION.md): Project vision and design philosophy
-- [ROADMAP.md](ROADMAP.md): Development roadmap
-- [STATUS.md](STATUS.md): Current project status
-- [README.md](README.md): User-facing documentation
+- [VISION.md](./VISION.md): Project vision and design philosophy
+- [ROADMAP.md](./ROADMAP.md): Development roadmap
+- [STATUS.md](./STATUS.md): Current project status
+- [README.md](../README.md): User-facing documentation
 
 ### External references
 

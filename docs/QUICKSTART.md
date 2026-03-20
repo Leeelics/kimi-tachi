@@ -246,8 +246,8 @@ kimi --agent-file ~/.kimi/agents/kimi-tachi/kamaji.yaml
 
 ## 下一步
 
-- 阅读 [VISION.md](VISION.md) 了解设计理念
-- 阅读 [README.md](README.md) 查看完整文档
+- 阅读 [VISION.md](./VISION.md) 了解设计理念
+- 阅读 [README.md](../README.md) 查看完整文档
 - 尝试不同的任务类型，观察 kamaji 如何自动编排
 
 ---

@@ -64,7 +64,7 @@ Agents are YAML configurations that define specialized AI assistants.
 - Use anime character names in romanized form (e.g., `kamaji`, `calcifer`)
 - Should reflect the agent's role and personality
 - Check existing agents for inspiration
-- See [VISION.md](VISION.md) for the character system design
+- See [VISION.md](./VISION.md) for the character system design
 
 #### Agent Structure
 
@@ -311,8 +311,8 @@ Include:
 
 ### Understanding kimi-tachi
 
-1. Read [VISION.md](VISION.md) for project philosophy
-2. Read [README.md](README.md) for technical details
+1. Read [VISION.md](./VISION.md) for project philosophy
+2. Read [README.md](../README.md) for technical details
 3. Study existing agents in `agents/`
 4. Study existing skills in `skills/`
 

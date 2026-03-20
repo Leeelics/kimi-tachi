@@ -4,12 +4,12 @@
 
 | 文档 | 内容 | 适合人群 |
 |------|------|----------|
-| [README.md](README.md) | 项目概览、安装、基础使用 | 所有人 |
-| [QUICKSTART.md](QUICKSTART.md) | 快速上手指南 | 新用户 |
-| [VISION.md](VISION.md) | 设计理念、角色设定 | 想深入理解的人 |
-| [AGENTS.md](AGENTS.md) | 开发指南、贡献规范、架构说明 | 贡献者、开发者 |
-| [STATUS.md](STATUS.md) | 当前状态、路线图 | 贡献者、用户 |
-| [ROADMAP.md](ROADMAP.md) | 详细路线图（基于 kimi-cli 分析） | 贡献者、核心用户 |
+| [README.md](../README.md) | 项目概览、安装、基础使用 | 所有人 |
+| [QUICKSTART.md](./QUICKSTART.md) | 快速上手指南 | 新用户 |
+| [VISION.md](./VISION.md) | 设计理念、角色设定 | 想深入理解的人 |
+| [AGENTS.md](./AGENTS.md) | 开发指南、贡献规范、架构说明 | 贡献者、开发者 |
+| [STATUS.md](./STATUS.md) | 当前状态、路线图 | 贡献者、用户 |
+| [ROADMAP.md](./ROADMAP.md) | 详细路线图（基于 kimi-cli 分析） | 贡献者、核心用户 |
 
 ## 角色文档
 

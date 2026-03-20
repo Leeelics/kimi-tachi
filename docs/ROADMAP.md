@@ -464,9 +464,9 @@ kimi --agent-file agents/kamaji.yaml
 
 ## 🔗 相关文档
 
-- [VISION.md](VISION.md) - 设计理念与角色设定
-- [STATUS.md](STATUS.md) - 当前状态与进度
-- [BUG_REPORT_MCP_DUPLICATION.md](BUG_REPORT_MCP_DUPLICATION.md) - MCP 问题详细分析
+- [VISION.md](./VISION.md) - 设计理念与角色设定
+- [STATUS.md](./STATUS.md) - 当前状态与进度
+- [BUG_REPORT_MCP_DUPLICATION.md](./BUG_REPORT_MCP_DUPLICATION.md) - MCP 问题详细分析
 - [kimi-cli CHANGELOG](https://github.com/your-org/kimi-cli/blob/main/CHANGELOG.md) - 上游更新日志
 
 ---
