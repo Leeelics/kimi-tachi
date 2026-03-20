@@ -14,11 +14,39 @@ from typing import Annotated
 
 import typer
 
+from kimi_tachi import __version__
+
 app = typer.Typer(
     name="kimi-tachi",
     help="Multi-agent task orchestration for Kimi CLI",
     add_completion=False,
 )
+
+
+# Add version option
+def version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"kimi-tachi version {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def common(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-v",
+            "-V",
+            help="Show version and exit.",
+            callback=version_callback,
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    """Common options."""
+    pass
+
 
 # Paths
 KIMI_CONFIG_DIR = Path.home() / ".kimi"
