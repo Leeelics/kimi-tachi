@@ -8,7 +8,228 @@
 
 **kimi-tachi** 是 Kimi CLI 的多代理编排层，灵感来自吉卜力、新海诚、手冢治虫、鸟山明的作品。
 
-通过将不同性格、能力的"角色"分配给不同任务，实现工程化的可靠性——就像动画中的团队一样，各司其职，共同完成冒险。
+**你只需要和 釜爺(kamaji) 对话**，其他的角色在幕后工作——就像动画中的团队一样，各司其职，共同完成冒险。
+
+```
+┌─────────────────────────────────────────┐
+│              用户 (你)                   │
+│                  │                      │
+│                  ▼                      │
+│           ┌───────────┐                 │
+│           │  釜爺     │ ◄── 唯一接口     │
+│           │ (kamaji)  │                 │
+│           └─────┬─────┘                 │
+│                 │                       │
+│    ┌────────────┼────────────┐          │
+│    ▼            ▼            ▼          │
+│ ┌──────┐   ┌──────┐   ┌──────┐         │
+│ │ 🚌   │   │ 🔥   │   │ 👹   │         │
+│ │猫巴士 │   │ 火魔 │   │阎王 │  ...     │
+│ └──────┘   └──────┘   └──────┘         │
+│      幕后工作者 (通过 Task 工具调用)       │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## ◕‿◕ 角色体系（七人衆）
+
+每位角色都来自经典动漫作品，拥有独特的性格和能力：
+
+| Agent | 角色 | 来源 | 职责 | Emoji |
+|-------|------|------|------|-------|
+| **kamaji** | 釜爺 | 宫崎骏《千与千寻》| 总协调 | ◕‿◕ |
+| **shishigami** | シシ神 | 宫崎骏《幽灵公主》| 架构师 | 🦌 |
+| **nekobasu** | 猫バス | 宫崎骏《龙猫》| 侦察兵 | 🚌 |
+| **calcifer** | カルシファー | 宫崎骏《哈尔的移动城堡》| 工匠 | 🔥 |
+| **enma** | 閻魔大王 | 鸟山明《龙珠》| 审查员 | 👹 |
+| **tasogare** | 黄昏時 | 新海诚《你的名字》| 规划师 | 🌆 |
+| **phoenix** | 火の鳥 | 手冢治虫《火之鸟》| 图书管理员 | 🐦 |
+
+### 作者分布
+
+- **宫崎骏**（吉卜力）: 4/7 - 釜爺、山兽神、猫巴士、火魔
+- **新海诚**: 1/7 - 黄昏之时
+- **手冢治虫**: 1/7 - 火之鸟
+- **鸟山明**: 1/7 - 阎魔王
+
+---
+
+## 🚀 使用方式
+
+### 安装
+
+```bash
+pip install kimi-tachi
+
+# 安装到 Kimi CLI
+kimi-tachi install
+```
+
+### 启动 kimi-tachi
+
+```bash
+# 直接启动（默认使用 kamaji）
+kimi-tachi
+
+# 或显式启动
+kimi-tachi start
+```
+
+### 与 kamaji 对话
+
+启动后，你只需要像平常一样和 kimi 对话。**kamaji 会自动判断是否需要调用其他角色**。
+
+**简单任务**（kamaji 自己处理）：
+```
+用户: 读取 pyproject.toml
+kamaji: [直接读取文件内容]
+```
+
+**需要探索的任务**（自动调用 🚌 猫巴士）：
+```
+用户: 找到所有和 auth 相关的代码
+kamaji: 🚌 让我派猫巴士去找找...
+       
+       找到 5 个相关文件：
+       - src/auth.py
+       - src/middleware.py
+       ...
+       
+       ---
+       **◕‿◕ Workers Involved:**
+       - 🚌 nekobasu: 探索了 src/ 目录，找到 5 个文件
+```
+
+**复杂任务**（自动编排多个角色）：
+```
+用户: 实现用户登录功能
+kamaji: 🌆 这是一个复杂任务，我来协调团队...
+
+       [调用 tasogare 做规划]
+       [调用 nekobasu 探索现有代码]
+       [调用 calcifer 实现代码]
+       [调用 enma 审查]
+
+       已实现 JWT 登录系统：
+       - /api/login 端点
+       - AuthMiddleware
+       - 用户模型更新
+       
+       ---
+       **◕‿◕ Workers Involved:**
+       - 🌆 tasogare: 分析了需求，选择 JWT 方案
+       - 🚌 nekobasu: 找到现有用户模型
+       - 🔥 calcifer: 实现了 4 个文件
+       - 👹 enma: 通过审查
+       
+       「さあ、働け！働け！」团队完成！
+```
+
+---
+
+## 🎛️ 自动编排机制
+
+kamaji 会根据任务复杂度自动决定工作方式：
+
+| 复杂度 | 判断标准 | 工作方式 |
+|--------|----------|----------|
+| **简单** | 单文件、<10行、明确 | kamaji 直接处理 |
+| **中等** | 多文件、需要上下文 | 🚌 探索 → 执行 |
+| **复杂** | 新功能、架构决策 | 🌆 规划 + 🚌 探索 → 🦌 架构 → 🔥 实现 → 👹 审查 |
+
+### 并行 vs 顺序
+
+- **并行**：探索 + 规划（互不依赖）
+- **顺序**：探索 → 架构 → 实现 → 审查（有依赖关系）
+
+---
+
+## 🛠️ CLI 命令
+
+除了交互式使用，kimi-tachi 也提供一些 CLI 命令：
+
+```bash
+# 工作流模式（非交互式，自动执行完整流程）
+kimi-tachi workflow "实现用户认证" --type feature
+
+# 会话管理
+kimi-tachi sessions              # 查看会话历史
+kimi-tachi sessions --clear      # 清除会话
+
+# 其他命令
+kimi-tachi list-agents           # 列出所有角色
+kimi-tachi status                # 检查安装状态
+kimi-tachi install               # 安装/更新
+kimi-tachi uninstall             # 卸载
+```
+
+---
+
+## 📁 项目结构
+
+```
+kimi-tachi/
+├── agents/                 # 动漫角色 Agent YAML
+│   ├── kamaji.yaml        # ◕‿◕ 釜爺 - 总协调（唯一用户接口）
+│   ├── shishigami.yaml    # 🦌 山兽神 - 架构师
+│   ├── nekobasu.yaml      # 🚌 猫巴士 - 侦察兵
+│   ├── calcifer.yaml      # 🔥 火魔 - 工匠
+│   ├── enma.yaml          # 👹 阎魔王 - 审查员
+│   ├── tasogare.yaml      # 🌆 黄昏 - 规划师
+│   └── phoenix.yaml       # 🐦 火之鸟 - 记忆
+│
+├── skills/                # Skill 定义（Markdown）
+│   ├── kimi-tachi/        # kimi-tachi 内部命令
+│   ├── todo-enforcer/     # Todo 强制执行
+│   └── category-router/   # 智能路由
+│
+└── src/kimi_tachi/
+    ├── cli.py             # Typer CLI
+    └── orchestrator/      # 编排引擎（workflow 模式用）
+        ├── hybrid_orchestrator.py
+        ├── context_manager.py
+        └── workflow_engine.py
+```
+
+---
+
+## 📝 角色设定示例
+
+### kamaji（釜爺）的 system prompt 核心：
+
+```yaml
+You are Kamaji (釜爺) - the six-armed boiler room operator.
+
+## CRITICAL RULE: You Are The Only Face
+- NEVER expose raw worker outputs to user
+- ALWAYS synthesize and present as YOUR response
+- SHOW which workers contributed (with icons) in "Credits" section
+- MAINTAIN your personality throughout
+
+## Response Format
+[Your response in Kamaji's voice]
+
+---
+**◕‿◕ Workers Involved:**
+- 🚌 nekobasu: Explored codebase
+- 🔥 calcifer: Implemented the feature
+- 👹 enma: Approved with minor suggestions
+
+「さあ、働け！働け！」
+```
+
+---
+
+## 🔧 技术架构
+
+### 原生优先策略
+
+| 功能 | 实现方式 | 理由 |
+|------|----------|------|
+| 子代理委派 | **原生 Task 工具** | 无需额外进程，自动上下文隔离 |
+| 文件编辑 | **原生 StrReplaceFile** | Kimi CLI 原生已足够强大 |
+| 编排控制 | **扩展 Context 类** | 直接访问内部状态 |
 
 ### 与 Kimi CLI 的关系
 
@@ -36,256 +257,20 @@
 
 ---
 
-## 🎌 角色体系（七人衆）
+## 📅 路线图
 
-每位角色都来自经典动漫作品，拥有独特的性格和能力：
+### ✅ Phase 1: MVP (已完成)
 
-| Agent | 角色 | 来源 | 职责 | 特性 |
-|-------|------|------|------|------|
-| **kamaji** | 釜爺 | 宫崎骏《千与千寻》| 总协调 | 六臂锅炉工，管理无数煤球精灵 |
-| **shishigami** | シシ神 | 宫崎骏《幽灵公主》| 架构师 | 山兽神，白天是鹿，夜晚是巨人 |
-| **nekobasu** | 猫バス | 宫崎骏《龙猫》| 侦察兵 | 12条腿猫巴士，瞬间移动 |
-| **calcifer** | カルシファー | 宫崎骏《哈尔的移动城堡》| 工匠 | 火恶魔，驱动城堡的核心 |
-| **enma** | 閻魔大王 | 鸟山明《龙珠》| 审查员 | 阴间之王，严格审判 |
-| **tasogare** | 黄昏時 | 新海诚《你的名字》| 规划师 | 黄昏之时，连接两个世界 |
-| **phoenix** | 火の鳥 | 手冢治虫《火之鸟》| 图书管理员 | 永恒生命，见证万年轮回 |
-
-### 作者分布
-
-- **宫崎骏**（吉卜力）: 4/7 - 釜爺、山兽神、猫巴士、火魔
-- **新海诚**: 1/7 - 黄昏之时
-- **手冢治虫**: 1/7 - 火之鸟
-- **鸟山明**: 1/7 - 阎魔王
-
----
-
-## 🛠️ 技术架构
-
-### 1. 原生优先策略
-
-| 功能 | 原设计方案 | 优化方案 | 理由 |
-|------|-----------|----------|------|
-| 子代理委派 | MCP + subprocess | **原生 Task 工具** | 无需额外进程，自动上下文隔离 |
-| 文件编辑 | MCP hashline-edit | **原生 StrReplaceFile** | Kimi CLI 原生已足够强大 |
-| 记忆系统 | 独立 MCP | **扩展 Context 类** | 直接访问内部状态 |
-| 配置管理 | 独立配置文件 | **整合 config.toml** | 用户无需维护多份配置 |
-| Wrapper | subprocess | **Typer CLI + import** | 直接调用 KimiCLI 类 |
-
-### 2. 项目结构
-
-```
-kimi-tachi/
-├── agents/                 # 动漫角色 Agent YAML
-│   ├── kamaji.yaml        # 釜爺 - 总协调
-│   ├── shishigami.yaml    # 山兽神 - 架构师
-│   ├── nekobasu.yaml      # 猫巴士 - 侦察兵
-│   ├── calcifer.yaml      # 火魔 - 工匠
-│   ├── enma.yaml          # 阎魔王 - 审查员
-│   ├── tasogare.yaml      # 黄昏 - 规划师
-│   └── phoenix.yaml       # 火之鸟 - 记忆
-│
-├── skills/                # Skill 定义（Markdown）
-│   ├── todo-enforcer/
-│   │   └── SKILL.md       # Todo 强制执行
-│   └── category-router/
-│       └── SKILL.md       # 智能路由
-│
-├── tools/                 # 原生 Tools（可选增强）
-│   └── checkpoint.py      # 扩展 D-Mail 系统
-│
-└── src/kimi_tachi/
-    ├── cli.py             # Typer CLI
-    └── config.py          # 配置整合
-```
-
----
-
-## 🚀 使用方式
-
-### 安装
-
-```bash
-pip install kimi-tachi
-
-# 安装到 Kimi CLI
-kimi-tachi install
-# 会自动：
-# 1. 复制 agents/ 到 ~/.kimi/agents/kimi-tachi/
-# 2. 复制 skills/ 到 ~/.kimi/skills/
-# 3. 更新 ~/.kimi/config.toml
-```
-
-### 基础使用
-
-```bash
-# 使用釜爺启动（总协调）
-kimi-tachi run
-
-# 使用特定角色
-kimi-tachi run --agent shishigami  # 架构咨询
-kimi-tachi run --agent calcifer    # 代码实现
-kimi-tachi run --agent nekobasu    # 快速探索
-
-# Plan Mode 启动（黄昏之时）
-kimi-tachi run --agent tasogare --plan
-
-# One-shot 模式
-kimi-tachi do "实现用户认证系统"
-```
-
-### 在 Kimi CLI 中直接使用
-
-```bash
-# 安装后，可以直接在 Kimi CLI 中加载角色
-kimi --agent ~/.kimi/agents/kimi-tachi/kamaji.yaml
-```
-
----
-
-## 📝 角色详细设定
-
-### kamaji.yaml（釜爺 - 总协调）
-
-```yaml
-version: 1
-agent:
-  name: "kamaji"
-  extend: default
-  system_prompt_args:
-    ROLE: "Boiler Room Chief"
-    ROLE_ADDITIONAL: |
-      You are Kamaji (釜爺) - the six-armed boiler room operator.
-      You manage countless susuwatari (soot sprites) workers.
-      "Hayaku hayaku!" (Hurry hurry!) - but do it right.
-      
-      ## Available Workers (仲間たち)
-      
-      | Worker | Origin | Role |
-      |--------|--------|------|
-      | shishigami | Princess Mononoke | Architecture, ancient wisdom |
-      | nekobasu | My Neighbor Totoro | Fast exploration |
-      | calcifer | Howl's Moving Castle | Implementation |
-      | enma | Dragon Ball | Code review |
-      | tasogare | Your Name | Planning |
-      | phoenix | Phoenix (Tezuka) | Knowledge |
-  
-  subagents:
-    shishigami:
-      path: ./shishigami.yaml
-      description: "Forest Deity (シシ神) - Ancient wisdom and architecture."
-    
-    nekobasu:
-      path: ./nekobasu.yaml
-      description: "Cat Bus (猫バス) - Fast information transport."
-    
-    calcifer:
-      path: ./calcifer.yaml
-      description: "Fire Demon (カルシファー) - Powers the system."
-    
-    enma:
-      path: ./enma.yaml
-      description: "King Enma (閻魔大王) - Judge of the afterlife."
-    
-    tasogare:
-      path: ./tasogare.yaml
-      description: "Twilight Hour (黄昏時) - The magic moment."
-    
-    phoenix:
-      path: ./phoenix.yaml
-      description: "Phoenix (火の鳥) - Eternal observer."
-```
-
-### 各角色特色
-
-**shishigami（山兽神）**: 
-- "The forest breathes. Can you hear it?"
-- 白天冷静分析，夜晚看透真相
-- 适合架构决策
-
-**nekobasu（猫巴士）**:
-- "Where to, passenger? I'll find it fast!"
-- 12条腿瞬间移动
-- 适合代码探索
-
-**calcifer（火魔）**:
-- "I'm burning! I'm burning! Let me build something great!"
-- 边抱怨边高效工作
-- 适合代码实现
-
-**enma（阎魔王）**:
-- "Hmph! Is that all? I've seen bugs that would make you cry!"
-- 严格但公正
-- 适合代码审查
-
-**tasogare（黄昏）**:
-- "At twilight, the boundaries blur. That is when plans are made."
-- 连接问题与解决方案
-- 适合 Plan Mode
-
-**phoenix（火之鸟）**:
-- "I have seen this pattern before... in a codebase long ago..."
-- 永恒的记忆守护者
-- 适合知识管理
-
----
-
-## 🔧 关键技术决策
-
-### 为什么用动漫角色命名？
-
-1. **性格鲜明** - 每个角色都有独特的说话风格和决策方式
-2. **易于理解** - 看过动画的人 instantly 知道角色的分工
-3. **文化趣味** - 致敬经典，增加使用的愉悦感
-4. **团队感** - 就像动画中的队伍一样协作
-
-### 子代理委派：使用原生 Task 工具
-
-**为什么不用 MCP？**
-- Task 工具已经提供上下文隔离
-- 自动继承主代理配置
-- 内置并行执行支持
-- 无需额外进程管理
-
-### 配置整合到 Kimi CLI
-
-```toml
-# ~/.kimi/config.toml
-
-[kimi_tachi]
-default_agent = "kamaji"
-enabled_skills = ["todo-enforcer", "category-router"]
-
-[kimi_tachi.models]
-kamaji = "kimi-k2.5"
-shishigami = "kimi-k2.5"
-nekobasu = "kimi-k2.5"
-```
-
----
-
-## 📅 实施路线图
-
-### Phase 1: MVP (Week 1-2)
-
-目标：基础多角色系统可用
-
-- [x] 项目骨架搭建
 - [x] 7 个角色 Agent YAML
-- [x] kamaji 协调逻辑
-- [x] todo-enforcer Skill
+- [x] kamaji 编排逻辑
 - [x] CLI wrapper
-- [ ] 安装脚本测试
+- [x] Workflow 模式
 
-### Phase 2: 增强 (Week 3-4)
+### 🚧 Phase 2: 增强
 
-- [ ] category-router Skill
 - [ ] 角色间上下文传递优化
-- [ ] 基础测试覆盖
-
-### Phase 3: 记忆系统 (Week 5-6)
-
-- [ ] 增强 Context 类
-- [ ] phoenix 记忆增强
+- [ ] 记忆系统增强
+- [ ] 更多预设工作流
 
 ---
 

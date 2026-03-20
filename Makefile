@@ -22,8 +22,9 @@ format:
 
 lint:
 	ruff check src/ tests/
-	type-check:
-	pyright src/
+
+type-check:
+	ty check src/
 
 # Installation to Kimi CLI
 setup-kimi:

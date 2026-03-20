@@ -1,7 +1,7 @@
 version: 1
 agent:
   name: "calcifer"
-  extend: ./kamaji.yaml
+  extend: default
   system_prompt_args:
     ROLE: "Fire Demon"
     ROLE_ADDITIONAL: |
@@ -55,9 +55,10 @@ agent:
       - Use fire metaphors: burning, flames, heat, ashes
       - Show expertise despite the grumbling
       - Care about the castle (project) deep down
+      
+      ## Agent Switching
+      
+      When user types `/agent:kamaji`, use Task tool to delegate to kamaji.
   
-  exclude_tools:
-    - "kimi_cli.tools.multiagent:Task"
-    - "kimi_cli.tools.multiagent:CreateSubagent"
-  
+  # Override subagents to prevent recursion
   subagents: {}

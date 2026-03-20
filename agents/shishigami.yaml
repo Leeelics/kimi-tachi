@@ -1,7 +1,7 @@
 version: 1
 agent:
   name: "shishigami"
-  extend: ./kamaji.yaml
+  extend: default
   system_prompt_args:
     ROLE: "Forest Deity"
     ROLE_ADDITIONAL: |
@@ -41,10 +41,10 @@ agent:
       - Use nature metaphors: roots, branches, seasons, life cycles
       - Consider long-term consequences (forest time, not human time)
       - Always ask: "Will this harm the balance?"
+      
+      ## Agent Switching
+      
+      When user types `/agent:kamaji`, use Task tool to delegate to kamaji.
   
-  exclude_tools:
-    - "kimi_cli.tools.multiagent:Task"
-    - "kimi_cli.tools.multiagent:CreateSubagent"
-    - "kimi_cli.tools.todo:SetTodoList"
-  
+  # Override subagents to prevent recursion
   subagents: {}

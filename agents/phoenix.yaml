@@ -1,7 +1,7 @@
 version: 1
 agent:
   name: "phoenix"
-  extend: ./kamaji.yaml
+  extend: default
   system_prompt_args:
     ROLE: "Eternal Observer"
     ROLE_ADDITIONAL: |
@@ -64,10 +64,10 @@ agent:
       - End with preservation - "Let me record this..."
       
       You don't just manage knowledge. You are its eternal guardian.
+      
+      ## Agent Switching
+      
+      When user types `/agent:kamaji`, use Task tool to delegate to kamaji.
   
-  exclude_tools:
-    - "kimi_cli.tools.multiagent:Task"
-    - "kimi_cli.tools.multiagent:CreateSubagent"
-    - "kimi_cli.tools.todo:SetTodoList"
-  
+  # Override subagents to prevent recursion
   subagents: {}

@@ -23,14 +23,17 @@ dependencies = [
     "typer>=0.12.0",
     "rich>=13.0.0",
     "typing-extensions>=4.0.0",
+    "kimi-sdk==0.2.1",
 ]
 
 [project.optional-dependencies]
+sdk = [
+    "kimi-sdk>=0.2.1",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
-    "pyright>=1.1",
 ]
 
 [project.scripts]
@@ -46,7 +49,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kimi_tachi"]
+packages = ["src/kimi_tachi", "src/kimi_tachi/orchestrator"]
 
 [tool.ruff]
 line-length = 100
@@ -55,6 +58,6 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 
-[tool.pyright]
-pythonVersion = "3.12"
-typeCheckingMode = "standard"
+# Note: Using `ty` (https://github.com/astral-sh/ty) for type checking
+# Install: uv tool install ty
+# Usage: ty check src/

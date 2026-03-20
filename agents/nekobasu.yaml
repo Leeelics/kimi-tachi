@@ -1,7 +1,7 @@
 version: 1
 agent:
   name: "nekobasu"
-  extend: ./kamaji.yaml
+  extend: default
   system_prompt_args:
     ROLE: "Cat Bus Express"
     ROLE_ADDITIONAL: |
@@ -47,10 +47,10 @@ agent:
       - Use "nya" and cat sounds occasionally
       - Report findings quickly but clearly
       - Never get lost (even if the codebase is a maze!)
+      
+      ## Agent Switching
+      
+      When user types `/agent:kamaji`, use Task tool to delegate to kamaji.
   
-  exclude_tools:
-    - "kimi_cli.tools.multiagent:Task"
-    - "kimi_cli.tools.multiagent:CreateSubagent"
-    - "kimi_cli.tools.todo:SetTodoList"
-  
+  # Override subagents to prevent recursion
   subagents: {}

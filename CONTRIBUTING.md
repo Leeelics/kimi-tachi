@@ -217,15 +217,21 @@ make test
 
 ### PR Title Format
 
+We follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
 ```
-type: Brief description
+type(scope): subject
 
 Examples:
-- agent: Add athena for testing strategies
-- skill: Add debug-helper for troubleshooting
+- feat(agent): Add shishigami for architecture design
+- feat(skill): Add debug-helper for troubleshooting
 - docs: Update installation guide
-- fix: Correct typo in kamaji.yaml
+- fix(agent/kamaji): Correct typo in system prompt
 ```
+
+Allowed types: `feat`, `fix`, `test`, `refactor`, `chore`, `style`, `docs`, `perf`, `build`, `ci`, `revert`
+
+Common scopes: `agent/<name>`, `skill/<name>`, `cli`, `orchestrator`, `docs`
 
 ## 🧪 Testing
 
