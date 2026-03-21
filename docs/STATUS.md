@@ -21,14 +21,27 @@
   - [x] enma (阎魔王) - 审查员
   - [x] tasogare (黄昏) - 规划师
   - [x] phoenix (火之鸟) - 记忆
-- [x] 2 个基础 Skills
+- [x] 4 个 Skills (Phase 0 完成三级分层架构)
   - [x] todo-enforcer
   - [x] category-router
+  - [x] kimi-tachi
+  - [x] agent-switcher (legacy)
+- [x] **Phase 0: Skill 架构升级**
+  - [x] Skill 三级分层结构 (L1/L2/L3)
+  - [x] Skill 模板 (_template)
+  - [x] references/ 和 scripts/ 目录
+  - [x] 所有 SKILL.md 更新
+- [x] **Phase 0: Agent 提示词优化**
+  - [x] 反模式清单 (docs/ANTI_PATTERNS.md)
+  - [x] 所有 Agent YAML 添加反模式
+  - [x] 祈使语气优化
+  - [x] AGENTS.md 更新 Skill 开发规范
 
 ### 🚧 进行中
 
 - [ ] 安装脚本测试
 - [ ] 基本使用验证
+- [ ] Phase 1: MCP 问题缓解
 
 ### ⏳ 待开始
 

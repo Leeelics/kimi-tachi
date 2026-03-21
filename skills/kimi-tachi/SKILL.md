@@ -10,6 +10,24 @@ triggers:
 
 Internal commands for kimi-tachi multi-agent orchestration.
 
+## Overview
+
+```
+┌─────────────────────────────────────────┐
+│  L1: Metadata (YAML frontmatter)        │
+│  - Command triggers                     │
+│  - Skill identification                 │
+├─────────────────────────────────────────┤
+│  L2: SKILL.md body                      │
+│  - Command reference                    │
+│  - Usage examples                       │
+├─────────────────────────────────────────┤
+│  L3: Bundled resources                  │
+│  - references/workflow-types.md         │
+│  - scripts/workflow-runner.py           │
+└─────────────────────────────────────────┘
+```
+
 **Note**: These commands are used by kimi-tachi CLI, not directly in Kimi conversation.
 
 ## Available Commands
@@ -56,3 +74,14 @@ Then talk to kamaji naturally. Kamaji will automatically:
 4. Show "◕‿◕ Workers Involved" credits
 
 The `/workflow` command is for **automation scenarios** where you want to run a complete workflow without interaction.
+
+## Anti-Patterns
+
+| Anti-Pattern | Symptom | Fix |
+|--------------|---------|-----|
+| Using CLI commands in chat | Typing `/workflow` in Kimi chat | Use natural language with kamaji instead |
+| Ignoring interactive mode | Always using non-interactive | Interactive mode provides better context and feedback |
+
+## References
+
+- `references/workflow-types.md` - Detailed workflow type definitions

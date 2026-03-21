@@ -235,22 +235,110 @@ make setup-kimi
 
 #### Adding a new skill
 
-1. Create `skills/<skill-name>/SKILL.md`:
+Skills follow the **three-tier architecture** (based on hello-agents best practices):
+
+```
+skills/<skill-name>/
+├── SKILL.md              # L2: Instructions (loaded when triggered)
+├── scripts/              # L3: Deterministic scripts (executed, not read)
+│   └── example.py
+└── references/           # L3: Reference materials (loaded on demand)
+    └── best-practices.md
+```
+
+**L1: Metadata** (YAML frontmatter, ~100 tokens)
+- Always loaded for trigger matching
+- Contains: name, description, triggers
+
+**L2: SKILL.md body** (< 5k tokens)
+- Loaded when skill is triggered
+- Contains: instructions, examples, anti-patterns
+
+**L3: Bundled resources** (loaded on demand)
+- `scripts/`: Deterministic scripts (zero token cost to execute)
+- `references/`: Reference materials
+
+##### Creating a new skill
+
+1. **Use the template:**
+   ```bash
+   cp -r skills/_template skills/<your-skill-name>
+   ```
+
+2. **Edit `SKILL.md`:**
    ```markdown
    ---
    name: <skill-name>
-   description: <description>
+   description: <One-line description>
    triggers:
      - "/<command>"
+     - "@<keyword>"
    ---
    
-   # Skill content...
+   # Skill Name
+   
+   ## Overview
+   
+   Brief description of what this skill does.
+   
+   ## When to Use
+   
+   Describe the scenarios where this skill should be activated.
+   
+   ## Instructions
+   
+   Step-by-step workflow...
+   
+   ## Anti-Patterns
+   
+   | Anti-Pattern | Symptom | Fix |
+   |--------------|---------|-----|
+   | Bad practice | What goes wrong | How to correct |
+   
+   ## Scripts
+   
+   - `scripts/example.py` - What it does
+   
+   ## References
+   
+   - `references/best-practices.md` - Additional context
    ```
 
-2. Reinstall:
+3. **Add scripts (optional):**
+   - Place deterministic scripts in `scripts/`
+   - Scripts are executed, not read (zero token cost)
+   - Document usage in SKILL.md
+
+4. **Add references (optional):**
+   - Place reference materials in `references/`
+   - Loaded on demand when needed
+
+5. **Reinstall:**
    ```bash
    kimi-tachi install --force
    ```
+
+##### Skill Design Principles
+
+1. **Trigger Design:**
+   - Use `/command` for actions
+   - Use `@keyword` for context activation
+   - Keep triggers short and memorable
+
+2. **Anti-Patterns Section:**
+   - Document common mistakes
+   - Use table format: Anti-Pattern | Symptom | Fix
+   - Based on hello-agents Extra08
+
+3. **Freedom Level:**
+   - Match skill's freedom level to its purpose
+   - High freedom: Creative tasks
+   - Low freedom: Deterministic operations
+
+4. **Testing:**
+   - Test triggers work correctly
+   - Verify scripts execute properly
+   - Check references load as expected
 
 ### Testing
 
@@ -293,7 +381,44 @@ make lint      # Check linting
    - Maintain character personality
    - Include clear role definition
    - Document tool usage patterns
+   - Use **imperative mood** (祈使语气) - command style, not descriptive
 4. **Tools**: Only include tools the agent actually needs
+5. **Anti-patterns**: Document in `docs/ANTI_PATTERNS.md`
+
+#### System Prompt Style Guide
+
+**Use Imperative Mood (祈使语气):**
+
+❌ Don't write descriptively:
+```
+I will help you explore the codebase.
+I am a fast code explorer.
+```
+
+✅ Write imperatively:
+```
+Jump on board! Don't waste time - start moving immediately.
+Follow the scent - grep, glob, search with speed.
+Light up the path - report what you find clearly.
+```
+
+**Character Voice:**
+- Maintain consistent personality throughout
+- Use character-specific metaphors and catchphrases
+- Reference the source anime appropriately
+
+**Anti-Patterns Section:**
+Every agent should have documented anti-patterns:
+
+```yaml
+system_prompt_args:
+  ROLE_ADDITIONAL: |
+    ## Anti-Patterns
+    
+    NEVER do these:
+    - Anti-pattern 1: Symptom → Fix
+    - Anti-pattern 2: Symptom → Fix
+```
 
 ---
 

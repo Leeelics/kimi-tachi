@@ -9,12 +9,29 @@ triggers:
 
 **⚠️ DEPRECATED**: This skill is kept for compatibility but **no longer needed**.
 
+## Overview
+
+```
+┌─────────────────────────────────────────┐
+│  L1: Metadata (YAML frontmatter)        │
+│  - Legacy trigger preserved             │
+│  - Deprecation notice                   │
+├─────────────────────────────────────────┤
+│  L2: SKILL.md body                      │
+│  - Migration guide                      │
+│  - New usage patterns                   │
+├─────────────────────────────────────────┤
+│  L3: Bundled resources                  │
+│  - None (deprecated skill)              │
+└─────────────────────────────────────────┘
+```
+
+## New Usage
+
 In the current kimi-tachi design:
 - **You only talk to kamaji (釜爺)**
 - Kamaji automatically delegates to other agents behind the scenes
 - You don't need to manually switch agents
-
-## New Usage
 
 Simply describe what you want:
 
@@ -46,3 +63,10 @@ The old `/agent:<name>` syntax is no longer necessary:
 ```
 
 **The new design is simpler - just talk to kamaji!**
+
+## Anti-Patterns
+
+| Anti-Pattern | Symptom | Fix |
+|--------------|---------|-----|
+| Using old syntax | Typing `/agent:nekobasu` | Just describe the task naturally |
+| Manual delegation | Trying to pick agents yourself | Trust kamaji to route appropriately |
