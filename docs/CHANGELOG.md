@@ -8,15 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dynamic Agent Creation**: On-demand subagent creation with AgentFactory
+- **Message Bus Architecture**: Async message bus for inter-agent communication
+  - Point-to-point messaging
+  - Broadcast and multicast
+  - Publish-subscribe pattern
+  - SQLite persistence for reliability
+  - Distributed tracing support
+- **Performance Metrics Collection**: Latency, throughput, and parallel execution tracking
 - Comprehensive project documentation (AGENTS.md, ROADMAP.md)
 - Type checking with `ty` (replaced pyright)
 - Code quality enforcement with ruff
 
 ### Changed
+- **MCP Process Reduction**: Reduced from 7 fixed processes to ≤2 dynamic processes
 - Migrated default branch from `master` to `main`
 - Cleaned up project structure (removed unrelated code in src/)
 
 ### Fixed
+- Deadlock in MessageStore cleanup operation
 - Code style issues (trailing whitespace, ambiguous variable names, etc.)
 - Import organization and unused imports
 - Makefile formatting
