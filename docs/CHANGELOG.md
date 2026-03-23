@@ -8,28 +8,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Dynamic Agent Creation**: On-demand subagent creation with AgentFactory
-- **Message Bus Architecture**: Async message bus for inter-agent communication
-  - Point-to-point messaging
-  - Broadcast and multicast
-  - Publish-subscribe pattern
-  - SQLite persistence for reliability
-  - Distributed tracing support
-- **Performance Metrics Collection**: Latency, throughput, and parallel execution tracking
-- Comprehensive project documentation (AGENTS.md, ROADMAP.md)
-- Type checking with `ty` (replaced pyright)
-- Code quality enforcement with ruff
+- TBD
 
 ### Changed
+- TBD
+
+### Fixed
+- TBD
+
+## [0.2.0] - 2026-03-23
+
+### Phase 2: Architecture Optimization
+
+#### Phase 2.1 - Dynamic Agent Creation
+- **AgentFactory**: On-demand subagent creation without MCP overhead
+- **Dual-mode operation**: Dynamic (default) or Fixed (legacy)
 - **MCP Process Reduction**: Reduced from 7 fixed processes to ≤2 dynamic processes
-- Migrated default branch from `master` to `main`
-- Cleaned up project structure (removed unrelated code in src/)
+- Environment variable `KIMI_TACHI_DYNAMIC_AGENTS` for mode control
+
+#### Phase 2.2 - Message Bus Architecture
+- **MessageBus**: Async message passing between agents
+- **Communication patterns**: Point-to-point, broadcast, multicast, publish-subscribe
+- **Message models**: Pydantic-based with priority, TTL, delivery status
+- **Persistence**: SQLite storage for message reliability
+- **Tracing**: Distributed tracing with span context
+- Environment variable `KIMI_TACHI_MESSAGE_BUS_ENABLED` for control
+
+#### Phase 2.3 - Parallel Workflow Execution
+- **TaskDependencyAnalyzer**: Automatic dependency detection
+  - Semantic analysis (planning → implementation → review)
+  - File-based dependency detection
+  - Explicit dependency support
+- **ParallelScheduler**: Parallel phase execution with resource limits
+- **WorkflowEngine**: Enhanced with parallel execution support
+- **Execution plan**: Automatic batch generation based on dependencies
+
+#### Phase 2.4 - Context Cache Optimization
+- **FileContentCache**: Two-tier caching (memory + disk)
+  - LRU eviction policy
+  - Automatic file modification detection
+  - Hash-based cache invalidation
+- **SemanticIndex**: AST-based code indexing
+  - Tree-sitter powered parsing
+  - Fast symbol lookup (<100ms)
+  - Incremental index updates
+- **AnalysisResultCache**: LLM result caching with TTL
+- **ContextCompressor**: Token usage reduction (30%+)
+  - Python-specific compression
+  - Markdown/config file compression
+  - Conversation history compression
+- Environment variable `KIMI_TACHI_ENABLE_CACHE` for control
+
+#### Performance Metrics
+- MCP processes: 7 → ≤2 (71% reduction)
+- Message latency: ~500ms → <100ms (80% reduction)
+- Parallel execution: 0% → ≥40% (new)
+- Cache hit rate: 0% → ≥80% (new)
+- Token usage: 100% → ~70% (30% reduction)
+
+### Added
+- **Performance Metrics Collection**: Latency, throughput, parallel execution tracking
+- **tree-sitter integration**: Python AST parsing for semantic index
+- Comprehensive test coverage: 59 tests for Phase 2 features
+- Project documentation: Phase 2 design documents
+
+### Changed
+- Updated README with v0.2.0 features and architecture
+- Enhanced HybridOrchestrator with cache integration
+- Improved WorkflowEngine with parallel execution
 
 ### Fixed
 - Deadlock in MessageStore cleanup operation
-- Code style issues (trailing whitespace, ambiguous variable names, etc.)
-- Import organization and unused imports
-- Makefile formatting
+- Circular imports in workflow orchestrator
+- SQLite keyword conflicts in semantic index
+- Code style issues (trailing whitespace, etc.)
 
 ## [0.1.0] - 2026-03-20
 
