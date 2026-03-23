@@ -9,8 +9,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
+from ..message_bus import MessageBus
+from ..metrics import MetricsCollector
 from .context_manager import ContextManager
+from .dependency_analyzer import TaskDependencyAnalyzer
 from .hybrid_orchestrator import AgentResult, HybridOrchestrator
+from .parallel_scheduler import ParallelScheduler
 
 
 class WorkflowPhase(Enum):
@@ -51,23 +55,101 @@ class Workflow:
 class WorkflowEngine:
     """
     Predefined workflow patterns for common tasks.
+
+    Supports parallel execution with dependency analysis.
     """
 
     def __init__(
-        self, orchestrator: HybridOrchestrator, context_manager: ContextManager | None = None
+        self,
+        orchestrator: HybridOrchestrator,
+        context_manager: ContextManager | None = None,
+        message_bus: MessageBus | None = None,
+        metrics_collector: MetricsCollector | None = None,
+        use_parallel: bool = True,
+        max_parallel: int = 2,
     ):
         self.orch = orchestrator
         self.ctx = context_manager
+        self.bus = message_bus
+        self.metrics = metrics_collector
+        self.use_parallel = use_parallel
+        self.max_parallel = max_parallel
+
+        # Initialize components
+        self.dependency_analyzer = TaskDependencyAnalyzer()
+        self.parallel_scheduler = ParallelScheduler(
+            orchestrator=orchestrator,
+            message_bus=message_bus,
+            metrics_collector=metrics_collector,
+            max_parallel=max_parallel,
+        ) if use_parallel else None
 
     async def execute(self, workflow: Workflow, task: str) -> list[AgentResult]:
-        """Execute a workflow with parallel phase support"""
-        results: list[AgentResult] = []
-        completed_phases: dict[str, AgentResult] = {}
+        """
+        Execute a workflow with parallel phase support.
 
+        If use_parallel is True, uses dependency analysis and parallel scheduling.
+        Otherwise, falls back to the original sequential execution.
+        """
         print(f"\n{'=' * 60}")
         print(f"◕‿◕ Workflow: {workflow.name}")
         print(f"📋 {workflow.description}")
+        if self.use_parallel:
+            print(f"⚡ Mode: Parallel (max={self.max_parallel})")
+        else:
+            print("⚡ Mode: Sequential")
         print(f"{'=' * 60}\n")
+
+        if self.use_parallel and self.parallel_scheduler:
+            # Use new parallel execution with dependency analysis
+            return await self._execute_parallel(workflow, task)
+        else:
+            # Fall back to original sequential execution
+            return await self._execute_sequential(workflow, task)
+
+    async def _execute_parallel(self, workflow: Workflow, task: str) -> list[AgentResult]:
+        """Execute workflow using parallel scheduler"""
+        # Build dependency graph
+        explicit_deps = {
+            p.name: p.dependencies for p in workflow.phases if p.dependencies
+        }
+
+        graph = self.dependency_analyzer.analyze(
+            phases=workflow.phases,
+            explicit_dependencies=explicit_deps,
+        )
+
+        # Analyze and print suggestions
+        analysis = self.dependency_analyzer.suggest_parallelization(graph)
+        print("📊 Parallel Analysis:")
+        print(f"   Parallel ratio: {analysis['parallel_ratio']:.1%}")
+        print(f"   Estimated time reduction: {analysis['estimated_time_reduction']}")
+        if analysis['recommendations']:
+            print("   Recommendations:")
+            for rec in analysis['recommendations']:
+                print(f"      • {rec}")
+        print()
+
+        # Execute using parallel scheduler
+        results = await self.parallel_scheduler.execute_plan(
+            graph=graph,
+            phases=workflow.phases,
+            task=task,
+        )
+
+        # Mark complete
+        if self.ctx:
+            self.ctx.update_phase(WorkflowPhase.COMPLETE.value)
+
+        if workflow.on_complete:
+            workflow.on_complete(results)
+
+        return results
+
+    async def _execute_sequential(self, workflow: Workflow, task: str) -> list[AgentResult]:
+        """Original sequential execution"""
+        results: list[AgentResult] = []
+        completed_phases: dict[str, AgentResult] = {}
 
         # Group phases by execution batch ( respecting dependencies )
         batches = self._build_execution_batches(workflow.phases)
