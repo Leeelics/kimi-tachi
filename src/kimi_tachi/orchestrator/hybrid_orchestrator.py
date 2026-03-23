@@ -6,13 +6,16 @@ Phase 2.1 Update: Added dynamic subagent creation support
 - Maintains backward compatibility via KIMI_TACHI_DYNAMIC_AGENTS env var
 - Supports both fixed and dynamic subagent modes
 
-Architecture:
-- Fixed mode: Uses predefined subagents from kamaji.yaml (legacy)
-- Dynamic mode: Creates subagents on-demand without MCP overhead (new default)
+Phase 2.4 Update: Added context cache support
+- File content caching to avoid redundant reads
+- Semantic index for fast symbol lookup
+- Analysis result caching to reduce LLM calls
+- Context compression to reduce token usage
 
 Environment Variables:
     KIMI_TACHI_DYNAMIC_AGENTS: Enable dynamic mode (default: true)
     KIMI_TACHI_DEBUG_AGENTS: Enable debug logging (default: false)
+    KIMI_TACHI_ENABLE_CACHE: Enable context cache (default: true)
 """
 
 from __future__ import annotations
@@ -34,6 +37,15 @@ except ImportError:
     Kimi = None
     Message = None
     generate = None
+
+# Optional context cache import
+try:
+    from ..context import ContextCacheManager
+
+    CONTEXT_CACHE_AVAILABLE = True
+except ImportError:
+    CONTEXT_CACHE_AVAILABLE = False
+    ContextCacheManager = None
 
 
 @dataclass
@@ -160,6 +172,7 @@ class HybridOrchestrator:
         model: str = "kimi-k2.5",
         session_strategy: str = "temp",  # temp, reuse, or None
         enable_dynamic: bool | None = None,  # None = auto-detect from env
+        enable_cache: bool | None = None,  # None = auto-detect from env
     ):
         """
         Initialize the HybridOrchestrator.
@@ -170,6 +183,7 @@ class HybridOrchestrator:
             model: Model name for SDK-based analysis
             session_strategy: Session management strategy (temp, reuse, None)
             enable_dynamic: Force dynamic mode (None = use env var)
+            enable_cache: Enable context cache (None = use env var)
         """
         self.work_dir = Path(work_dir).resolve()
         self.agents_dir = (
@@ -233,6 +247,37 @@ class HybridOrchestrator:
         # Track dynamic subagent instances for cleanup
         self._dynamic_subagents: dict[str, Any] = {}
 
+        # Initialize context cache (Phase 2.4)
+        self._cache_manager = None
+        if enable_cache is None:
+            self._cache_enabled = os.environ.get("KIMI_TACHI_ENABLE_CACHE", "true").lower() not in (
+                "0",
+                "false",
+                "no",
+                "disabled",
+            )
+        else:
+            self._cache_enabled = enable_cache
+
+        if self._cache_enabled and CONTEXT_CACHE_AVAILABLE and ContextCacheManager is not None:
+            try:
+                cache_dir = self.work_dir / ".kimi-tachi" / "cache"
+                self._cache_manager = ContextCacheManager(
+                    cache_dir=cache_dir,
+                    enable_file_cache=True,
+                    enable_semantic_index=True,
+                    enable_analysis_cache=True,
+                    enable_compression=True,
+                )
+                if self.debug:
+                    print(f"[HybridOrchestrator] Context cache enabled: {cache_dir}")
+            except Exception as e:
+                print(f"Warning: Failed to initialize context cache: {e}")
+                self._cache_enabled = False
+        elif self._cache_enabled and not CONTEXT_CACHE_AVAILABLE:
+            print("Warning: Context cache not available (context module not found)")
+            self._cache_enabled = False
+
     def cleanup(self) -> None:
         """Clean up resources (sessions, dynamic subagents, etc.)"""
         # Clean up session manager
@@ -248,6 +293,18 @@ class HybridOrchestrator:
                 print(f"🧹 Cleaned up {destroyed} dynamic subagents")
 
         self._dynamic_subagents.clear()
+
+    def get_cache_statistics(self) -> dict[str, Any]:
+        """Get context cache statistics (Phase 2.4)"""
+        if self._cache_manager:
+            return self._cache_manager.get_cache_info()
+        return {"enabled": False, "reason": "Cache not initialized"}
+
+    def clear_cache(self) -> None:
+        """Clear all context cache (Phase 2.4)"""
+        if self._cache_manager:
+            self._cache_manager.clear_all_cache()
+            print("🧹 Context cache cleared")
 
     def _get_agent_file(self, agent: str) -> Path:
         """Get agent YAML file path"""
