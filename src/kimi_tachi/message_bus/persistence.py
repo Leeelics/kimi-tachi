@@ -160,7 +160,8 @@ class MessageStore:
         async with self._lock:
             try:
                 await asyncio.to_thread(self._save_message_sync, message)
-                await self._maybe_cleanup()
+                # 在锁内执行同步清理检查，避免死锁
+                await asyncio.to_thread(self._maybe_cleanup_sync)
                 return True
             except Exception as e:
                 # 记录错误但不抛出，避免影响主流程
@@ -599,10 +600,19 @@ class MessageStore:
             return len(message_ids)
 
     async def _maybe_cleanup(self) -> None:
-        """按需执行清理"""
+        """按需执行清理（异步版本，需要自行获取锁）"""
         now = time.time()
         if now - self._last_cleanup > self.cleanup_interval:
             count = await self.cleanup_old_messages()
+            if count > 0:
+                print(f"[MessageStore] Cleaned up {count} old messages")
+            self._last_cleanup = now
+
+    def _maybe_cleanup_sync(self) -> None:
+        """按需执行清理（同步版本，在锁内调用）"""
+        now = time.time()
+        if now - self._last_cleanup > self.cleanup_interval:
+            count = self._cleanup_old_messages_sync()
             if count > 0:
                 print(f"[MessageStore] Cleaned up {count} old messages")
             self._last_cleanup = now
