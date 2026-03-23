@@ -12,13 +12,15 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..message_bus import Message, MessageBus, MessageType
 from ..metrics import MetricsCollector
 from .dependency_analyzer import DependencyGraph
 from .hybrid_orchestrator import AgentResult, HybridOrchestrator
-from .workflow_engine import Phase
+
+if TYPE_CHECKING:
+    from .workflow_engine import Phase
 
 
 @dataclass
@@ -81,7 +83,7 @@ class ParallelScheduler:
     async def execute_plan(
         self,
         graph: DependencyGraph,
-        phases: list[Phase],
+        phases: list[Any],  # Phase
         task: str,
     ) -> list[AgentResult]:
         """
@@ -166,7 +168,7 @@ class ParallelScheduler:
     async def _execute_batch(
         self,
         batch_idx: int,
-        phases: list[Phase],
+        phases: list[Any],  # Phase
         context: ExecutionContext,
         graph: DependencyGraph,
     ) -> BatchResult:
@@ -241,7 +243,7 @@ class ParallelScheduler:
 
     async def _execute_phase_with_timeout(
         self,
-        phase: Phase,
+        phase: Any,  # Phase
         context: ExecutionContext,
         graph: DependencyGraph,
         timeout: float = 300.0,

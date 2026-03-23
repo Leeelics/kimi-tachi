@@ -12,9 +12,10 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .workflow_engine import Phase
+if TYPE_CHECKING:
+    pass
 
 
 @dataclass
@@ -149,7 +150,7 @@ class TaskDependencyAnalyzer:
 
     def analyze(
         self,
-        phases: list[Phase],
+        phases: list[Any],  # Phase
         explicit_dependencies: dict[str, list[str]] | None = None,
     ) -> DependencyGraph:
         """
@@ -163,9 +164,20 @@ class TaskDependencyAnalyzer:
             依赖关系图
         """
         graph = DependencyGraph(phases=[p.name for p in phases])
-        # 1. 分析显式依赖
+
+        # 从 phases 提取显式依赖
+        phase_deps: dict[str, list[str]] = {}
+        for p in phases:
+            if hasattr(p, 'dependencies') and p.dependencies:
+                phase_deps[p.name] = p.dependencies
+
+        # 合并外部传入的依赖
         if explicit_dependencies:
-            for phase_name, deps in explicit_dependencies.items():
+            phase_deps.update(explicit_dependencies)
+
+        # 1. 分析显式依赖
+        if phase_deps:
+            for phase_name, deps in phase_deps.items():
                 for dep in deps:
                     graph.add_edge(DependencyEdge(
                         from_phase=dep,
@@ -283,13 +295,26 @@ class TaskDependencyAnalyzer:
                 idx = text.find(match)
                 context = text[max(0, idx-50):min(len(text), idx+50)]
 
-                # 判断操作类型
+                # 判断操作类型（优先检查写入，因为写入更具体）
                 is_read = any(kw in context for kw in read_keywords)
                 is_write = any(kw in context for kw in write_keywords)
 
-                if is_write and not is_read:
+                # 如果同时有读写关键词，根据距离判断
+                if is_read and is_write:
+                    # 计算关键词到文件路径的距离
+                    read_dist = min(
+                        abs(context.find(kw) - 50) for kw in read_keywords if kw in context
+                    )
+                    write_dist = min(
+                        abs(context.find(kw) - 50) for kw in write_keywords if kw in context
+                    )
+                    if write_dist < read_dist:
+                        pattern.writes.add(match)
+                    else:
+                        pattern.reads.add(match)
+                elif is_write:
                     pattern.writes.add(match)
-                elif is_read or not is_write:
+                else:
                     pattern.reads.add(match)
 
         return pattern
