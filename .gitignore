@@ -246,3 +246,4 @@ reports/
 *.zip
 *.tar.gz
 out/
+benchmark/
