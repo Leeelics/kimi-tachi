@@ -89,7 +89,7 @@ class SemanticIndex:
                     signature TEXT,
                     parent TEXT,
                     calls TEXT,  -- JSON list
-                    references TEXT,  -- JSON list
+                    refs TEXT  -- JSON list (references is keyword)
                     created_at REAL NOT NULL
                 )
             """)
@@ -341,7 +341,7 @@ class SemanticIndex:
                         """
                         INSERT INTO symbols
                         (name, type, file_path, line_start, line_end, docstring,
-                         signature, parent, calls, references, created_at)
+                         signature, parent, calls, refs, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
@@ -354,7 +354,7 @@ class SemanticIndex:
                             symbol.signature,
                             symbol.parent,
                             json.dumps(symbol.calls),
-                            json.dumps(symbol.references),
+                            json.dumps(symbol.calls),  # TODO: separate refs
                             time.time(),
                         ),
                     )
