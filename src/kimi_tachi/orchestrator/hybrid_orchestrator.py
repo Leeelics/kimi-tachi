@@ -12,7 +12,14 @@ Phase 2.4 Update: Added context cache support
 - Analysis result caching to reduce LLM calls
 - Context compression to reduce token usage
 
+Phase 3.0 Update: Native Agent Tool Support
+- Uses kimi-cli 1.25.0+ native Agent tool when available
+- Preserves anime character personalities
+- Auto-detects CLI version and selects best mode
+- Falls back to CreateSubagent for older CLI versions
+
 Environment Variables:
+    KIMI_TACHI_AGENT_MODE: "native", "legacy", or "auto" (default: auto)
     KIMI_TACHI_DYNAMIC_AGENTS: Enable dynamic mode (default: true)
     KIMI_TACHI_DEBUG_AGENTS: Enable debug logging (default: false)
     KIMI_TACHI_ENABLE_CACHE: Enable context cache (default: true)
@@ -46,6 +53,21 @@ try:
 except ImportError:
     CONTEXT_CACHE_AVAILABLE = False
     ContextCacheManager = None
+
+# Optional native agent orchestrator import
+try:
+    from .native_agent_orchestrator import (
+        NativeAgentOrchestrator,
+        AgentPersonality,
+        PERSONALITY_TO_TYPE,
+    )
+
+    NATIVE_AGENT_AVAILABLE = True
+except ImportError:
+    NATIVE_AGENT_AVAILABLE = False
+    NativeAgentOrchestrator = None
+    AgentPersonality = None
+    PERSONALITY_TO_TYPE = None
 
 
 @dataclass
@@ -173,6 +195,7 @@ class HybridOrchestrator:
         session_strategy: str = "temp",  # temp, reuse, or None
         enable_dynamic: bool | None = None,  # None = auto-detect from env
         enable_cache: bool | None = None,  # None = auto-detect from env
+        agent_mode: str | None = None,  # "native", "legacy", or "auto"
     ):
         """
         Initialize the HybridOrchestrator.
@@ -184,6 +207,7 @@ class HybridOrchestrator:
             session_strategy: Session management strategy (temp, reuse, None)
             enable_dynamic: Force dynamic mode (None = use env var)
             enable_cache: Enable context cache (None = use env var)
+            agent_mode: Agent execution mode - "native", "legacy", or "auto"
         """
         self.work_dir = Path(work_dir).resolve()
         self.agents_dir = (
@@ -193,7 +217,15 @@ class HybridOrchestrator:
         self.shared_context = SharedContext()
         self.history: list[AgentResult] = []
 
-        # Determine execution mode
+        # Determine agent execution mode (Phase 3.0)
+        if agent_mode is None:
+            agent_mode = os.environ.get("KIMI_TACHI_AGENT_MODE", "auto")
+        
+        self._agent_mode_setting = agent_mode
+        self._effective_agent_mode = self._resolve_agent_mode(agent_mode)
+        self.use_native_agents = self._effective_agent_mode == "native"
+
+        # Determine execution mode (legacy dynamic mode)
         if enable_dynamic is None:
             self.dynamic_mode = os.environ.get("KIMI_TACHI_DYNAMIC_AGENTS", "true").lower() not in (
                 "0",
@@ -228,21 +260,36 @@ class HybridOrchestrator:
             except Exception as e:
                 print(f"Warning: Failed to initialize Kimi SDK: {e}")
 
-        # Initialize agent factory for dynamic mode
+        # Initialize native agent orchestrator (Phase 3.0)
+        self._native_orch = None
+        if self.use_native_agents and NATIVE_AGENT_AVAILABLE:
+            try:
+                self._native_orch = NativeAgentOrchestrator(
+                    cache_ttl=300,
+                    debug=self.debug,
+                )
+                if self.debug:
+                    print("[HybridOrchestrator] Native agent mode enabled")
+            except Exception as e:
+                print(f"Warning: NativeAgentOrchestrator not available ({e}), falling back to legacy")
+                self.use_native_agents = False
+                self._effective_agent_mode = "legacy"
+
+        # Initialize agent factory for dynamic mode (legacy)
         self._agent_factory = None
-        if self.dynamic_mode:
+        if not self.use_native_agents and self.dynamic_mode:
             try:
                 from .agent_factory import get_agent_factory
 
                 self._agent_factory = get_agent_factory(agents_dir=self.agents_dir)
                 if self.debug:
-                    print("[HybridOrchestrator] Dynamic mode enabled")
+                    print("[HybridOrchestrator] Dynamic mode enabled (legacy)")
             except ImportError as e:
                 print(f"Warning: AgentFactory not available ({e}), falling back to fixed mode")
                 self.dynamic_mode = False
         else:
             if self.debug:
-                print("[HybridOrchestrator] Fixed mode (legacy)")
+                print(f"[HybridOrchestrator] Mode: {self._effective_agent_mode}")
 
         # Track dynamic subagent instances for cleanup
         self._dynamic_subagents: dict[str, Any] = {}
@@ -278,6 +325,18 @@ class HybridOrchestrator:
             print("Warning: Context cache not available (context module not found)")
             self._cache_enabled = False
 
+    def _resolve_agent_mode(self, mode: str) -> str:
+        """Resolve agent mode, handling 'auto' detection"""
+        if mode == "auto":
+            # Auto-detect based on CLI version
+            try:
+                from ..compatibility import check_compatibility
+                report = check_compatibility()
+                return "native" if report.is_compatible else "legacy"
+            except Exception:
+                return "legacy"
+        return mode if mode in ("native", "legacy") else "legacy"
+
     def cleanup(self) -> None:
         """Clean up resources (sessions, dynamic subagents, etc.)"""
         # Clean up session manager
@@ -286,7 +345,13 @@ class HybridOrchestrator:
             if count > 0:
                 print(f"🧹 Cleaned up {count} temporary sessions")
 
-        # Clean up dynamic subagents
+        # Clean up native agent orchestrator (Phase 3.0)
+        if self._native_orch:
+            destroyed = self._native_orch.cleanup()
+            if destroyed > 0 and self.debug:
+                print(f"🧹 Cleaned up {destroyed} native agents")
+
+        # Clean up dynamic subagents (legacy)
         if self._agent_factory:
             destroyed = self._agent_factory.cleanup_all()
             if destroyed > 0 and self.debug:
@@ -790,11 +855,16 @@ Respond in JSON format:
     def get_stats(self) -> dict[str, Any]:
         """Get orchestrator statistics"""
         stats = {
+            "agent_mode": self._effective_agent_mode,
+            "agent_mode_setting": self._agent_mode_setting,
             "dynamic_mode": self.dynamic_mode,
             "history_count": len(self.history),
             "files_modified": len(self.shared_context.files_modified),
             "decisions": len(self.shared_context.decisions),
         }
+
+        if self._native_orch:
+            stats["native_stats"] = self._native_orch.get_stats()
 
         if self._agent_factory:
             stats["factory_stats"] = self._agent_factory.get_stats()
