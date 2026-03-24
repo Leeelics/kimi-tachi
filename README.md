@@ -1,28 +1,28 @@
-# kimi-tachi (君たち) v0.3.0
+# kimi-tachi (君たち) v0.4.0
 
 > Multi-agent task orchestration for Kimi CLI
 > 
 > *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized agents working together.
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-## 🎉 v0.3.0 新特性
+## 🎉 v0.4.0 新特性
 
-**完整支持 kimi-cli 1.25.0+！**
+**充分利用 kimi-cli 1.25.0+ 新能力！**
 
-- ✅ **原生 Agent 工具** - 集成 coder/explore/plan 类型
-- ✅ **Plugin 系统** - Skills 转换为可执行 Plugins
-- ✅ **工作流追踪** - 可视化代理调用链
-- ✅ **kimi vis 集成** - 导出追踪数据供可视化
-- ✅ **CLI 版本检测** - 自动适配 native/legacy 模式
-- ✅ **向后兼容** - 支持旧版本 kimi-cli
+- ✅ **Labor Market 集成** - 七人衆注册为 built-in subagent types
+- ✅ **Agent Resume** - 跨会话上下文保留，智能复用 agent 实例
+- ✅ **Background Tasks** - 长时间任务异步执行
+- ✅ **WireAdapter** - 统一 Message Bus 和 Wire 通信
+- ✅ **原生 Agent 工具** - 支持 coder/explore/plan + 七人衆角色
+- ✅ **Plugin 系统** - 通过 `kimi plugin install` 安装
 
 ```bash
 # 快速开始
 pip install kimi-tachi
-kimi-tachi install
+kimi plugin install agents/kimi-tachi
 kimi-tachi start
 ```
 
@@ -50,7 +50,7 @@ kimi-tachi start
 │ │ 🚌   │   │ 🔥   │   │ 👹   │         │
 │ │猫巴士 │   │ 火魔 │   │阎王 │  ...     │
 │ └──────┘   └──────┘   └──────┘         │
-│      幕后工作者 (通过 Task 工具调用)       │
+│      幕后工作者 (通过 Agent 工具调用)      │
 └─────────────────────────────────────────┘
 ```
 
@@ -84,11 +84,18 @@ kimi-tachi start
 ### 安装
 
 ```bash
+# 1. 安装 Python 包
 pip install kimi-tachi
 
-# 安装到 Kimi CLI
-kimi-tachi install
+# 2. 安装 kimi-cli plugin
+kimi plugin install agents/kimi-tachi
+
+# 3. 验证安装
+kimi-tachi --version
+kimi plugin list
 ```
+
+**系统要求**: kimi-cli >=1.25.0, Python >=3.12
 
 ### 启动 kimi-tachi
 
@@ -125,13 +132,15 @@ kamaji: 🚌 让我派猫巴士去找找...
        - 🚌 nekobasu: 探索了 src/ 目录，找到 5 个文件
 ```
 
-**复杂任务**（自动编排多个角色）：
+**复杂任务**（自动编排多个角色，支持 Resume）：
 ```
 用户: 实现用户登录功能
 kamaji: 🌆 这是一个复杂任务，我来协调团队...
 
        [调用 tasogare 做规划]
        [调用 nekobasu 探索现有代码]
+       → nekobasu agent_id: a1b2c3d4 (保留上下文)
+       
        [调用 calcifer 实现代码]
        [调用 enma 审查]
 
@@ -143,11 +152,16 @@ kamaji: 🌆 这是一个复杂任务，我来协调团队...
        ---
        **◕‿◕ Workers Involved:**
        - 🌆 tasogare: 分析了需求，选择 JWT 方案
-       - 🚌 nekobasu: 找到现有用户模型
+       - 🚌 nekobasu: 找到现有用户模型 (agent: a1b2c3d4)
        - 🔥 calcifer: 实现了 4 个文件
        - 👹 enma: 通过审查
        
        「さあ、働け！働け！」团队完成！
+
+用户: 继续实现注册功能
+kamaji: 🚌 复用 nekobasu (a1b2c3d4) 继续探索...
+       
+       [resume a1b2c3d4] 在已有上下文基础上继续工作
 ```
 
 ---
@@ -174,6 +188,10 @@ kamaji 会根据任务复杂度自动决定工作方式：
 ### 环境变量
 
 ```bash
+# v0.4.0: Agent 会话管理
+export KIMI_TACHI_SESSION_ID="my-project"  # 会话 ID
+export KIMI_TACHI_RESUME_TIMEOUT=1800      # Resume 超时（秒）
+
 # Phase 2.1: 动态 Agent 创建（默认启用）
 export KIMI_TACHI_DYNAMIC_AGENTS=true
 
@@ -193,11 +211,27 @@ export KIMI_TACHI_DEBUG_AGENTS=true
 from kimi_tachi.orchestrator import HybridOrchestrator
 from kimi_tachi.message_bus import MessageBus
 from kimi_tachi.context import ContextCacheManager
+from kimi_tachi.session import get_session_manager  # v0.4.0
+from kimi_tachi.background import get_task_manager   # v0.4.0
 
 # 完整功能启用
 orch = HybridOrchestrator(
     enable_dynamic=True,   # Phase 2.1
     enable_cache=True,     # Phase 2.4
+)
+
+# v0.4.0: 会话管理 - 跟踪和复用 agent
+session = get_session_manager("my-project")
+if agent_id := session.should_resume("nekobasu"):
+    # 复用现有 agent，保留上下文
+    Agent(description="继续探索", prompt="...", subagent_type="nekobasu", resume=agent_id)
+
+# v0.4.0: 后台任务 - 异步执行
+ tasks = get_task_manager()
+task = await tasks.start_task(
+    agent_type="nekobasu",
+    description="深度代码分析",
+    prompt="分析整个代码库架构",
 )
 
 # 使用消息总线
@@ -217,6 +251,10 @@ engine = WorkflowEngine(orch, use_parallel=True)  # Phase 2.3
 ```bash
 # 工作流模式（非交互式，自动执行完整流程）
 kimi-tachi workflow "实现用户认证" --type feature
+
+# v0.4.0: 后台任务管理
+kimi-tachi tasks                 # 列出后台任务
+kimi-tachi tasks --status active # 查看活跃任务
 
 # 会话管理
 kimi-tachi sessions              # 查看会话历史
@@ -255,6 +293,15 @@ kimi-tachi/
 │
 └── src/kimi_tachi/
     ├── cli.py             # Typer CLI
+    ├── session/           # v0.4.0: Agent 会话管理
+    │   ├── agent_session.py
+    │   └── __init__.py
+    ├── background/        # v0.4.0: 后台任务管理
+    │   ├── task_manager.py
+    │   └── __init__.py
+    ├── adapters/          # v0.4.0: Wire 桥接适配器
+    │   ├── wire_adapter.py
+    │   └── __init__.py
     ├── message_bus/       # Phase 2.2: 消息总线
     │   ├── models.py
     │   ├── hub.py
@@ -277,68 +324,77 @@ kimi-tachi/
 
 ## 🔧 技术架构
 
-### Phase 2 架构优化
+### v0.4.0 架构 (Labor Market + Agent Resume)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Phase 2 架构                               │
+│                    v0.4.0 混合架构                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Phase 2.1: 动态 Agent 创建                                   │
+│  Labor Market 集成                                            │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  AgentFactory → Agent tool (on-demand)   │   │
-│  │  MCP 进程: 7 → ≤2                                    │   │
+│  │  七人衆注册为 built-in types:                        │   │
+│  │  nekobasu, calcifer, shishigami, enma, ...          │   │
+│  │  Agent(subagent_type="nekobasu") 自动加载角色        │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  Phase 2.2: 消息总线架构                                       │
+│  Agent Resume 机制                                           │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  MessageBus: send/broadcast/publish/subscribe       │   │
-│  │  延迟: ~500ms → <100ms                               │   │
+│  │  Session Manager → 跟踪 agent 实例                   │   │
+│  │  resume=agent_id → 复用上下文                       │   │
+│  │  智能建议: should_resume(agent_type)                │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  Phase 2.3: Workflow 并行执行                                  │
+│  Background Tasks                                           │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  DependencyAnalyzer → ParallelScheduler             │   │
-│  │  并行比例: 0% → ≥40%                                  │   │
+│  │  长时间任务异步执行                                  │   │
+│  │  run_in_background=True                             │   │
+│  │  TaskOutput / 自动通知                              │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  Phase 2.4: 上下文缓存优化                                      │
+│  WireAdapter (Message Bus ↔ Wire)                          │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  FileCache + SemanticIndex + AnalysisCache          │   │
-│  │  缓存命中率: ≥80%, Token 减少 30%                      │   │
+│  │  统一通信接口                                        │   │
+│  │  本地/远程模式自动切换                               │   │
+│  │  Agent 状态缓存                                      │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 原生优先策略
+### v0.4.0 通信策略
 
-| 功能 | 实现方式 | 理由 |
-|------|----------|------|
-| 子代理委派 | **原生 Task 工具** | 无需额外进程，自动上下文隔离 |
-| 文件编辑 | **原生 StrReplaceFile** | Kimi CLI 原生已足够强大 |
-| 编排控制 | **扩展 Context 类** | 直接访问内部状态 |
+| 场景 | 机制 | 说明 |
+|------|------|------|
+| 同进程通信 | **Message Bus** | 内部协调，丰富消息模式 |
+| 跨 Agent 通信 | **Agent Tool + Wire** | kimi-cli 原生机制 |
+| Agent 复用 | **resume 参数** | 上下文自动保留 |
+| 状态查询 | **SubagentStore** | 只读，快速 |
+| 后台任务 | **run_in_background** | 异步执行 |
 
 ### 与 Kimi CLI 的关系
 
 ```
 ┌─────────────────────────────────────────┐
-│           kimi-tachi v0.2.0             │
+│           kimi-tachi v0.4.0             │
 │  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
 │  │ Agents  │ │ Skills  │ │  Tools   │  │
 │  │(Anime)  │ │(.md)    │ │(Python)  │  │
 │  └────┬────┘ └────┬────┘ └────┬─────┘  │
 │       └─────────────┴───────────┘       │
 │                   │                     │
-│              Native API                 │
+│  ┌────────────────┼────────────────┐   │
+│  │  Message Bus   │  WireAdapter   │   │
+│  │  (内部协调)     │  (Agent 通信)   │   │
+│  └────────────────┼────────────────┘   │
 │                   │                     │
 └───────────────────┼─────────────────────┘
                     │
 ┌───────────────────┼─────────────────────┐
-│              Kimi CLI                   │
+│              Kimi CLI 1.25.0+           │
 │  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
-│  │  Soul   │ │  Wire   │ │ Context  │  │
-│  │  Task   │ │Skill Sys│ │Compaction│  │
+│  │  Agent  │ │  Wire   │ │Subagent  │  │
+│  │  Tool   │ │         │ │  Store   │  │
 │  └─────────┘ └─────────┘ └──────────┘  │
 └─────────────────────────────────────────┘
 ```
@@ -354,30 +410,45 @@ kimi-tachi/
 - [x] CLI wrapper
 - [x] Workflow 模式
 
-### ✅ Phase 2: 架构优化 (v0.2.0) - 已完成！
+### ✅ Phase 2: 架构优化 (v0.2.0)
 
 - [x] **2.1** 动态 Agent 创建 - MCP 7→2
 - [x] **2.2** 消息总线架构 - 延迟 <100ms
 - [x] **2.3** Workflow 并行执行 - 并行 ≥40%
 - [x] **2.4** 上下文缓存优化 - 命中率 ≥80%
 
-### 🚧 Phase 3: 记忆系统 (v0.3.0)
+### ✅ Phase 3: 系统集成 (v0.3.0)
 
-- [ ] 跨会话记忆保持
-- [ ] 长期知识积累
-- [ ] 个性化适配
+- [x] Skills → Plugins 转换
+- [x] 工作流追踪与可视化
+- [x] kimi-cli 1.25.0+ 兼容
+
+### ✅ Phase 4: Labor Market (v0.4.0) - 已完成！
+
+- [x] **4.1** 七人衆注册为 built-in types
+- [x] **4.2** Agent Resume 机制
+- [x] **4.3** Background Tasks
+- [x] **4.4** WireAdapter 桥接
+
+### 🚧 Phase 5: 智能记忆 (v0.5.0)
+
+- [ ] 跨会话长期记忆
+- [ ] 知识图谱构建
+- [ ] 个性化工作流学习
 
 ---
 
 ## 📊 性能指标
 
-| 指标 | v0.1.0 | v0.2.0 | 提升 |
-|------|--------|--------|------|
-| MCP 进程数 | 7 | ≤2 | 71% ↓ |
-| 消息延迟 | ~500ms | <100ms | 80% ↓ |
-| 并行执行比例 | 0% | ≥40% | 新增 |
-| 缓存命中率 | 0% | ≥80% | 新增 |
-| Token 使用 | 100% | ~70% | 30% ↓ |
+| 指标 | v0.1.0 | v0.2.0 | v0.4.0 | 提升 |
+|------|--------|--------|--------|------|
+| MCP 进程数 | 7 | ≤2 | ≤2 | 71% ↓ |
+| 消息延迟 | ~500ms | <100ms | <100ms | 80% ↓ |
+| 并行执行比例 | 0% | ≥40% | ≥40% | 新增 |
+| 缓存命中率 | 0% | ≥80% | ≥80% | 新增 |
+| Token 使用 | 100% | ~70% | ~50% | 50% ↓ |
+| Agent 复用 | ❌ | ❌ | ✅ | 新增 |
+| 后台任务 | ❌ | ❌ | ✅ | 新增 |
 
 ---
 
@@ -402,7 +473,7 @@ MIT - 与 Kimi CLI 保持一致
 
 ---
 
-**kimi-tachi v0.2.0** - *Many Kimis, One Goal.*
+**kimi-tachi v0.4.0** - *Many Kimis, One Goal.*
 
 **キャラクターたち、準備はいいか？** (Characters, ready?)
 
