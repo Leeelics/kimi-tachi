@@ -10,12 +10,60 @@ A squad of specialized agents working together (七人衆):
 - tasogare: Research planner (黄昏)
 - phoenix: Knowledge manager (火之鸟)
 
-Phase 2.2: Message Bus Architecture
-- Asynchronous message passing
-- Point-to-point, broadcast, multicast, pub/sub
-- Message persistence (SQLite)
-- Distributed tracing
+Phase 3.0: Native Agent Tool Support
+- Compatible with kimi-cli 1.25.0+
+- Native Agent tool integration (coder/explore/plan)
+- Backward compatible with CreateSubagent
+- Auto-detection of CLI version
 """
 
-__version__ = "0.2.2"
-__all__ = ["cli", "message_bus", "orchestrator", "metrics"]
+__version__ = "0.3.0-dev"
+__compatible_cli_versions__ = ">=1.25.0"
+
+__all__ = [
+    "cli",
+    "message_bus",
+    "orchestrator",
+    "metrics",
+    "config",
+    "compatibility",
+]
+
+
+def check_compatibility_at_import():
+    """
+    Check compatibility at package import time.
+    
+    This function is called automatically when the package is imported.
+    It warns users if their CLI version is incompatible.
+    """
+    import os
+    import warnings
+    
+    # Skip check if explicitly disabled
+    if os.getenv("KIMI_TACHI_SKIP_COMPAT_CHECK", "").lower() in ("1", "true", "yes"):
+        return
+    
+    try:
+        from .compatibility import check_compatibility
+        
+        report = check_compatibility()
+        
+        if not report.is_compatible:
+            warnings.warn(
+                f"\n{'='*60}\n"
+                f"Kimi-Tachi v{__version__} Compatibility Warning\n"
+                f"{'='*60}\n"
+                f"{report.message}\n\n"
+                f"Recommendation: {report.recommendation}\n"
+                f"{'='*60}\n",
+                UserWarning,
+                stacklevel=2,
+            )
+    except Exception:
+        # Don't fail import if compatibility check fails
+        pass
+
+
+# Run compatibility check on import
+check_compatibility_at_import()

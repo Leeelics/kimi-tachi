@@ -333,13 +333,47 @@ def list_agents():
 @app.command()
 def status():
     """Check kimi-tachi installation status."""
+    from .compatibility import check_compatibility, print_compatibility_status
+    from .config import KimiTachiConfig
 
     typer.echo("kimi-tachi Status:\n")
+    
+    # Version info
+    typer.echo(f"  kimi-tachi version: {__version__}")
+    typer.echo()
+    
+    # Compatibility check
+    typer.echo("  Compatibility:")
+    report = check_compatibility()
+    if report.is_compatible:
+        typer.echo(f"    ✓ kimi-cli {report.cli_version} (compatible)")
+    else:
+        typer.echo(f"    ✗ {report.message}")
+        typer.echo(f"    → {report.recommendation}")
+    typer.echo()
+    
+    # Configuration
+    config = KimiTachiConfig.from_env()
+    typer.echo(f"  Agent Mode: {config.effective_agent_mode}")
+    typer.echo(f"    (set via KIMI_TACHI_AGENT_MODE={config.agent_mode})")
+    typer.echo()
 
     # Check Kimi CLI
     kimi_path = shutil.which("kimi")
     if kimi_path:
         typer.echo(f"  ✓ Kimi CLI: {kimi_path}")
+        # Show CLI version
+        try:
+            result = subprocess.run(
+                ["kimi", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                typer.echo(f"    Version: {result.stdout.strip()}")
+        except Exception:
+            pass
     else:
         typer.echo("  ✗ Kimi CLI: Not found")
 
