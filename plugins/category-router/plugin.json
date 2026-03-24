@@ -1,0 +1,52 @@
+{
+  "name": "category-router",
+  "version": "0.3.0",
+  "description": "Route tasks to appropriate kimi-tachi agents based on category and intent",
+  "tools": [
+    {
+      "name": "route_task",
+      "description": "Analyze a task and route it to the most appropriate agent",
+      "command": ["python3", "scripts/route_task.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task description to analyze and route"
+          },
+          "context": {
+            "type": "string",
+            "default": "",
+            "description": "Additional context about the task"
+          }
+        },
+        "required": ["task"]
+      }
+    },
+    {
+      "name": "detect_category",
+      "description": "Detect the category of a task without routing",
+      "command": ["python3", "scripts/detect_category.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to analyze for category detection"
+          }
+        },
+        "required": ["text"]
+      }
+    },
+    {
+      "name": "list_categories",
+      "description": "List all available categories and their agents",
+      "command": ["python3", "scripts/list_categories.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  ]
+}

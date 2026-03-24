@@ -1,0 +1,78 @@
+{
+  "name": "todo-enforcer",
+  "version": "0.3.0",
+  "description": "Ensure tasks are completed before claiming done - todo list validation and enforcement",
+  "tools": [
+    {
+      "name": "validate_todos",
+      "description": "Validate that all todos in a list are completed before marking a task as done",
+      "command": ["python3", "scripts/validate_todos.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "type": "array",
+            "description": "List of todo items with title and status",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "status": {"type": "string", "enum": ["pending", "in_progress", "completed"]}
+              },
+              "required": ["title", "status"]
+            }
+          },
+          "strict": {
+            "type": "boolean",
+            "default": true,
+            "description": "If true, fail if any todo is not completed"
+          }
+        },
+        "required": ["todos"]
+      }
+    },
+    {
+      "name": "check_todo_format",
+      "description": "Check if todo items follow the proper format and provide suggestions",
+      "command": ["python3", "scripts/check_format.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "type": "array",
+            "description": "List of todo items to check",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "status": {"type": "string"}
+              },
+              "required": ["title", "status"]
+            }
+          }
+        },
+        "required": ["todos"]
+      }
+    },
+    {
+      "name": "generate_todo_template",
+      "description": "Generate a todo list template for common task types",
+      "command": ["python3", "scripts/generate_template.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task_type": {
+            "type": "string",
+            "enum": ["feature", "bugfix", "refactor", "explore", "document"],
+            "description": "Type of task to generate template for"
+          },
+          "task_description": {
+            "type": "string",
+            "description": "Brief description of the task"
+          }
+        },
+        "required": ["task_type"]
+      }
+    }
+  ]
+}

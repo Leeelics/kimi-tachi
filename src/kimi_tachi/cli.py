@@ -232,7 +232,26 @@ def install(
                     shutil.copytree(skill_dir, dest)
                     typer.echo(f"Installed skill: {skill_dir.name}")
 
+    # Copy plugins (Phase 3.0)
+    plugins_source = PACKAGE_DIR / "plugins"
+    if plugins_source.exists():
+        (KIMI_CONFIG_DIR / "plugins").mkdir(exist_ok=True)
+        for plugin_dir in plugins_source.iterdir():
+            if plugin_dir.is_dir():
+                dest = KIMI_CONFIG_DIR / "plugins" / plugin_dir.name
+                if dest.exists() and not force:
+                    typer.echo(f"Skipping plugin {plugin_dir.name} (already exists)")
+                else:
+                    if dest.exists():
+                        shutil.rmtree(dest)
+                    shutil.copytree(plugin_dir, dest)
+                    typer.echo(f"Installed plugin: {plugin_dir.name}")
+
     typer.echo("\n✨ kimi-tachi installed successfully!")
+    typer.echo("\n📦 Installed components:")
+    typer.echo("   • Agents (YAML configuration)")
+    typer.echo("   • Skills (documentation and guidance)")
+    typer.echo("   • Plugins (executable tools for kimi-cli 1.25.0+)")
 
     # Interactive setup
     if not skip_setup:
@@ -393,6 +412,16 @@ def status():
     else:
         typer.echo("  ✗ Skills: Not installed")
 
+    # Check plugins (Phase 3.0)
+    plugins_dir = KIMI_CONFIG_DIR / "plugins"
+    if plugins_dir.exists():
+        plugin_count = len([d for d in plugins_dir.iterdir() if d.is_dir()])
+        typer.echo(f"  ✓ Plugins installed: {plugin_count}")
+        if plugin_count > 0:
+            typer.echo("    (Use with kimi-cli 1.25.0+ plugin system)")
+    else:
+        typer.echo("  ✗ Plugins: Not installed")
+
     # Check config
     config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
     if config_file.exists():
@@ -432,6 +461,15 @@ def uninstall(
             for skill in kimi_skills:
                 typer.echo(f"     - {skill}")
 
+    # Show plugins
+    plugins_dir = KIMI_CONFIG_DIR / "plugins"
+    if plugins_dir.exists():
+        kimi_plugins = [d.name for d in plugins_dir.iterdir() if d.is_dir()]
+        if kimi_plugins:
+            typer.echo(f"  📁 Plugins: {plugins_dir}")
+            for plugin in kimi_plugins:
+                typer.echo(f"     - {plugin}")
+
     if not keep_config:
         config_file = KIMI_CONFIG_DIR / "kimi-tachi.config"
         if config_file.exists():
@@ -464,6 +502,17 @@ def uninstall(
                     typer.echo(f"  ✓ Removed skill: {skill_dir.name}")
                 except Exception as e:
                     typer.echo(f"  ✗ Failed to remove skill {skill_dir.name}: {e}", err=True)
+
+    # Remove plugins (Phase 3.0)
+    plugins_dir = KIMI_CONFIG_DIR / "plugins"
+    if plugins_dir.exists():
+        for plugin_dir in plugins_dir.iterdir():
+            if plugin_dir.is_dir():
+                try:
+                    shutil.rmtree(plugin_dir)
+                    typer.echo(f"  ✓ Removed plugin: {plugin_dir.name}")
+                except Exception as e:
+                    typer.echo(f"  ✗ Failed to remove plugin {plugin_dir.name}: {e}", err=True)
 
     # Remove config
     if not keep_config:
