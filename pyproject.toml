@@ -59,6 +59,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kimi_tachi"]
+include = [
+    "agents/*.yaml",
+    "skills/**/*.md",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+"agents" = "kimi_tachi/agents"
+"skills" = "kimi_tachi/skills"
+"plugins" = "kimi_tachi/plugins"
 
 [tool.ruff]
 line-length = 100

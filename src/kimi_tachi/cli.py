@@ -51,7 +51,8 @@ def common(
 # Paths
 KIMI_CONFIG_DIR = Path.home() / ".kimi"
 KIMI_TACHI_DIR = KIMI_CONFIG_DIR / "agents" / "kimi-tachi"
-PACKAGE_DIR = Path(__file__).parent.parent.parent
+# Package data directory (for agents, skills, plugins)
+PACKAGE_DIR = Path(__file__).parent  # src/kimi_tachi when installed
 
 # Agent definitions with anime characters
 AGENTS = {
