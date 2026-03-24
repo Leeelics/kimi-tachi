@@ -48,10 +48,10 @@ dev = [
 kimi-tachi = "kimi_tachi.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/kimi-tachi"
-Repository = "https://github.com/yourusername/kimi-tachi"
-Documentation = "https://github.com/yourusername/kimi-tachi#readme"
-Changelog = "https://github.com/yourusername/kimi-tachi/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Leeelics/kimi-tachi"
+Repository = "https://github.com/Leeelics/kimi-tachi"
+Documentation = "https://github.com/Leeelics/kimi-tachi#readme"
+Changelog = "https://github.com/Leeelics/kimi-tachi/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

@@ -32,11 +32,11 @@ gh repo create kimi-tachi --public --description "Multi-agent task orchestration
 # 进入项目目录
 cd /home/lee/ship/kimi-tachi
 
-# 添加远程仓库（替换 yourusername 为你的 GitHub 用户名）
-git remote add origin https://github.com/yourusername/kimi-tachi.git
+# 添加远程仓库（替换 Leeelics 为你的 GitHub 用户名）
+git remote add origin https://github.com/Leeelics/kimi-tachi.git
 
 # 或者使用 SSH（推荐）
-git remote add origin git@github.com:yourusername/kimi-tachi.git
+git remote add origin git@github.com:Leeelics/kimi-tachi.git
 
 # 验证远程仓库
 git remote -v
@@ -54,7 +54,7 @@ git push origin --tags
 
 ### 1. 保护 main 分支
 
-访问 `https://github.com/yourusername/kimi-tachi/settings/branches`
+访问 `https://github.com/Leeelics/kimi-tachi/settings/branches`
 
 添加规则：
 - **Branch name pattern**: `main`
@@ -72,13 +72,13 @@ git push origin --tags
 
 ### 2. 启用 Discussions
 
-访问 `https://github.com/yourusername/kimi-tachi/settings`
+访问 `https://github.com/Leeelics/kimi-tachi/settings`
 
 - 勾选 "Discussions"
 
 ### 3. 配置 Secrets（用于发布到 PyPI）
 
-访问 `https://github.com/yourusername/kimi-tachi/settings/secrets/actions`
+访问 `https://github.com/Leeelics/kimi-tachi/settings/secrets/actions`
 
 #### 方式 A：Trusted Publishing（推荐）
 
@@ -86,7 +86,7 @@ git push origin --tags
 2. 配置 Trusted Publisher：
    - 访问 `https://pypi.org/manage/project/kimi-tachi/settings/publishing/`
    - 添加 Publisher：
-     - **Owner**: yourusername
+     - **Owner**: Leeelics
      - **Repository name**: kimi-tachi
      - **Workflow name**: `release.yml`
      - **Environment name**: `pypi`
@@ -121,7 +121,7 @@ git push origin test/ci-checks
 
 ### 2. 在 GitHub 创建 PR
 
-访问 `https://github.com/yourusername/kimi-tachi/pulls`
+访问 `https://github.com/Leeelics/kimi-tachi/pulls`
 
 - 点击 "New pull request"
 - 选择 `test/ci-checks` → `main`
@@ -184,7 +184,7 @@ git push origin 0.1.0
   4. 创建 GitHub Release
 
 - 查看进度：
-  `https://github.com/yourusername/kimi-tachi/actions`
+  `https://github.com/Leeelics/kimi-tachi/actions`
 
 ### 4. 验证发布
 
@@ -275,7 +275,7 @@ git push origin branch-name --force
 git remote -v
 
 # 如果是 HTTPS，考虑切换到 SSH
-git remote set-url origin git@github.com:yourusername/kimi-tachi.git
+git remote set-url origin git@github.com:Leeelics/kimi-tachi.git
 ```
 
 ---

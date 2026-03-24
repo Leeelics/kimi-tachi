@@ -19,7 +19,7 @@
 
 ### 4. Build Verification
 - [x] Clean dist/ directory
-- [x] Build successful (python -m build)
+- [x] Build successful (`uv build` or `python -m build`)
 - [x] Wheel contains all necessary files
 - [x] Version in wheel is correct (0.4.0)
 
@@ -40,23 +40,6 @@
 2. Create token with scope: "Entire account (all projects)"
 3. Save token securely (will only be shown once)
 
-### 3. Configure Credentials
-
-**Option A: Using .pypirc**
-```bash
-cat >> ~/.pypirc << 'EOF'
-[pypi]
-username = __token__
-password = pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-EOF
-chmod 600 ~/.pypirc
-```
-
-**Option B: Using environment variable**
-```bash
-export PYPI_API_TOKEN="pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
 ## Release Steps
 
 ### Step 1: Final Verification
@@ -65,7 +48,7 @@ export PYPI_API_TOKEN="pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 pytest
 
 # Build package
-python -m build
+uv build
 
 # Check build
 ls -la dist/
@@ -74,28 +57,28 @@ ls -la dist/
 # - kimi_tachi-0.4.0.tar.gz
 ```
 
-### Step 2: Upload to TestPyPI (Optional but Recommended)
+### Step 2: Upload to PyPI using uv
+
+**Option A: Using environment variable (Recommended)**
 ```bash
-# Install twine
-pip install twine
+# Set token as environment variable
+export UV_PUBLISH_TOKEN="pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Upload to TestPyPI
-twine upload --repository testpypi dist/*
-
-# Test installation from TestPyPI
-pip install --index-url https://test.pypi.org/simple/ kimi-tachi
+# Publish
+uv publish
 ```
 
-### Step 3: Upload to PyPI
+**Option B: Using command line argument**
 ```bash
-# Upload to PyPI
-twine upload dist/*
-
-# Or with explicit credentials
-twine upload -u __token__ -p $PYPI_API_TOKEN dist/*
+uv publish --token "pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
-### Step 4: Verify Release
+**Option C: Using username/password (legacy)**
+```bash
+uv publish --username __token__ --password "pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+### Step 3: Verify Release
 ```bash
 # Wait a few minutes for PyPI to update
 
@@ -110,10 +93,24 @@ kimi-tachi --version
 # Should show: kimi-tachi version 0.4.0
 ```
 
-### Step 5: Post-Release
+### Step 4: Post-Release
 - [ ] Push git tag to remote: `git push origin v0.4.0`
 - [ ] Create GitHub Release (optional)
 - [ ] Announce on social media (optional)
+
+## Alternative: Using twine (legacy)
+
+If you prefer using `twine`:
+
+```bash
+# Install twine
+pip install twine
+
+# Upload to PyPI
+twine upload dist/*
+```
+
+But `uv publish` is recommended as it's faster and integrated with uv workflow.
 
 ## Troubleshooting
 
@@ -123,30 +120,48 @@ kimi-tachi --version
 rm -rf dist/ build/ *.egg-info
 
 # Rebuild
-python -m build
+uv build
 ```
 
 ### Upload Errors
 ```bash
-# Check credentials
-twine check dist/*
+# Dry run to check without uploading
+uv publish --dry-run
 
-# Verify PyPI access
-twine upload --verbose dist/*
+# Check if package already exists
+# (uv will skip duplicates by default)
+```
+
+### Authentication Errors
+```bash
+# Verify token is set correctly
+echo $UV_PUBLISH_TOKEN
+
+# Or use --token flag directly
+uv publish --token "your-token-here"
 ```
 
 ### Version Conflicts
 ```bash
 # If version already exists on PyPI, you cannot re-upload
-# Must increment version number
+# Must increment version number in pyproject.toml
 ```
 
 ## Quick Release Command
 
 ```bash
 # One-liner for future releases
-pytest && python -m build && twine upload dist/*
+pytest && uv build && uv publish
 ```
+
+## uv vs twine
+
+| Feature | uv publish | twine |
+|---------|-----------|-------|
+| Speed | ⚡ Fast (Rust) | 🐌 Slower (Python) |
+| Integration | Native with uv | Separate tool |
+| Dependencies | None extra | Requires install |
+| Recommended | ✅ Yes | Legacy |
 
 ## Files to Include in Distribution
 
@@ -165,6 +180,6 @@ pytest && python -m build && twine upload dist/*
 - __pycache__/
 - *.pyc
 - .git/
-- tests/ (optional, can be excluded)
+- tests/ (optional)
 - docs/ (optional)
 - examples/ (optional)
