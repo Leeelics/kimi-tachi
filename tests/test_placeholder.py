@@ -5,4 +5,4 @@ def test_import():
     """Test that kimi_tachi can be imported"""
     import kimi_tachi
 
-    assert kimi_tachi.__version__ == "0.3.0"
+    assert kimi_tachi.__version__ == "0.4.0"
