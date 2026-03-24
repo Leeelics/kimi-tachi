@@ -247,3 +247,15 @@ reports/
 *.tar.gz
 out/
 benchmark/
+results/
+
+# Design documents and examples (not for distribution)
+docs/ARCHITECTURE_*.md
+docs/BUILD_IN_PUBLIC_*.md
+docs/CHANGELOG_*.md
+docs/INSTALL.md
+docs/MIGRATION_PLAN_*.md
+docs/PHASE*_GUIDE.md
+docs/phase*_design.md
+docs/phase*_metrics_design.md
+examples/
