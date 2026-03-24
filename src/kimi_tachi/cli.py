@@ -706,6 +706,61 @@ def sessions(
         typer.echo()
 
 
+@app.command()
+def traces(
+    export: Annotated[str | None, typer.Option("--export", "-e", help="Export traces to directory")] = None,
+    clear: Annotated[bool, typer.Option("--clear", "-c", help="Clear all traces")] = False,
+    json_out: Annotated[bool, typer.Option("--json", "-j", help="Output as JSON")] = False,
+):
+    """View and manage workflow traces (Phase 4)."""
+    from .tracing import get_tracer
+    from .vis import VisExporter
+
+    tracer = get_tracer()
+
+    if clear:
+        confirm = typer.prompt("Clear all traces? [y/N]", default="n")
+        if confirm.lower() in ("y", "yes"):
+            count = tracer.clear()
+            typer.echo(f"Cleared {count} traces.")
+        return
+
+    # Export traces if requested
+    if export:
+        exporter = VisExporter()
+        paths = exporter.save_tracer_to_directory(tracer, export)
+        typer.echo(f"Exported {len(paths)} traces to {export}")
+        for p in paths:
+            typer.echo(f"  {p}")
+        return
+
+    # Show traces
+    stats = tracer.get_stats()
+    
+    if json_out:
+        import json
+        typer.echo(json.dumps(stats, indent=2))
+        return
+
+    typer.echo("Workflow Traces (Phase 4)\n")
+    typer.echo(f"Total traces: {stats['total_traces']}")
+    typer.echo(f"Total events: {stats['total_events']}")
+    typer.echo(f"Completed: {stats['completed_workflows']}")
+    typer.echo(f"Failed: {stats['failed_workflows']}")
+    
+    if stats['total_traces'] > 0:
+        typer.echo(f"Avg duration: {stats['avg_duration_ms']}ms")
+        
+        typer.echo("\nRecent traces:")
+        for trace in tracer.get_recent_traces(5):
+            status_icon = "✅" if trace.status == "completed" else "❌"
+            typer.echo(f"  {status_icon} {trace.trace_id}")
+            typer.echo(f"     Type: {trace.workflow_type}")
+            typer.echo(f"     Duration: {trace.duration_ms}ms")
+            typer.echo(f"     Agents: {trace.agent_count}")
+            typer.echo()
+
+
 def _run_kimi(agent: str, yolo: bool, work_dir: str):
     """Helper to run kimi with agent."""
     agent_file = KIMI_TACHI_DIR / f"{agent}.yaml"

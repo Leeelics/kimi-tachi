@@ -1,8 +1,10 @@
 """
-Native Agent Orchestrator - Phase 2 Implementation
+Native Agent Orchestrator - Phase 2/4 Implementation
 
 Uses kimi-cli 1.25.0+ native Agent tool for subagent delegation
 while preserving kimi-tachi anime character personalities.
+
+Phase 4: Added tracing and visualization support.
 
 Author: kimi-tachi Team
 Version: 0.3.0
@@ -14,6 +16,15 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+# Optional tracing import
+try:
+    from ..tracing import AgentTracer, get_tracer
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    AgentTracer = None
+    get_tracer = None
 
 
 class AgentType(str, Enum):
@@ -348,6 +359,7 @@ class NativeAgentOrchestrator:
         self,
         cache_ttl: int | None = None,
         debug: bool = False,
+        enable_tracing: bool = True,
     ):
         import os
         
@@ -369,9 +381,15 @@ class NativeAgentOrchestrator:
             "cache_misses": 0,
         }
         
+        # Tracing support (Phase 4)
+        self._tracer: AgentTracer | None = None
+        if enable_tracing and TRACING_AVAILABLE and get_tracer:
+            self._tracer = get_tracer(debug=debug)
+        
         if self.debug:
             print(f"[NativeAgentOrchestrator] Initialized")
             print(f"  cache_ttl: {self.cache_ttl}s")
+            print(f"  tracing: {'enabled' if self._tracer else 'disabled'}")
     
     def _get_or_create_agent(
         self,
@@ -429,6 +447,14 @@ class NativeAgentOrchestrator:
         self._stats["created"] += 1
         self._stats["cache_misses"] += 1
         
+        # Trace agent creation (Phase 4)
+        if self._tracer:
+            self._tracer.on_agent_created(
+                agent_id=agent_id,
+                personality=personality.value,
+                subagent_type=agent_type.value,
+            )
+        
         if self.debug:
             print(f"[NativeAgentOrchestrator] Created {personality.value} "
                   f"as {agent_type.value} (id={agent_id})")
@@ -464,6 +490,13 @@ class NativeAgentOrchestrator:
         # Get or create agent
         agent = self._get_or_create_agent(personality)
         
+        # Trace task start (Phase 4)
+        if self._tracer:
+            self._tracer.on_task_started(
+                agent_id=agent.agent_id,
+                task=task,
+            )
+        
         # Build full prompt
         full_prompt = self._build_prompt(personality, task, context)
         
@@ -478,6 +511,14 @@ class NativeAgentOrchestrator:
         await asyncio.sleep(0.1)
         
         duration_ms = int((time.time() - start_time) * 1000)
+        
+        # Trace task completion (Phase 4)
+        if self._tracer:
+            self._tracer.on_task_completed(
+                agent_id=agent.agent_id,
+                returncode=0,
+                duration_ms=duration_ms,
+            )
         
         # Return simulated result
         return AgentResult(
@@ -556,6 +597,42 @@ class NativeAgentOrchestrator:
             print(f"[NativeAgentOrchestrator] Cleaning up {count} agents")
         self._agents.clear()
         return count
+    
+    # Phase 4: Workflow tracing methods
+    def start_workflow(self, workflow_type: str, task_description: str) -> None:
+        """
+        Start tracing a new workflow.
+        
+        Args:
+            workflow_type: Type of workflow (feature, bugfix, etc.)
+            task_description: Task description
+        """
+        if self._tracer:
+            self._tracer.start_workflow(workflow_type, task_description)
+            if self.debug:
+                print(f"[NativeAgentOrchestrator] Started workflow: {workflow_type}")
+    
+    def complete_workflow(self, status: str = "completed") -> None:
+        """
+        Complete the current workflow.
+        
+        Args:
+            status: Final status (completed, failed, cancelled)
+        """
+        if self._tracer:
+            trace = self._tracer.complete_workflow(status)
+            if self.debug and trace:
+                print(f"[NativeAgentOrchestrator] Completed workflow: {trace.trace_id}")
+    
+    def get_tracer(self) -> AgentTracer | None:
+        """Get the tracer instance (for advanced usage)"""
+        return self._tracer
+    
+    def export_traces(self) -> list[dict]:
+        """Export all traces as dictionaries"""
+        if self._tracer:
+            return self._tracer.export_all()
+        return []
 
 
 # Convenience functions
