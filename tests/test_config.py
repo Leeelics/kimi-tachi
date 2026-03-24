@@ -40,19 +40,17 @@ class TestKimiTachiConfig:
             assert config.use_native_agents is True
             assert config.use_legacy_agents is False
     
-    def test_effective_mode_legacy(self):
-        with patch('kimi_tachi.config.get_recommended_agent_mode', return_value="legacy"):
+    def test_legacy_mode_returns_false(self):
+        """Legacy mode is deprecated and always returns False"""
+        with patch('kimi_tachi.config.get_recommended_agent_mode', return_value="native"):
             config = KimiTachiConfig(agent_mode="auto")
-            assert config.effective_agent_mode == "legacy"
-            assert config.use_native_agents is False
-            assert config.use_legacy_agents is True
+            # use_legacy_agents now always returns False
+            assert config.use_legacy_agents is False
     
-    def test_explicit_mode_overrides_auto(self):
-        config = KimiTachiConfig(agent_mode="legacy")
-        assert config.effective_agent_mode == "legacy"
-        
+    def test_explicit_native_mode(self):
         config = KimiTachiConfig(agent_mode="native")
         assert config.effective_agent_mode == "native"
+        assert config.use_native_agents is True
     
     def test_from_env(self):
         env_vars = {
@@ -100,7 +98,7 @@ class TestGlobalConfig:
     
     def test_set_config(self):
         reset_config()
-        new_config = KimiTachiConfig(agent_mode="legacy")
+        new_config = KimiTachiConfig(agent_mode="native")
         set_config(new_config)
         assert get_config() is new_config
     

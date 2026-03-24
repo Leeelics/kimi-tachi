@@ -40,8 +40,10 @@ class KimiTachiConfig:
     """
     Agent execution mode:
     - "native": Use native Agent tool (requires kimi-cli 1.25.0+)
-    - "legacy": Use CreateSubagent + Task (compatible with older CLI)
     - "auto": Auto-detect based on CLI version (default)
+    
+    Note: "legacy" mode (CreateSubagent + Task) was removed in v0.3.0
+    as kimi-cli 1.25.0+ no longer supports those tools.
     """
     
     # Feature flags
@@ -102,8 +104,8 @@ class KimiTachiConfig:
     
     @property
     def use_legacy_agents(self) -> bool:
-        """Check if legacy CreateSubagent should be used"""
-        return self.effective_agent_mode == "legacy"
+        """Check if legacy CreateSubagent should be used (deprecated, always returns False)"""
+        return False  # Legacy mode removed in v0.3.0
     
     @classmethod
     def from_env(cls) -> "KimiTachiConfig":

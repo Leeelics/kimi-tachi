@@ -13,10 +13,9 @@ Phase 2.4 Update: Added context cache support
 - Context compression to reduce token usage
 
 Phase 3.0 Update: Native Agent Tool Support
-- Uses kimi-cli 1.25.0+ native Agent tool when available
+- Uses kimi-cli 1.25.0+ native Agent tool
 - Preserves anime character personalities
-- Auto-detects CLI version and selects best mode
-- Falls back to CreateSubagent for older CLI versions
+- Requires kimi-cli >=1.25.0 (dropped legacy support)
 
 Environment Variables:
     KIMI_TACHI_AGENT_MODE: "native", "legacy", or "auto" (default: auto)
@@ -388,7 +387,7 @@ class HybridOrchestrator:
         """
         Delegate task to an agent.
 
-        In dynamic mode, uses CreateSubagent + Task tools.
+        Uses native Agent tool for all subagent operations.
         In fixed mode, uses subprocess with agent YAML file.
 
         Args:

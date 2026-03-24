@@ -144,40 +144,30 @@ def ensure_compatibility(
     warn: bool = True,
 ) -> bool:
     """
-    Ensure compatibility and optionally configure fallback mode.
+    Ensure compatibility with kimi-cli.
     
     Args:
-        auto_fallback: If True, set KIMI_TACHI_AGENT_MODE=legacy on incompatibility
-        warn: If True, emit warnings
+        auto_fallback: Deprecated, kept for API compatibility but has no effect
+        warn: If True, emit warnings on incompatibility
     
     Returns:
-        True if compatible or fallback successful, False otherwise
+        True if compatible, False otherwise
+        
+    Note:
+        Legacy fallback was removed in v0.3.0. kimi-cli 1.25.0+ is required.
     """
-    import os
-    
     report = check_compatibility()
     
     if report.is_compatible:
         return True
     
-    # Not compatible
+    # Not compatible - legacy mode no longer available
     if warn:
         warnings.warn(
             f"{report.message}\nRecommendation: {report.recommendation}",
             UserWarning,
             stacklevel=2,
         )
-    
-    if auto_fallback:
-        os.environ["KIMI_TACHI_AGENT_MODE"] = "legacy"
-        if warn:
-            warnings.warn(
-                "Auto-fallback to legacy mode enabled. "
-                "Set KIMI_TACHI_AGENT_MODE=legacy to suppress this warning.",
-                UserWarning,
-                stacklevel=2,
-            )
-        return True
     
     return False
 
@@ -187,10 +177,20 @@ def get_recommended_agent_mode() -> str:
     Get recommended agent mode based on CLI version.
     
     Returns:
-        "native" if CLI >= 1.25.0, "legacy" otherwise
+        "native" if CLI >= 1.25.0
+        
+    Note:
+        Legacy mode was removed in v0.3.0. Only native mode is supported.
     """
     report = check_compatibility()
-    return "native" if report.is_compatible else "legacy"
+    if not report.is_compatible:
+        warnings.warn(
+            f"kimi-cli {report.cli_version} is not supported. "
+            "Please upgrade to 1.25.0 or later.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return "native"
 
 
 # Convenience function for CLI output

@@ -144,13 +144,14 @@ class TestEnsureCompatibility:
                 assert result is True
                 mock_warn.assert_not_called()
     
-    def test_incompatible_with_fallback(self):
+    def test_incompatible_no_fallback(self):
+        """Legacy fallback removed in v0.3.0 - should return False"""
         with patch('kimi_tachi.compatibility.get_cli_version', return_value=VersionInfo(1, 24, 0, "1.24.0")):
             with patch('warnings.warn'):
                 with patch.dict(os.environ, {}, clear=True):
                     result = ensure_compatibility(auto_fallback=True)
-                    assert result is True
-                    assert os.environ.get("KIMI_TACHI_AGENT_MODE") == "legacy"
+                    # v0.3.0: No fallback, returns False for incompatible
+                    assert result is False
     
     def test_incompatible_without_fallback(self):
         with patch('kimi_tachi.compatibility.get_cli_version', return_value=VersionInfo(1, 24, 0, "1.24.0")):
@@ -167,15 +168,23 @@ class TestGetRecommendedAgentMode:
             mode = get_recommended_agent_mode()
             assert mode == "native"
     
-    def test_recommends_legacy_for_old_cli(self):
+    def test_recommends_native_warns_for_old_cli(self):
+        """v0.3.0: Always recommends native, but warns for old CLI"""
         with patch('kimi_tachi.compatibility.get_cli_version', return_value=VersionInfo(1, 24, 0, "1.24.0")):
-            mode = get_recommended_agent_mode()
-            assert mode == "legacy"
+            with patch('warnings.warn') as mock_warn:
+                mode = get_recommended_agent_mode()
+                assert mode == "native"
+                # Should warn about incompatibility
+                mock_warn.assert_called()
     
-    def test_recommends_legacy_when_not_installed(self):
+    def test_recommends_native_warns_when_not_installed(self):
+        """v0.3.0: Always recommends native, but warns when CLI not found"""
         with patch('kimi_tachi.compatibility.get_cli_version', return_value=None):
-            mode = get_recommended_agent_mode()
-            assert mode == "legacy"
+            with patch('warnings.warn') as mock_warn:
+                mode = get_recommended_agent_mode()
+                assert mode == "native"
+                # Should warn about missing CLI
+                mock_warn.assert_called()
 
 
 if __name__ == "__main__":

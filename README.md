@@ -286,7 +286,7 @@ kimi-tachi/
 │                                                             │
 │  Phase 2.1: 动态 Agent 创建                                   │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  AgentFactory → CreateSubagent → Task (on-demand)   │   │
+│  │  AgentFactory → Agent tool (on-demand)   │   │
 │  │  MCP 进程: 7 → ≤2                                    │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │

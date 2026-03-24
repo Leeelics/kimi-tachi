@@ -15,8 +15,7 @@ Phase 4.0: Complete kimi-cli 1.25.0+ Support
 - Native Agent tool integration (coder/explore/plan)
 - Plugin system support (Skills → Plugins)
 - Workflow tracing and visualization
-- Backward compatible with CreateSubagent
-- Auto-detection of CLI version
+- Requires kimi-cli >=1.25.0 (dropped support for older versions)
 """
 
 __version__ = "0.3.0"
