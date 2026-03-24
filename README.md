@@ -1,21 +1,23 @@
-# kimi-tachi (君たち) v0.2.0
+# kimi-tachi (君たち) v0.3.0
 
 > Multi-agent task orchestration for Kimi CLI
 > 
 > *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized agents working together.
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-## 🎉 v0.2.0 新特性
+## 🎉 v0.3.0 新特性
 
-**Phase 2 架构优化全部完成！**
+**完整支持 kimi-cli 1.25.0+！**
 
-- ✅ **动态 Agent 创建** - MCP 进程从 7 减少到 ≤2
-- ✅ **消息总线架构** - 异步消息传递，延迟 <100ms
-- ✅ **Workflow 并行执行** - 依赖分析，并行比例 ≥40%
-- ✅ **上下文缓存优化** - 缓存命中率 ≥80%，Token 减少 30%
+- ✅ **原生 Agent 工具** - 集成 coder/explore/plan 类型
+- ✅ **Plugin 系统** - Skills 转换为可执行 Plugins
+- ✅ **工作流追踪** - 可视化代理调用链
+- ✅ **kimi vis 集成** - 导出追踪数据供可视化
+- ✅ **CLI 版本检测** - 自动适配 native/legacy 模式
+- ✅ **向后兼容** - 支持旧版本 kimi-cli
 
 ```bash
 # 快速开始
