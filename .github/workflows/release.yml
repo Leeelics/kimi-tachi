@@ -28,7 +28,9 @@ jobs:
           version: "latest"
       
       - name: Install dependencies
-        run: uv pip install -e ".[dev]" --system
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
       
       - name: Run quick tests
         run: uv run pytest tests/test_placeholder.py tests/test_config.py -v --tb=short
