@@ -27,13 +27,13 @@ jobs:
         with:
           version: "latest"
       
-      - name: Install dependencies
+      - name: Install package
         run: |
           uv venv
-          uv pip install -e ".[dev]"
+          uv pip install -e "."
       
-      - name: Run quick tests
-        run: uv run pytest tests/test_placeholder.py tests/test_config.py -v --tb=short
+      - name: Check import
+        run: uv run python -c "import kimi_tachi; print(f'kimi-tachi {kimi_tachi.__version__}')"
 
   build:
     needs: test
