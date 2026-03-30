@@ -403,6 +403,20 @@ AGENT_MEMORY_PROFILES = {
         - Q&A pairs
         """,
     ),
+    "default": MemoryProfile(
+        remember_categories=["general"],
+        recall_on_start=[],
+        recall_triggers=[],
+        store_on_end=["session_summary"],
+        store_triggers=[],
+        search_queries=[],
+        search_limit=5,
+        memory_description="""
+        Default memory profile for agents without specific configuration.
+        
+        Uses minimal memory settings to avoid overhead.
+        """,
+    ),
 }
 
 

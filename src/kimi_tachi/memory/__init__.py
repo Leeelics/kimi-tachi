@@ -21,11 +21,16 @@ Usage:
     context = await memory.recall_agent_context("kamaji")
 """
 
-from .tachi_memory import TachiMemory, MemoryConfig
+from .tachi_memory import TachiMemory, MemoryConfig, get_memory
 from .agent_profiles import AGENT_MEMORY_PROFILES
+
+# Alias for backward compatibility
+AGENT_PROFILES = AGENT_MEMORY_PROFILES
 
 __all__ = [
     "TachiMemory",
-    "MemoryConfig", 
+    "MemoryConfig",
+    "get_memory",
     "AGENT_MEMORY_PROFILES",
+    "AGENT_PROFILES",
 ]

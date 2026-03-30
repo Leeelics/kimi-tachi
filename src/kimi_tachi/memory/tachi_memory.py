@@ -1,38 +1,24 @@
-"""
-TachiMemory - Kimi-Tachi integration with MemNexus
-
-Provides:
-- Project-level code memory (Git history, code structure)
-- Agent-specific context management
-- Explicit memory commands (save/recall/search)
-
-Note: This is the explicit memory version (v0.5.0-alpha).
-Future versions will integrate with kimi-cli hooks for automatic management.
-"""
-
-from __future__ import annotations
-
-import asyncio
-from dataclasses import dataclass, field
-from datetime import datetime
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+import asyncio
 
 from rich.console import Console
 from rich.table import Table
 
-# Optional import - memory is optional
+# Optional memnexus import
 try:
-    from memnexus import CodeMemory, GlobalMemory
-    from memnexus.memory.context import ContextManager
+    from memnexus import CodeMemory, MemoryStore, MemoryType
+    from memnexus.memory import MemoryEntry
+    from memnexus.mechanisms.global_memory import GlobalMemory
+    from memnexus.storage.git_storage import GitCommitStorage
+    from memnexus.storage.code_storage import CodeSymbolStorage
     MEMNEXUS_AVAILABLE = True
 except ImportError:
     MEMNEXUS_AVAILABLE = False
-    CodeMemory = None
-    GlobalMemory = None
-    ContextManager = None
 
-from kimi_tachi.config import get_config
+from .agent_profiles import AGENT_MEMORY_PROFILES
 
 console = Console()
 
@@ -40,264 +26,232 @@ console = Console()
 @dataclass
 class MemoryConfig:
     """Configuration for TachiMemory."""
-    enabled: bool = True
-    auto_index: bool = True
-    project_path: Optional[Path] = None
     
-    # Agent-specific settings
-    store_on_switch: bool = True
-    recall_on_start: bool = True
-    
-    # Search settings
+    project_path: str = "."
+    storage_path: Optional[str] = None
+    recall_limit: int = 10
+    store_limit: int = 100
     search_limit: int = 10
-    min_relevance_score: float = 0.5
-
-
-@dataclass 
-class AgentContext:
-    """Context for an agent session."""
-    agent_type: str
-    session_id: str
-    recent_memories: List[Dict] = field(default_factory=list)
-    relevant_code: List[Dict] = field(default_factory=list)
-    project_summary: str = ""
-    user_preferences: Dict[str, Any] = field(default_factory=dict)
-    cross_project_knowledge: List[Dict] = field(default_factory=list)  # 跨项目知识
-    timestamp: datetime = field(default_factory=datetime.now)
+    enable_global: bool = True
+    global_project_name: Optional[str] = None
+    
+    # Auto-memory settings
+    auto_recall: bool = True
+    auto_store: bool = True
+    
+    def __post_init__(self):
+        if self.storage_path is None:
+            self.storage_path = os.path.join(
+                self.project_path, ".kimi-tachi", "memory"
+            )
 
 
 class TachiMemory:
     """
-    Kimi-Tachi memory layer using MemNexus.
+    Automatic memory system for kimi-tachi.
     
-    This class provides explicit memory management for the Seven Samurai.
-    Users can manually save/recall context, or enable auto-save.
-    
-    Example:
-        >>> memory = await TachiMemory.init("./my-project")
-        >>> 
-        >>> # Index the project
-        >>> await memory.index_project()
-        >>> 
-        >>> # Before using an agent, recall its context
-        >>> context = await memory.recall_agent_context("kamaji")
-        >>> 
-        >>> # After agent finishes, store its output
-        >>> await memory.store_agent_output("kamaji", output, task)
-        >>> 
-        >>> # Search for specific information
-        >>> results = await memory.search("JWT authentication")
+    Wraps MemNexus with Seven Samurai-specific configurations
+    for transparent memory integration.
     """
     
-    def __init__(self, project_path: Union[str, Path], config: Optional[MemoryConfig] = None):
-        """
-        Initialize TachiMemory.
+    def __init__(self, project_path: str = ".", config: Optional[MemoryConfig] = None):
+        self.config = config or MemoryConfig(project_path=project_path)
+        self.project_path = Path(self.config.project_path).resolve()
+        self._storage_path = Path(self.config.storage_path)
         
-        Args:
-            project_path: Path to the project directory
-            config: Optional memory configuration
-        """
-        if not MEMNEXUS_AVAILABLE:
-            raise RuntimeError(
-                "MemNexus is not installed. "
-                "Install with: pip install memnexus"
-            )
+        # Memory stores
+        self.memory: Optional[CodeMemory] = None
+        self.global_memory: Optional[GlobalMemory] = None
         
-        self.project_path = Path(project_path).resolve()
-        self.config = config or MemoryConfig()
-        
-        # Core components (initialized lazily)
-        self._code_memory: Optional[CodeMemory] = None
-        self._global_memory: Optional[GlobalMemory] = None
-        self._context_manager: Optional[ContextManager] = None
-        self._initialized = False
-        
-        # Session tracking
+        # Current session tracking
         self._current_session_id: Optional[str] = None
-        self._agent_contexts: Dict[str, AgentContext] = {}
+        self._session_start_time: Optional[str] = None
+        
+        # Lock for async operations
+        self._lock = asyncio.Lock()
     
     @classmethod
     async def init(
         cls,
-        project_path: Union[str, Path] = ".",
-        config: Optional[MemoryConfig] = None,
-    ) -> TachiMemory:
+        project_path: str = ".",
+        config: Optional[MemoryConfig] = None
+    ) -> "TachiMemory":
         """
-        Initialize TachiMemory with async setup.
-        
-        This is the recommended way to create a TachiMemory instance.
+        Initialize TachiMemory with storage.
         
         Args:
-            project_path: Path to project directory
-            config: Optional configuration
+            project_path: Path to the project root
+            config: Optional memory configuration
             
         Returns:
             Initialized TachiMemory instance
         """
+        if not MEMNEXUS_AVAILABLE:
+            raise ImportError("memnexus is required for memory features")
+        
         instance = cls(project_path, config)
-        await instance._initialize()
+        await instance._initialize_storage()
         return instance
     
-    async def _initialize(self) -> None:
-        """Initialize MemNexus components."""
-        if self._initialized:
-            return
+    async def _initialize_storage(self):
+        """Initialize memory storage backends."""
+        # Ensure storage directory exists
+        self._storage_path.mkdir(parents=True, exist_ok=True)
         
-        # Initialize CodeMemory
-        self._code_memory = await CodeMemory.init(self.project_path)
+        # Initialize CodeMemory (local project memory)
+        self.memory = await CodeMemory.init(
+            project_path=str(self.project_path),
+            storage_path=str(self._storage_path / "code")
+        )
         
-        # Initialize GlobalMemory for cross-project knowledge
-        if GlobalMemory:
-            self._global_memory = await GlobalMemory.init()
-        
-        # Initialize context manager with unique session ID
-        session_id = f"tachi_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        self._current_session_id = session_id
-        
-        if ContextManager:
-            self._context_manager = ContextManager(session_id)
-            await self._context_manager.initialize()
-        
-        self._initialized = True
-        
-        console.print(f"[dim]Memory initialized: {self.project_path}[/dim]")
-        if self._global_memory:
-            console.print(f"[dim]Global memory available[/dim]")
+        # Initialize GlobalMemory (cross-project knowledge)
+        if self.config.enable_global:
+            try:
+                global_storage = self._storage_path / "global"
+                global_storage.mkdir(parents=True, exist_ok=True)
+                
+                self.global_memory = GlobalMemory(
+                    storage_path=str(global_storage)
+                )
+                await self.global_memory.initialize()
+            except Exception as e:
+                console.print(f"[yellow]Global memory not available: {e}[/yellow]")
+                self.global_memory = None
     
     # ========== Project Indexing ==========
     
     async def index_project(
-        self, 
-        git: bool = True, 
+        self,
+        git: bool = True,
         code: bool = True,
-        incremental: bool = True,
-    ) -> Dict[str, int]:
+        files: Optional[List[str]] = None,
+        incremental: bool = False
+    ) -> Dict[str, Any]:
         """
-        Index the project for memory.
+        Index project into memory.
         
         Args:
-            git: Index Git history
-            code: Index code structure
-            incremental: Use incremental indexing (only new/changed content)
+            git: Index git history
+            code: Index code symbols
+            files: Specific files to index (None for all)
+            incremental: Only index changed files
             
         Returns:
-            Statistics about indexed items
+            Statistics about indexed data
         """
-        if not self._initialized:
-            raise RuntimeError("Memory not initialized. Call init() first.")
+        if not self.memory:
+            raise RuntimeError("Memory not initialized")
         
-        stats = {"git_commits": 0, "code_symbols": 0, "skipped": 0}
-        mode_str = "incremental" if incremental else "full"
+        stats = {"files_indexed": 0, "git_commits": 0, "code_symbols": 0}
         
-        with console.status(f"[bold green]Indexing project ({mode_str})..."):
-            if git:
-                try:
-                    result = await self._code_memory.index_git_history(incremental=incremental)
-                    stats["git_commits"] = result.get("indexed", 0)
-                    stats["skipped"] += result.get("skipped", 0)
-                    console.print(f"[green]✓[/green] Indexed {stats['git_commits']} Git commits")
-                    if result.get("skipped", 0) > 0:
-                        console.print(f"[dim]  ({result['skipped']} skipped - already indexed)[/dim]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Git indexing skipped: {e}[/yellow]")
-            
-            if code:
-                try:
-                    result = await self._code_memory.index_codebase(incremental=incremental)
-                    stats["code_symbols"] = result.get("indexed_symbols", 0)
-                    stats["skipped"] += result.get("skipped_files", 0)
-                    console.print(f"[green]✓[/green] Indexed {stats['code_symbols']} code symbols")
-                    if result.get("skipped_files", 0) > 0:
-                        console.print(f"[dim]  ({result['skipped_files']} files skipped - unchanged)[/dim]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Code indexing skipped: {e}[/yellow]")
-        
-        return stats
-    
-    # ========== Global Memory (Cross-Project) ==========
-    
-    async def register_in_global_memory(self, project_name: str) -> bool:
-        """
-        Register current project in global memory for cross-project search.
-        
-        Args:
-            project_name: Name for this project in global memory
-            
-        Returns:
-            True if successful
-        """
-        if not self._initialized or not self._global_memory:
-            console.print("[yellow]Global memory not available[/yellow]")
-            return False
-        
-        try:
-            await self._global_memory.register_project(
-                name=project_name,
-                path=str(self.project_path),
-                description=f"kimi-tachi project: {project_name}",
-            )
-            console.print(f"[green]✓[/green] Registered in global memory: {project_name}")
-            return True
-        except Exception as e:
-            console.print(f"[yellow]Failed to register: {e}[/yellow]")
-            return False
-    
-    async def sync_to_global_memory(
-        self, 
-        project_name: str,
-        incremental: bool = True,
-    ) -> Dict[str, int]:
-        """
-        Sync current project to global memory.
-        
-        Args:
-            project_name: Project name in global memory
-            incremental: Use incremental sync
-            
-        Returns:
-            Statistics about synced items
-        """
-        if not self._initialized or not self._global_memory:
-            return {"error": "Global memory not available"}
-        
-        try:
-            result = await self._global_memory.sync_project(
-                project_name, 
+        with console.status("[cyan]Indexing project...[/cyan]"):
+            # Use MemNexus's index method
+            result = await self.memory.index(
+                git=git,
+                code=code,
+                files=files,
                 incremental=incremental
             )
-            console.print(f"[green]✓[/green] Synced to global memory: {result}")
-            return result
+            
+            stats.update(result)
+        
+        console.print(f"[green]✓ Indexed:[/green] {stats}")
+        return stats
+    
+    # ========== Search ==========
+    
+    async def search(
+        self,
+        query: str,
+        limit: int = 10,
+        memory_types: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search project memory.
+        
+        Args:
+            query: Search query
+            limit: Maximum results
+            memory_types: Filter by memory types
+            
+        Returns:
+            List of matching memories
+        """
+        if not self.memory or not self.memory.store:
+            return []
+        
+        try:
+            results = await self.memory.store.search(
+                query=query,
+                limit=limit,
+                memory_types=memory_types
+            )
+            
+            # Convert to serializable format
+            return [
+                {
+                    "id": r.id if hasattr(r, 'id') else str(i),
+                    "content": r.content if hasattr(r, 'content') else str(r),
+                    "type": r.memory_type.value if hasattr(r, 'memory_type') else 'unknown',
+                    "source": r.source if hasattr(r, 'source') else 'unknown',
+                    "score": r.score if hasattr(r, 'score') else 1.0,
+                }
+                for i, r in enumerate(results)
+            ]
         except Exception as e:
-            console.print(f"[yellow]Sync failed: {e}[/yellow]")
-            return {"error": str(e)}
+            console.print(f"[yellow]Search failed: {e}[/yellow]")
+            return []
+    
+    async def search_code(
+        self,
+        query: str,
+        limit: int = 10,
+        symbol_types: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search code symbols.
+        
+        Args:
+            query: Search query
+            limit: Maximum results
+            symbol_types: Filter by symbol types (function, class, etc.)
+            
+        Returns:
+            List of matching code symbols
+        """
+        return await self.search(
+            query=query,
+            limit=limit,
+            memory_types=["code"]
+        )
     
     async def search_global_memory(
         self,
         query: str,
-        limit: int = 10,
+        limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
-        Search across all registered projects (cross-project knowledge).
+        Search global (cross-project) memory.
         
         Args:
             query: Search query
             limit: Maximum results
             
         Returns:
-            List of results from multiple projects
+            List of matching global memories
         """
-        if not self._initialized or not self._global_memory:
+        if not self.global_memory:
             return []
         
         try:
-            results = await self._global_memory.search(query, limit=limit)
+            results = await self.global_memory.search(query=query, limit=limit)
+            
             return [
                 {
-                    "content": r.content,
-                    "source": r.source,
-                    "project": r.project_name,
-                    "score": r.score,
-                    "type": r.memory_type,
+                    "content": r.get("content", ""),
+                    "project": r.get("project", "unknown"),
+                    "type": r.get("type", "unknown"),
+                    "score": r.get("score", 0),
                 }
                 for r in results
             ]
@@ -305,310 +259,250 @@ class TachiMemory:
             console.print(f"[yellow]Global search failed: {e}[/yellow]")
             return []
     
-    async def get_index_status(self) -> Dict[str, Any]:
-        """Get current indexing status."""
-        if not self._initialized:
-            return {"initialized": False}
-        
-        return {
-            "initialized": True,
-            "project_path": str(self.project_path),
-            "session_id": self._current_session_id,
-            "stats": self._code_memory._stats if self._code_memory else {},
-        }
-    
-    # ========== Search ==========
-    
-    async def search(
-        self,
-        query: str,
-        limit: Optional[int] = None,
-        include_code: bool = True,
-        include_git: bool = True,
-    ) -> List[Dict[str, Any]]:
-        """
-        Search project memory.
-        
-        Args:
-            query: Search query
-            limit: Maximum results (default from config)
-            include_code: Include code results
-            include_git: Include Git history results
-            
-        Returns:
-            List of search results
-        """
-        if not self._initialized:
-            raise RuntimeError("Memory not initialized")
-        
-        limit = limit or self.config.search_limit
-        results = []
-        
-        with console.status(f"[bold blue]Searching: {query[:50]}..."):
-            # General search
-            try:
-                general_results = await self._code_memory.search(query, limit=limit)
-                results.extend([
-                    {
-                        "type": "general",
-                        "content": r.content,
-                        "source": r.source,
-                        "score": r.score,
-                    }
-                    for r in general_results
-                ])
-            except Exception as e:
-                console.print(f"[yellow]Search warning: {e}[/yellow]")
-            
-            # Code search
-            if include_code:
-                try:
-                    code_results = await self._code_memory.search_code(query, limit=limit)
-                    results.extend([
-                        {
-                            "type": "code",
-                            "name": r.name,
-                            "symbol_type": r.symbol_type,
-                            "file_path": r.file_path,
-                            "line_range": (r.start_line, r.end_line),
-                            "signature": r.signature,
-                        }
-                        for r in code_results
-                    ])
-                except Exception as e:
-                    pass  # Code search is optional
-        
-        return results
-    
-    async def search_code(
-        self,
-        query: str,
-        language: Optional[str] = None,
-        symbol_type: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Search code specifically.
-        
-        Args:
-            query: Search query (function name, concept, etc.)
-            language: Filter by language (python, javascript, etc.)
-            symbol_type: Filter by type (function, class, method)
-            limit: Maximum results
-            
-        Returns:
-            List of code search results
-        """
-        if not self._initialized:
-            raise RuntimeError("Memory not initialized")
-        
-        limit = limit or self.config.search_limit
-        
-        results = await self._code_memory.search_code(query, limit=limit)
-        
-        # Filter results
-        filtered = []
-        for r in results:
-            if language and r.language != language:
-                continue
-            if symbol_type and r.symbol_type != symbol_type:
-                continue
-            filtered.append({
-                "name": r.name,
-                "type": r.symbol_type,
-                "file": r.file_path,
-                "lines": f"{r.start_line}-{r.end_line}",
-                "signature": r.signature,
-                "docstring": r.docstring[:200] if r.docstring else "",
-            })
-        
-        return filtered
-    
-    # ========== Agent Context Management ==========
-    
-    async def store_agent_output(
-        self,
-        agent_type: str,
-        output: str,
-        task: str,
-        metadata: Optional[Dict] = None,
-    ) -> str:
-        """
-        Store agent output to memory.
-        
-        Args:
-            agent_type: Agent type (kamaji, nekobasu, etc.)
-            output: Agent output content
-            task: Task description
-            metadata: Additional metadata
-            
-        Returns:
-            Memory entry ID
-        """
-        if not self._initialized or not self._context_manager:
-            console.print("[dim]Memory not available, skipping store[/dim]")
-            return ""
-        
-        content = f"Task: {task}\n\nOutput:\n{output}"
-        
-        memory_id = await self._context_manager.store_agent_output(
-            agent=agent_type,
-            content=content,
-            memory_type="agent_output",
-            metadata={
-                "task": task,
-                "agent_type": agent_type,
-                **(metadata or {}),
-            },
-        )
-        
-        console.print(f"[dim]Stored memory for {agent_type}: {memory_id[:8]}...[/dim]")
-        return memory_id
-    
-    async def store_agent_context(
-        self,
-        agent_type: str,
-        context: Dict[str, Any],
-    ) -> None:
-        """
-        Store full agent context before switching.
-        
-        Args:
-            agent_type: Agent type
-            context: Context dictionary
-        """
-        # Create AgentContext object
-        agent_ctx = AgentContext(
-            agent_type=agent_type,
-            session_id=self._current_session_id or "unknown",
-            recent_memories=context.get("recent_memories", []),
-            relevant_code=context.get("relevant_code", []),
-            project_summary=context.get("project_summary", ""),
-            user_preferences=context.get("user_preferences", {}),
-        )
-        
-        self._agent_contexts[agent_type] = agent_ctx
-        
-        # Also store to persistent memory
-        if self._context_manager:
-            await self._context_manager.store_agent_output(
-                agent=agent_type,
-                content=context.get("summary", ""),
-                memory_type="agent_context",
-                metadata={
-                    "agent_type": agent_type,
-                    "full_context": context,
-                },
-            )
+    # ========== Agent Context ==========
     
     async def recall_agent_context(
         self,
         agent_type: str,
-        query: Optional[str] = None,
-        include_global: bool = True,
-    ) -> AgentContext:
+        task: str = ""
+    ) -> Dict[str, Any]:
         """
         Recall context for an agent.
         
+        Automatically retrieves:
+        - Recent project memories relevant to the agent
+        - Global knowledge if enabled
+        - Previous decisions by this agent
+        
         Args:
-            agent_type: Agent type to recall
-            query: Optional query to find relevant context
-            include_global: Whether to include cross-project knowledge
+            agent_type: Type of agent (kamaji, nekobasu, etc.)
+            task: Current task description
             
         Returns:
-            AgentContext with recalled information
+            Context dictionary with memories and knowledge
         """
-        if not self._initialized:
-            return AgentContext(agent_type=agent_type, session_id="")
+        profile = AGENT_MEMORY_PROFILES.get(agent_type, AGENT_MEMORY_PROFILES["default"])
         
-        # Check in-memory cache first
-        if agent_type in self._agent_contexts:
-            return self._agent_contexts[agent_type]
+        context = {
+            "agent_type": agent_type,
+            "task": task,
+            "recent_context": [],
+            "global_knowledge": [],
+            "previous_decisions": [],
+        }
         
-        # Build context from memory
-        context = AgentContext(
-            agent_type=agent_type,
-            session_id=self._current_session_id or "",
-        )
+        # Check if should recall (recall_on_start list is not empty)
+        should_recall = bool(profile.recall_on_start) if hasattr(profile, 'recall_on_start') else True
         
-        # Get recent memories from this session
-        if self._context_manager:
+        # Search recent project memories
+        if self.memory and self.memory.store and should_recall:
+            search_query = task or agent_type
             try:
-                recent = await self._context_manager.get_conversation_history(limit=20)
-                context.recent_memories = [
-                    {"content": m.content, "source": m.source, "type": m.memory_type}
-                    for m in recent
+                recent = await self.memory.store.search(
+                    query=search_query,
+                    limit=getattr(profile, 'search_limit', 10),
+                    memory_types=None
+                )
+                context["recent_context"] = [
+                    {
+                        "content": r.content if hasattr(r, 'content') else str(r),
+                        "type": r.memory_type.value if hasattr(r, 'memory_type') else 'unknown',
+                        "source": r.source if hasattr(r, 'source') else 'unknown',
+                    }
+                    for r in recent
                 ]
-            except Exception:
-                pass
+            except Exception as e:
+                console.print(f"[yellow]Could not recall context: {e}[/yellow]")
         
-        # Search for relevant code in current project
-        if query:
+        # Search global memory for knowledge (always try if available)
+        if self.global_memory:
             try:
-                code_results = await self.search_code(query, limit=5)
-                context.relevant_code = code_results
-            except Exception:
-                pass
-        
-        # Search cross-project knowledge (Global Memory)
-        if include_global and query and self._global_memory:
-            try:
-                global_results = await self.search_global_memory(query, limit=5)
-                context.cross_project_knowledge = global_results
-                if global_results:
-                    console.print(f"[dim]Found {len(global_results)} results from other projects[/dim]")
-            except Exception:
-                pass
-        
-        # Get project summary
-        try:
-            status = await self.get_index_status()
-            context.project_summary = f"Project: {status.get('project_path', 'Unknown')}"
-        except Exception:
-            pass
+                global_query = f"{agent_type} {task}".strip()
+                global_results = await self.global_memory.search(
+                    query=global_query,
+                    limit=3
+                )
+                context["global_knowledge"] = global_results
+            except Exception as e:
+                console.print(f"[yellow]Could not search global memory: {e}[/yellow]")
         
         return context
     
+    async def store_agent_output(
+        self,
+        agent: str,
+        output: str,
+        task: str = "",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """
+        Store agent output to memory.
+        
+        Args:
+            agent: Agent type
+            output: Output content to store
+            task: Task description
+            metadata: Additional metadata
+            
+        Returns:
+            Memory ID if stored successfully
+        """
+        profile = AGENT_MEMORY_PROFILES.get(agent, AGENT_MEMORY_PROFILES["default"])
+        
+        # Check if should store (store_on_end list is not empty)
+        should_store = bool(profile.store_on_end) if hasattr(profile, 'store_on_end') else True
+        if not should_store:
+            return None
+        
+        if not self.memory or not self.memory.store:
+            return None
+        
+        try:
+            memory_entry = MemoryEntry(
+                content=output,
+                memory_type=MemoryType.DECISION,
+                source=f"agent:{agent}",
+                metadata={
+                    "agent": agent,
+                    "task": task,
+                    "session_id": self._current_session_id,
+                    **(metadata or {})
+                }
+            )
+            
+            memory_id = await self.memory.store.store(memory_entry)
+            return memory_id
+            
+        except Exception as e:
+            console.print(f"[yellow]Could not store agent output: {e}[/yellow]")
+            return None
+    
     # ========== Session Management ==========
     
-    async def save_session_summary(self, summary: str, key_decisions: List[str]) -> None:
-        """Save summary of current session."""
-        if not self._context_manager:
-            return
+    def start_session(self, session_id: Optional[str] = None) -> str:
+        """
+        Start a new memory session.
         
-        content = f"Session Summary:\n{summary}\n\nKey Decisions:\n" + "\n".join(f"- {d}" for d in key_decisions)
+        Args:
+            session_id: Optional session ID (auto-generated if not provided)
+            
+        Returns:
+            Session ID
+        """
+        import uuid
+        from datetime import datetime
         
-        await self._context_manager.store_agent_output(
-            agent="session",
-            content=content,
-            memory_type="session_summary",
-            metadata={
-                "session_id": self._current_session_id,
-                "key_decisions": key_decisions,
-            },
-        )
+        self._current_session_id = session_id or str(uuid.uuid4())[:8]
+        self._session_start_time = datetime.now().isoformat()
         
-        console.print("[green]✓ Session summary saved[/green]")
+        return self._current_session_id
     
-    async def get_session_history(self, limit: int = 50) -> List[Dict]:
-        """Get conversation history for current session."""
-        if not self._context_manager:
+    async def get_session_history(
+        self,
+        session_id: Optional[str] = None,
+        agent: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get memories from a specific session.
+        
+        Args:
+            session_id: Session ID (current session if None)
+            agent: Filter by agent type
+            
+        Returns:
+            List of session memories
+        """
+        if not self.memory or not self.memory.store:
+            return []
+        
+        sid = session_id or self._current_session_id
+        if not sid:
             return []
         
         try:
-            memories = await self._context_manager.get_conversation_history(limit=limit)
+            # Search for session memories
+            all_memories = await self.memory.store.search(
+                query=f"session_id:{sid}",
+                limit=100
+            )
+            
+            # Filter by agent if specified
+            if agent:
+                all_memories = [
+                    m for m in all_memories
+                    if m.metadata.get("agent") == agent
+                ]
+            
             return [
                 {
                     "content": m.content,
                     "source": m.source,
-                    "type": m.memory_type,
+                    "type": m.memory_type.value,
                     "timestamp": m.timestamp.isoformat() if hasattr(m, 'timestamp') else None,
                 }
-                for m in memories
+                for m in all_memories
             ]
         except Exception as e:
             console.print(f"[yellow]Could not get history: {e}[/yellow]")
             return []
+    
+    # ========== Global Memory Integration ==========
+    
+    async def register_in_global_memory(self, project_name: str) -> bool:
+        """
+        Register current project in global memory.
+        
+        Args:
+            project_name: Name to register project under
+            
+        Returns:
+            True if successful
+        """
+        if not self.global_memory:
+            console.print("[yellow]Global memory not available[/yellow]")
+            return False
+        
+        try:
+            await self.global_memory.register_project(
+                project_name,
+                str(self.project_path)
+            )
+            console.print(f"[green]✓ Registered {project_name} in global memory[/green]")
+            return True
+        except Exception as e:
+            console.print(f"[yellow]Could not register: {e}[/yellow]")
+            return False
+    
+    async def sync_to_global_memory(
+        self,
+        project_name: str,
+        incremental: bool = True
+    ) -> Dict[str, int]:
+        """
+        Sync project memories to global memory.
+        
+        Args:
+            project_name: Project name in global memory
+            incremental: Only sync new/changed memories
+            
+        Returns:
+            Sync statistics
+        """
+        if not self.global_memory:
+            return {"synced": 0}
+        
+        try:
+            result = await self.global_memory.sync_project(
+                project_name,
+                incremental=incremental
+            )
+            
+            console.print(f"[green]✓ Synced {result.get('synced', 0)} memories to global[/green]")
+            return result
+            
+        except Exception as e:
+            console.print(f"[yellow]Could not sync: {e}[/yellow]")
+            return {"synced": 0, "error": str(e)}
     
     # ========== Utility ==========
     
@@ -631,3 +525,31 @@ class TachiMemory:
             table.add_row(result_type, source, content)
         
         return table
+
+
+# Singleton instance for get_memory()
+_memory_instance: Optional[TachiMemory] = None
+
+
+async def get_memory(project_path: str = ".") -> TachiMemory:
+    """
+    Get or create singleton TachiMemory instance.
+    
+    Args:
+        project_path: Path to project root
+        
+    Returns:
+        TachiMemory instance
+    """
+    global _memory_instance
+    
+    if _memory_instance is None:
+        _memory_instance = await TachiMemory.init(project_path)
+    
+    return _memory_instance
+
+
+def reset_memory():
+    """Reset singleton instance (useful for testing)."""
+    global _memory_instance
+    _memory_instance = None
