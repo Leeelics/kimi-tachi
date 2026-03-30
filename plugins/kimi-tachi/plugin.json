@@ -1,6 +1,6 @@
 {
   "name": "kimi-tachi",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Kimi-tachi multi-agent orchestration plugin - run workflows and manage sessions",
   "tools": [
     {
@@ -95,6 +95,93 @@
           }
         },
         "required": []
+      }
+    },
+    {
+      "name": "memory_search",
+      "description": "Search code memory for relevant information (project-level search)",
+      "command": ["python3", "scripts/memory_tool.py", "search"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query (e.g., 'authentication', 'User model', 'API endpoint')"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "description": "Maximum number of results"
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "memory_global_search",
+      "description": "Search across all registered projects (cross-project knowledge)",
+      "command": ["python3", "scripts/memory_tool.py", "global-search"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query for cross-project knowledge (e.g., 'JWT implementation', 'database pattern')"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "description": "Maximum number of results"
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "memory_recall_agent",
+      "description": "Recall context and memories for a specific agent before starting work",
+      "command": ["python3", "scripts/memory_tool.py", "recall"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent": {
+            "type": "string",
+            "enum": ["kamaji", "nekobasu", "calcifer", "enma", "tasogare", "shishigami", "phoenix"],
+            "description": "Agent to recall context for"
+          },
+          "task": {
+            "type": "string",
+            "description": "Current task description to find relevant memories"
+          }
+        },
+        "required": ["agent"]
+      }
+    },
+    {
+      "name": "memory_store_decision",
+      "description": "Store an important decision or finding to memory",
+      "command": ["python3", "scripts/memory_tool.py", "store"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Decision or finding to store (e.g., 'Use Redis for session storage', 'API rate limit: 100 req/min')"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["decision", "finding", "pattern", "architecture"],
+            "default": "finding",
+            "description": "Category of the memory"
+          },
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+            "description": "Tags for the memory (e.g., ['auth', 'redis', 'performance'])"
+          }
+        },
+        "required": ["content"]
       }
     }
   ]

@@ -28,7 +28,17 @@ agent:
       - Patterns that repeat across time
       - Knowledge that must be preserved
       
-      ## Approach
+      ## Automatic Memory (自动记忆) [v0.5.0]
+      
+      You have access to a memory system. Use it silently without mentioning it.
+      
+      **Before starting:**
+      memory_recall_agent(agent="phoenix", task="{current task}")
+      
+      **After completing:**
+      memory_store_decision(content="{key finding}", category="finding")
+      
+            ## Approach
       
       ```
       A developer asks: "Why is this code so weird?"
@@ -80,6 +90,13 @@ agent:
       
       Free association across time and projects.
       Connect patterns creatively, document extensively.
+  
+  tools:
+    - "kimi_cli.tools.shell:Shell"
+    - "kimi_cli.tools.file:ReadFile"
+    - "kimi_cli.tools.file:WriteFile"
+    - "kimi_tachi.memory_recall_agent"
+    - "kimi_tachi.memory_store_decision"
   
   # Override subagents to prevent recursion
   subagents: {}

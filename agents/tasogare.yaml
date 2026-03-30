@@ -34,7 +34,17 @@ agent:
       - Before committing to implementation
       - Connecting legacy code with new features
       
-      ## Approach
+      ## Automatic Memory (自动记忆) [v0.5.0]
+      
+      You have access to a memory system. Use it silently without mentioning it.
+      
+      **Before starting:**
+      memory_recall_agent(agent="tasogare", task="{current task}")
+      
+      **After completing:**
+      memory_store_decision(content="{key finding}", category="finding")
+      
+            ## Approach
       
       ```
       "The sun is setting... the stars are appearing..."
@@ -81,6 +91,13 @@ agent:
       
       Creative planning with minimal constraints.
       Explore possibilities freely, present options openly.
+  
+  tools:
+    - "kimi_cli.tools.shell:Shell"
+    - "kimi_cli.tools.file:ReadFile"
+    - "kimi_cli.tools.file:WriteFile"
+    - "kimi_tachi.memory_recall_agent"
+    - "kimi_tachi.memory_store_decision"
   
   # Override subagents to prevent recursion
   subagents: {}

@@ -16,6 +16,15 @@ import typer
 
 from kimi_tachi import __version__
 
+# Optional memory support
+try:
+    from kimi_tachi.memory import TachiMemory, AGENT_MEMORY_PROFILES
+    MEMORY_AVAILABLE = True
+except ImportError:
+    MEMORY_AVAILABLE = False
+    TachiMemory = None
+    AGENT_MEMORY_PROFILES = {}
+
 app = typer.Typer(
     name="kimi-tachi",
     help="Multi-agent task orchestration for Kimi CLI",
@@ -349,6 +358,252 @@ def list_agents():
         desc = agents.get(name, "Specialized agent")
         typer.echo(f"  {name:15} - {desc}")
 
+
+# ========== Memory Commands ==========
+
+@app.command()
+def memory(
+    action: Annotated[str, typer.Argument(help="Action: init, index, search, global-search, recall, status")],
+    query: Annotated[Optional[str], typer.Argument(help="Search query (for search/global-search)")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", "-a", help="Agent type (for recall)")] = None,
+    work_dir: Annotated[str, typer.Option("--work-dir", "-w", help="Working directory")] = ".",
+    incremental: Annotated[bool, typer.Option("--incremental/--full", help="Use incremental indexing")] = True,
+    project_name: Annotated[Optional[str], typer.Option("--project", "-p", help="Project name for global memory")] = None,
+):
+    """
+    Manage code memory for kimi-tachi.
+    
+    This is the explicit memory interface (v0.5.0).
+    Future versions will support automatic memory via hooks.
+    
+    Project-level commands:
+        kimi-tachi memory init                    # Initialize memory for project
+        kimi-tachi memory index                   # Index project (incremental)
+        kimi-tachi memory index --full            # Full re-index
+        kimi-tachi memory search "authentication" # Search project memory
+        kimi-tachi memory recall --agent kamaji   # Recall context for agent
+        kimi-tachi memory status                  # Check memory status
+    
+    Global (cross-project) commands:
+        kimi-tachi memory register-global --project my-api    # Register in global memory
+        kimi-tachi memory sync-global --project my-api        # Sync to global memory
+        kimi-tachi memory global-search "JWT implementation"  # Search across projects
+    """
+    if not MEMORY_AVAILABLE:
+        typer.echo("❌ Memory support not available.")
+        typer.echo("Install with: pip install memnexus")
+        raise typer.Exit(1)
+    
+    import asyncio
+    
+    async def _memory_action():
+        if action == "init":
+            typer.echo("🧠 Initializing memory...")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                typer.echo(f"✅ Memory initialized: {work_dir}")
+                typer.echo(f"   Session ID: {memory._current_session_id}")
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "index":
+            mode_str = "incremental" if incremental else "full"
+            typer.echo(f"📚 Indexing project ({mode_str})...")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                stats = await memory.index_project(git=True, code=True, incremental=incremental)
+                typer.echo(f"✅ Indexing complete:")
+                typer.echo(f"   Git commits: {stats.get('git_commits', 0)}")
+                typer.echo(f"   Code symbols: {stats.get('code_symbols', 0)}")
+                if stats.get('skipped', 0) > 0:
+                    typer.echo(f"   Skipped (unchanged): {stats['skipped']}")
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "search":
+            if not query:
+                typer.echo("❌ Please provide a search query", err=True)
+                raise typer.Exit(1)
+            
+            typer.echo(f"🔍 Searching: {query}")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                results = await memory.search(query)
+                
+                if not results:
+                    typer.echo("No results found.")
+                    return
+                
+                from rich.table import Table
+                from rich.console import Console
+                
+                console = Console()
+                table = Table(title=f"Search Results: '{query}'")
+                table.add_column("Type", style="cyan", no_wrap=True)
+                table.add_column("Source", style="green")
+                table.add_column("Content", style="white")
+                
+                for r in results[:10]:
+                    result_type = r.get("type", "unknown")
+                    source = r.get("source", r.get("file", "unknown"))[:40]
+                    
+                    if result_type == "code":
+                        content = f"{r.get('name', '')}: {r.get('signature', '')[:60]}"
+                    else:
+                        content = r.get("content", "")[:80]
+                    
+                    table.add_row(result_type, source, content)
+                
+                console.print(table)
+                typer.echo(f"\nShowing {len(results[:10])} of {len(results)} results")
+                
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "global-search":
+            if not query:
+                typer.echo("❌ Please provide a search query for global-search", err=True)
+                raise typer.Exit(1)
+            
+            typer.echo(f"🌍 Global search: {query}")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                results = await memory.search_global_memory(query)
+                
+                if not results:
+                    typer.echo("No results found in global memory.")
+                    typer.echo("Tip: Register projects with 'kimi-tachi memory register-global'")
+                    return
+                
+                from rich.table import Table
+                from rich.console import Console
+                
+                console = Console()
+                table = Table(title=f"Global Search Results: '{query}'")
+                table.add_column("Project", style="cyan", no_wrap=True)
+                table.add_column("Source", style="green")
+                table.add_column("Content", style="white")
+                
+                for r in results[:10]:
+                    project = r.get("project", "unknown")
+                    source = r.get("source", "unknown")[:40]
+                    content = r.get("content", "")[:80]
+                    table.add_row(project, source, content)
+                
+                console.print(table)
+                typer.echo(f"\nFound {len(results)} results from {len(set(r.get('project') for r in results))} projects")
+                
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "register-global":
+            if not project_name:
+                typer.echo("❌ Please specify --project name for registration", err=True)
+                raise typer.Exit(1)
+            
+            typer.echo(f"🌍 Registering project in global memory: {project_name}")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                success = await memory.register_in_global_memory(project_name)
+                if success:
+                    typer.echo(f"✅ Project registered. Run 'kimi-tachi memory sync-global' to sync.")
+                else:
+                    typer.echo("❌ Registration failed")
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "sync-global":
+            if not project_name:
+                typer.echo("❌ Please specify --project name for sync", err=True)
+                raise typer.Exit(1)
+            
+            mode_str = "incremental" if incremental else "full"
+            typer.echo(f"🌍 Syncing to global memory ({mode_str}): {project_name}")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                result = await memory.sync_to_global_memory(project_name, incremental=incremental)
+                typer.echo(f"✅ Sync complete: {result}")
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "recall":
+            if not agent:
+                typer.echo("❌ Please specify --agent for recall", err=True)
+                typer.echo("Available agents: kamaji, nekobasu, calcifer, enma, tasogare, shishigami, phoenix")
+                raise typer.Exit(1)
+            
+            typer.echo(f"🧠 Recalling context for {agent}...")
+            try:
+                memory = await TachiMemory.init(work_dir)
+                context = await memory.recall_agent_context(agent, include_global=True)
+                
+                profile = AGENT_MEMORY_PROFILES.get(agent)
+                if profile:
+                    typer.echo(f"\n◕‿◕ {agent}'s Memory Profile:")
+                    typer.echo(profile.memory_description)
+                
+                typer.echo(f"\n📋 Recalled Context:")
+                typer.echo(f"   Session: {context.session_id}")
+                typer.echo(f"   Recent memories: {len(context.recent_memories)}")
+                typer.echo(f"   Relevant code: {len(context.relevant_code)}")
+                
+                if context.cross_project_knowledge:
+                    typer.echo(f"   Cross-project knowledge: {len(context.cross_project_knowledge)}")
+                
+                if context.recent_memories:
+                    typer.echo("\n📝 Recent Memories:")
+                    for m in context.recent_memories[:5]:
+                        typer.echo(f"   - [{m.get('source', 'unknown')}] {m.get('content', '')[:60]}...")
+                
+                if context.relevant_code:
+                    typer.echo("\n💻 Relevant Code:")
+                    for c in context.relevant_code[:3]:
+                        typer.echo(f"   - {c.get('name', '')} ({c.get('file', '')})")
+                
+                if context.cross_project_knowledge:
+                    typer.echo("\n🌍 Cross-Project Knowledge:")
+                    for k in context.cross_project_knowledge[:3]:
+                        typer.echo(f"   - [{k.get('project', '')}] {k.get('content', '')[:60]}...")
+                
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        elif action == "status":
+            try:
+                memory = await TachiMemory.init(work_dir)
+                status = await memory.get_index_status()
+                
+                typer.echo("🧠 Memory Status:")
+                typer.echo(f"   Project: {status.get('project_path', 'Unknown')}")
+                typer.echo(f"   Session: {status.get('session_id', 'Unknown')}")
+                
+                stats = status.get('stats', {})
+                if stats:
+                    typer.echo(f"\n📊 Statistics:")
+                    typer.echo(f"   Git commits indexed: {stats.get('git_commits_indexed', 0)}")
+                    typer.echo(f"   Code symbols indexed: {stats.get('code_symbols_indexed', 0)}")
+                    typer.echo(f"   Total memories: {stats.get('total_memories', 0)}")
+                
+            except Exception as e:
+                typer.echo(f"❌ Error: {e}", err=True)
+                raise typer.Exit(1)
+        
+        else:
+            typer.echo(f"❌ Unknown action: {action}", err=True)
+            typer.echo("Available actions: init, index, search, recall, status")
+            raise typer.Exit(1)
+    
+    asyncio.run(_memory_action())
+
+
+# ========== Status Command ==========
 
 @app.command()
 def status():

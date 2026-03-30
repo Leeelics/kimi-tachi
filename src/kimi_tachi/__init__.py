@@ -18,7 +18,7 @@ Phase 4.0: Complete kimi-cli 1.25.0+ Support
 - Requires kimi-cli >=1.25.0 (tested up to 1.26.0)
 """
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 __compatible_cli_versions__ = ">=1.25.0"
 
 __all__ = [
