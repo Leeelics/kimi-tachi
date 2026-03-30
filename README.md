@@ -1,16 +1,26 @@
-# kimi-tachi (君たち) v0.4.0
+# kimi-tachi (君たち) v0.5.0
 
 > Multi-agent task orchestration for Kimi CLI
 > 
 > *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized agents working together.
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-## 🎉 v0.4.0 新特性
+## 🎉 v0.5.0 新特性
 
-**充分利用 kimi-cli 1.25.0+ 新能力！**
+**自动记忆系统——你的项目永远被记住！**
+
+- ✅ **Memory 系统** - 基于 MemNexus 的自动代码记忆
+  - 项目级记忆：Git 历史、代码结构、会话上下文
+  - 全局记忆：跨项目知识共享
+  - 增量索引：只索引变更的文件
+- ✅ **七人衆记忆** - 每个 agent 自动回忆/存储关键决策
+- ✅ **CLI 命令** - `kimi-tachi memory init/index/search/recall`
+- ✅ **透明工作** - 用户无需感知，agents 自动使用记忆
+
+**v0.4.0 核心特性：**
 
 - ✅ **Labor Market 集成** - 七人衆注册为 built-in subagent types
 - ✅ **Agent Resume** - 跨会话上下文保留，智能复用 agent 实例
@@ -183,11 +193,69 @@ kamaji 会根据任务复杂度自动决定工作方式：
 
 ---
 
+## 🧠 Memory 记忆系统 (v0.5.0)
+
+kimi-tachi 现在拥有自动记忆能力！**你不需要做任何额外操作**——agents 会自动记住你的项目。
+
+### 自动工作（无需感知）
+
+```
+用户: 上次我们是怎么处理错误日志的？
+kamaji: [自动搜索记忆] 上次我们在 auth.py 中使用了结构化日志，
+        我来按照这个模式继续...
+        
+        参考之前的实现：
+        - src/auth.py (commit: a1b2c3d)
+        - 使用了 structlog
+        - 添加了 request_id 追踪
+```
+
+### 手动使用 CLI
+
+```bash
+# 初始化项目记忆
+kimi-tachi memory init
+
+# 增量索引（只索引变更的文件）
+kimi-tachi memory index
+
+# 搜索项目记忆
+kimi-tachi memory search "authentication"
+
+# 搜索全局记忆（跨项目）
+kimi-tachi memory global-search "fastapi best practices"
+
+# 查看记忆状态
+kimi-tachi memory status
+
+# 让 agent 回忆上下文
+kimi-tachi memory recall --agent calcifer "数据库迁移"
+```
+
+### 七人衆记忆特点
+
+每个 agent 有不同的记忆偏好：
+
+| Agent | 记忆特点 | 自动行为 |
+|-------|---------|---------|
+| 🦌 **shishigami** | 架构决策 | 自动搜索相关架构模式 |
+| 🚌 **nekobasu** | 代码结构 | 自动回忆项目布局 |
+| 🔥 **calcifer** | 实现模式 | 自动搜索类似实现 |
+| 👹 **enma** | 审查历史 | 自动查找常见错误 |
+| 🌆 **tasogare** | 规划记录 | 自动参考历史规划 |
+| 🐦 **phoenix** | 知识库 | 自动查询最佳实践 |
+
+---
+
 ## ⚙️ 配置选项
 
 ### 环境变量
 
 ```bash
+# v0.5.0: Memory 记忆系统
+export KIMI_TACHI_MEMORY_ENABLED=true      # 启用记忆系统
+export KIMI_TACHI_MEMORY_AUTO_INDEX=true   # 自动索引变更
+
 # v0.4.0: Agent 会话管理
 export KIMI_TACHI_SESSION_ID="my-project"  # 会话 ID
 export KIMI_TACHI_RESUME_TIMEOUT=1800      # Resume 超时（秒）
@@ -213,12 +281,27 @@ from kimi_tachi.message_bus import MessageBus
 from kimi_tachi.context import ContextCacheManager
 from kimi_tachi.session import get_session_manager  # v0.4.0
 from kimi_tachi.background import get_task_manager   # v0.4.0
+from kimi_tachi.memory import get_memory            # v0.5.0
 
 # 完整功能启用
 orch = HybridOrchestrator(
     enable_dynamic=True,   # Phase 2.1
     enable_cache=True,     # Phase 2.4
 )
+
+# v0.5.0: Memory 系统 - 自动代码记忆
+memory = get_memory()
+await memory.init()  # 初始化项目记忆
+
+# 增量索引（只索引变更的文件）
+stats = await memory.index_project(incremental=True)
+print(f"Indexed {stats['files_indexed']} files")
+
+# 搜索记忆
+results = await memory.memory.store.search("authentication", limit=5)
+
+# 全局搜索（跨项目）
+global_results = await memory.global_memory.search("fastapi patterns")
 
 # v0.4.0: 会话管理 - 跟踪和复用 agent
 session = get_session_manager("my-project")
@@ -251,6 +334,14 @@ engine = WorkflowEngine(orch, use_parallel=True)  # Phase 2.3
 ```bash
 # 工作流模式（非交互式，自动执行完整流程）
 kimi-tachi workflow "实现用户认证" --type feature
+
+# v0.5.0: Memory 记忆系统
+kimi-tachi memory init           # 初始化项目记忆
+kimi-tachi memory index          # 增量索引
+kimi-tachi memory search "auth"  # 搜索记忆
+kimi-tachi memory global-search "patterns"  # 全局搜索
+kimi-tachi memory status         # 查看记忆状态
+kimi-tachi memory recall --agent calcifer   # Agent 回忆
 
 # v0.4.0: 后台任务管理
 kimi-tachi tasks                 # 列出后台任务
@@ -293,6 +384,9 @@ kimi-tachi/
 │
 └── src/kimi_tachi/
     ├── cli.py             # Typer CLI
+    ├── memory/            # v0.5.0: 自动记忆系统
+    │   ├── tachi_memory.py
+    │   └── __init__.py
     ├── session/           # v0.4.0: Agent 会话管理
     │   ├── agent_session.py
     │   └── __init__.py
@@ -323,6 +417,44 @@ kimi-tachi/
 ---
 
 ## 🔧 技术架构
+
+### v0.5.0 架构 (Automatic Memory System)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    v0.5.0 记忆架构                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Automatic Memory (自动记忆)                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Project Memory                                     │   │
+│  │  ├─ Git history (commits, messages)                │   │
+│  │  ├─ Code structure (functions, classes)            │   │
+│  │  ├─ Session context (decisions, outputs)           │   │
+│  │  └─ Incremental indexing                           │   │
+│  │                                                     │   │
+│  │  Global Memory (跨项目)                             │   │
+│  │  ├─ Cross-project knowledge                        │   │
+│  │  ├─ Best practices patterns                        │   │
+│  │  └─ Architecture decisions                         │   │
+│  │                                                     │   │
+│  │  Agent Profiles (记忆偏好)                          │   │
+│  │  ├─ recall_on_start: 自动回忆上下文                │   │
+│  │  └─ store_on_complete: 自动存储决策                │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Memory Tools (透明调用)                                      │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  memory_recall_agent()    → 预加载上下文           │   │
+│  │  memory_search()          → 搜索项目记忆           │   │
+│  │  memory_global_search()   → 全局知识查询           │   │
+│  │  memory_store_decision()  → 存储关键决策           │   │
+│  │                                                      │   │
+│  │  用户无感知 → Agents 自动使用                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### v0.4.0 架构 (Labor Market + Agent Resume)
 
@@ -430,25 +562,34 @@ kimi-tachi/
 - [x] **4.3** Background Tasks
 - [x] **4.4** WireAdapter 桥接
 
-### 🚧 Phase 5: 智能记忆 (v0.5.0)
+### ✅ Phase 5: 智能记忆 (v0.5.0) - 已完成！
 
-- [ ] 跨会话长期记忆
+- [x] **5.1** 自动代码记忆 - Project + Global Memory
+- [x] **5.2** 增量索引系统
+- [x] **5.3** Agent 自动回忆/存储
+- [x] **5.4** Memory CLI 工具
+
+### 🚧 Phase 6: 智能增强 (v0.6.0)
+
 - [ ] 知识图谱构建
 - [ ] 个性化工作流学习
+- [ ] Multi-hop 推理能力
 
 ---
 
 ## 📊 性能指标
 
-| 指标 | v0.1.0 | v0.2.0 | v0.4.0 | 提升 |
-|------|--------|--------|--------|------|
-| MCP 进程数 | 7 | ≤2 | ≤2 | 71% ↓ |
-| 消息延迟 | ~500ms | <100ms | <100ms | 80% ↓ |
-| 并行执行比例 | 0% | ≥40% | ≥40% | 新增 |
-| 缓存命中率 | 0% | ≥80% | ≥80% | 新增 |
-| Token 使用 | 100% | ~70% | ~50% | 50% ↓ |
-| Agent 复用 | ❌ | ❌ | ✅ | 新增 |
-| 后台任务 | ❌ | ❌ | ✅ | 新增 |
+| 指标 | v0.1.0 | v0.2.0 | v0.4.0 | v0.5.0 | 提升 |
+|------|--------|--------|--------|--------|------|
+| MCP 进程数 | 7 | ≤2 | ≤2 | ≤2 | 71% ↓ |
+| 消息延迟 | ~500ms | <100ms | <100ms | <100ms | 80% ↓ |
+| 并行执行比例 | 0% | ≥40% | ≥40% | ≥40% | 新增 |
+| 缓存命中率 | 0% | ≥80% | ≥80% | ≥80% | 新增 |
+| Token 使用 | 100% | ~70% | ~50% | ~50% | 50% ↓ |
+| Agent 复用 | ❌ | ❌ | ✅ | ✅ | 新增 |
+| 后台任务 | ❌ | ❌ | ✅ | ✅ | 新增 |
+| 自动记忆 | ❌ | ❌ | ❌ | ✅ | 新增 |
+| 增量索引 | ❌ | ❌ | ❌ | ✅ | 新增 |
 
 ---
 
@@ -473,7 +614,7 @@ MIT - 与 Kimi CLI 保持一致
 
 ---
 
-**kimi-tachi v0.4.0** - *Many Kimis, One Goal.*
+**kimi-tachi v0.5.0** - *Many Kimis, One Goal.*
 
 **キャラクターたち、準備はいいか？** (Characters, ready?)
 
