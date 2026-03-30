@@ -1,0 +1,67 @@
+# Pre-commit hooks for kimi-tachi
+# Inspired by kimi-cli's prek tool
+# Install: pre-commit install
+# Update: pre-commit autoupdate
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+
+  # Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Local hooks using project tools
+  - repo: local
+    hooks:
+      - id: version-check
+        name: Check version consistency
+        entry: python3 scripts/check_version.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
+      - id: changelog-check
+        name: Check CHANGELOG
+        entry: python3 -c "
+import re
+import tomllib
+import sys
+
+with open('pyproject.toml', 'rb') as f:
+    version = tomllib.load(f)['project']['version']
+
+with open('CHANGELOG.md') as f:
+    changelog = f.read()
+
+if f'## [{version}]' not in changelog:
+    print(f'⚠️  No CHANGELOG entry for {version}')
+    sys.exit(1)
+
+print(f'✅ CHANGELOG has entry for {version}')
+"
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
