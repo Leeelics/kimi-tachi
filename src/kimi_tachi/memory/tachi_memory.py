@@ -23,12 +23,13 @@ from rich.table import Table
 
 # Optional import - memory is optional
 try:
-    from memnexus import CodeMemory
+    from memnexus import CodeMemory, GlobalMemory
     from memnexus.memory.context import ContextManager
     MEMNEXUS_AVAILABLE = True
 except ImportError:
     MEMNEXUS_AVAILABLE = False
     CodeMemory = None
+    GlobalMemory = None
     ContextManager = None
 
 from kimi_tachi.config import get_config
@@ -61,6 +62,7 @@ class AgentContext:
     relevant_code: List[Dict] = field(default_factory=list)
     project_summary: str = ""
     user_preferences: Dict[str, Any] = field(default_factory=dict)
+    cross_project_knowledge: List[Dict] = field(default_factory=list)  # 跨项目知识
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -106,6 +108,7 @@ class TachiMemory:
         
         # Core components (initialized lazily)
         self._code_memory: Optional[CodeMemory] = None
+        self._global_memory: Optional[GlobalMemory] = None
         self._context_manager: Optional[ContextManager] = None
         self._initialized = False
         
@@ -143,6 +146,10 @@ class TachiMemory:
         # Initialize CodeMemory
         self._code_memory = await CodeMemory.init(self.project_path)
         
+        # Initialize GlobalMemory for cross-project knowledge
+        if GlobalMemory:
+            self._global_memory = await GlobalMemory.init()
+        
         # Initialize context manager with unique session ID
         session_id = f"tachi_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self._current_session_id = session_id
@@ -154,16 +161,24 @@ class TachiMemory:
         self._initialized = True
         
         console.print(f"[dim]Memory initialized: {self.project_path}[/dim]")
+        if self._global_memory:
+            console.print(f"[dim]Global memory available[/dim]")
     
     # ========== Project Indexing ==========
     
-    async def index_project(self, git: bool = True, code: bool = True) -> Dict[str, int]:
+    async def index_project(
+        self, 
+        git: bool = True, 
+        code: bool = True,
+        incremental: bool = True,
+    ) -> Dict[str, int]:
         """
         Index the project for memory.
         
         Args:
             git: Index Git history
             code: Index code structure
+            incremental: Use incremental indexing (only new/changed content)
             
         Returns:
             Statistics about indexed items
@@ -171,26 +186,124 @@ class TachiMemory:
         if not self._initialized:
             raise RuntimeError("Memory not initialized. Call init() first.")
         
-        stats = {"git_commits": 0, "code_symbols": 0}
+        stats = {"git_commits": 0, "code_symbols": 0, "skipped": 0}
+        mode_str = "incremental" if incremental else "full"
         
-        with console.status("[bold green]Indexing project..."):
+        with console.status(f"[bold green]Indexing project ({mode_str})..."):
             if git:
                 try:
-                    await self._code_memory.index_git_history()
-                    stats["git_commits"] = self._code_memory._stats.get("git_commits_indexed", 0)
+                    result = await self._code_memory.index_git_history(incremental=incremental)
+                    stats["git_commits"] = result.get("indexed", 0)
+                    stats["skipped"] += result.get("skipped", 0)
                     console.print(f"[green]✓[/green] Indexed {stats['git_commits']} Git commits")
+                    if result.get("skipped", 0) > 0:
+                        console.print(f"[dim]  ({result['skipped']} skipped - already indexed)[/dim]")
                 except Exception as e:
                     console.print(f"[yellow]⚠ Git indexing skipped: {e}[/yellow]")
             
             if code:
                 try:
-                    await self._code_memory.index_codebase()
-                    stats["code_symbols"] = self._code_memory._stats.get("code_symbols_indexed", 0)
+                    result = await self._code_memory.index_codebase(incremental=incremental)
+                    stats["code_symbols"] = result.get("indexed_symbols", 0)
+                    stats["skipped"] += result.get("skipped_files", 0)
                     console.print(f"[green]✓[/green] Indexed {stats['code_symbols']} code symbols")
+                    if result.get("skipped_files", 0) > 0:
+                        console.print(f"[dim]  ({result['skipped_files']} files skipped - unchanged)[/dim]")
                 except Exception as e:
                     console.print(f"[yellow]⚠ Code indexing skipped: {e}[/yellow]")
         
         return stats
+    
+    # ========== Global Memory (Cross-Project) ==========
+    
+    async def register_in_global_memory(self, project_name: str) -> bool:
+        """
+        Register current project in global memory for cross-project search.
+        
+        Args:
+            project_name: Name for this project in global memory
+            
+        Returns:
+            True if successful
+        """
+        if not self._initialized or not self._global_memory:
+            console.print("[yellow]Global memory not available[/yellow]")
+            return False
+        
+        try:
+            await self._global_memory.register_project(
+                name=project_name,
+                path=str(self.project_path),
+                description=f"kimi-tachi project: {project_name}",
+            )
+            console.print(f"[green]✓[/green] Registered in global memory: {project_name}")
+            return True
+        except Exception as e:
+            console.print(f"[yellow]Failed to register: {e}[/yellow]")
+            return False
+    
+    async def sync_to_global_memory(
+        self, 
+        project_name: str,
+        incremental: bool = True,
+    ) -> Dict[str, int]:
+        """
+        Sync current project to global memory.
+        
+        Args:
+            project_name: Project name in global memory
+            incremental: Use incremental sync
+            
+        Returns:
+            Statistics about synced items
+        """
+        if not self._initialized or not self._global_memory:
+            return {"error": "Global memory not available"}
+        
+        try:
+            result = await self._global_memory.sync_project(
+                project_name, 
+                incremental=incremental
+            )
+            console.print(f"[green]✓[/green] Synced to global memory: {result}")
+            return result
+        except Exception as e:
+            console.print(f"[yellow]Sync failed: {e}[/yellow]")
+            return {"error": str(e)}
+    
+    async def search_global_memory(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search across all registered projects (cross-project knowledge).
+        
+        Args:
+            query: Search query
+            limit: Maximum results
+            
+        Returns:
+            List of results from multiple projects
+        """
+        if not self._initialized or not self._global_memory:
+            return []
+        
+        try:
+            results = await self._global_memory.search(query, limit=limit)
+            return [
+                {
+                    "content": r.content,
+                    "source": r.source,
+                    "project": r.project_name,
+                    "score": r.score,
+                    "type": r.memory_type,
+                }
+                for r in results
+            ]
+        except Exception as e:
+            console.print(f"[yellow]Global search failed: {e}[/yellow]")
+            return []
     
     async def get_index_status(self) -> Dict[str, Any]:
         """Get current indexing status."""
@@ -392,6 +505,7 @@ class TachiMemory:
         self,
         agent_type: str,
         query: Optional[str] = None,
+        include_global: bool = True,
     ) -> AgentContext:
         """
         Recall context for an agent.
@@ -399,6 +513,7 @@ class TachiMemory:
         Args:
             agent_type: Agent type to recall
             query: Optional query to find relevant context
+            include_global: Whether to include cross-project knowledge
             
         Returns:
             AgentContext with recalled information
@@ -427,11 +542,21 @@ class TachiMemory:
             except Exception:
                 pass
         
-        # Search for relevant code
+        # Search for relevant code in current project
         if query:
             try:
                 code_results = await self.search_code(query, limit=5)
                 context.relevant_code = code_results
+            except Exception:
+                pass
+        
+        # Search cross-project knowledge (Global Memory)
+        if include_global and query and self._global_memory:
+            try:
+                global_results = await self.search_global_memory(query, limit=5)
+                context.cross_project_knowledge = global_results
+                if global_results:
+                    console.print(f"[dim]Found {len(global_results)} results from other projects[/dim]")
             except Exception:
                 pass
         
