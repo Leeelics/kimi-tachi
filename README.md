@@ -1,10 +1,10 @@
-# kimi-tachi (君たち) v0.5.0
+# kimi-tachi (君たち) v0.5.1
 
 > Multi-agent task orchestration for Kimi CLI
 > 
 > *Kimi-tachi* means "you all" or "Kimi team" in Japanese - a squad of specialized agents working together.
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.1-blue.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 

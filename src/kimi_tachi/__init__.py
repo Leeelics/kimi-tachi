@@ -10,16 +10,17 @@ A squad of specialized agents working together (七人衆):
 - tasogare: Research planner (黄昏)
 - phoenix: Knowledge manager (火之鸟)
 
-Phase 4.0: Complete kimi-cli 1.25.0+ Support
+Phase 5.1: kimi-cli 1.28.0+ Support
 - Compatible with kimi-cli 1.25.0+
 - Native Agent tool integration (coder/explore/plan)
-- Plugin system support (Skills → Plugins)
-- Workflow tracing and visualization
-- Requires kimi-cli >=1.25.0 (tested up to 1.26.0)
+- Agent timeout support (kimi-cli 1.28.0+)
+- Thoroughness levels for exploration (kimi-cli 1.28.0+)
+- Hooks system integration (kimi-cli 1.28.0+)
+- Requires kimi-cli >=1.25.0 (tested up to 1.28.0)
 """
 
-__version__ = "0.5.0"
-__compatible_cli_versions__ = ">=1.25.0"
+__version__ = "0.5.1"
+__compatible_cli_versions__ = ">=1.25.0, tested up to 1.28.0"
 
 __all__ = [
     "cli",

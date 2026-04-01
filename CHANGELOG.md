@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-04-01
+
+### Added
+- **kimi-cli 1.28.0+ Compatibility**:
+  - Agent Timeout Support: Background tasks now support `timeout` parameter (30-3600s)
+    - Updated `BackgroundTaskManager.start_task()` with optional timeout
+    - Updated `WireAdapter.send_to_agent()` and `resume_agent()` with agent_timeout
+    - Task timeout validation and enforcement
+  - Explore Agent Enhancements (nekobasu):
+    - Thoroughness Levels: quick/medium/thorough search depth options
+    - Git Context Support: Utilize `<git-context>` blocks when provided
+    - Updated system prompt with specialist role guidance
+  - Hooks Integration Documentation:
+    - Added `docs/HOOKS_INTEGRATION.md` with complete integration guide
+    - Added `hooks/` directory with example hook scripts:
+      - `trace-agent.sh` - Automatic agent call tracing
+      - `check-todos.sh` - Todo completion reminder
+      - `protect-sensitive.sh` - Sensitive file protection
+    - Added `hooks/config.toml.example` for quick setup
+
+### Changed
+- Updated `agents/nekobasu.yaml` with thoroughness levels and git context guidance
+- Updated `agents/kamaji.yaml` with delegation guide for nekobasu thoroughness levels
+
+### Compatibility
+- Requires kimi-cli >=1.25.0 (kimi-cli 1.28.0+ for timeout and thoroughness features)
+- All changes are backward compatible
+
 ## [0.5.0] - 2026-03-26
 
 ### Added

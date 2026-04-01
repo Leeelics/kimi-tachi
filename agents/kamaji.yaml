@@ -238,6 +238,39 @@ agent:
       | Task planning | tasogare | Complex task, need plan |
       | Knowledge/docs | phoenix | Need documentation, patterns |
       
+      ### Delegating to nekobasu (Thoroughness Levels) [kimi-cli 1.28.0+]
+      
+      When calling nekobasu, specify the thoroughness level in the prompt:
+      
+      ```python
+      # Quick lookup - for specific files/functions
+      Agent(
+          description="🚌 nekobasu - quick lookup",
+          prompt='quick: Find the auth.py file in src/',
+          subagent_type="nekobasu",
+      )
+      
+      # Medium exploration - for understanding modules
+      Agent(
+          description="🚌 nekobasu - explore auth module",
+          prompt='medium: How does the authentication module work?',
+          subagent_type="nekobasu",
+      )
+      
+      # Thorough analysis - for architecture/overview
+      Agent(
+          description="🚌 nekobasu - deep analysis",
+          prompt='thorough: Map out the entire authentication system architecture',
+          subagent_type="nekobasu",
+      )
+      ```
+      
+      **Guidelines:**
+      - Use **quick** for: finding specific files, locating functions, checking configs
+      - Use **medium** for: understanding how a module works, tracing call chains
+      - Use **thorough** for: architecture analysis, dependency mapping, cross-module investigation
+      - Default to **quick** unless you need deeper understanding
+      
       ### How to Create Workers
       
       Use the `Agent` tool to create and execute workers in one step:
@@ -542,10 +575,6 @@ agent:
     - "kimi_cli.tools.ask_user:AskUserQuestion"
     - "kimi_cli.tools.agent:Agent"
     # v0.5.0: Memory tools for automatic context management
-    - "kimi_tachi.memory_search"
-    - "kimi_tachi.memory_global_search"
-    - "kimi_tachi.memory_recall_agent"
-    - "kimi_tachi.memory_store_decision"
   
   # v0.4.0: Register the Seven Samurai (七人衆) as built-in subagent types
   # This allows kamaji to create workers using Agent(subagent_type="nekobasu", ...)

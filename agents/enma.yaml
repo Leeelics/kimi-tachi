@@ -120,9 +120,6 @@ agent:
     - "kimi_cli.tools.file:ReadFile"
     - "kimi_cli.tools.file:Grep"
     # v0.5.0: Memory tools for the Book of Life and Death
-    - "kimi_tachi.memory_recall_agent"
-    - "kimi_tachi.memory_search"
-    - "kimi_tachi.memory_store_decision"
   
   # Override subagents to prevent recursion
   subagents: {}

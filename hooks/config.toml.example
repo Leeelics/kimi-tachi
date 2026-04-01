@@ -1,0 +1,61 @@
+# kimi-tachi Hooks 配置示例
+# 
+# 使用方法:
+# 1. 复制此文件到 ~/.kimi/config.toml (或合并到现有配置)
+# 2. 修改路径为实际安装路径
+# 3. 重启 kimi-cli 生效
+
+# ============================================
+# kimi-tachi Agent 追踪 Hooks
+# ============================================
+
+# 子代理启动时记录追踪
+[[hooks]]
+event = "SubagentStart"
+command = "/home/lee/.kimi/agents/kimi-tachi/hooks/trace-agent.sh"
+timeout = 5
+
+# 子代理结束时记录追踪
+[[hooks]]
+event = "SubagentStop"
+command = "/home/lee/.kimi/agents/kimi-tachi/hooks/trace-agent.sh"
+timeout = 5
+
+# ============================================
+# kimi-tachi Todo 检查 Hooks
+# ============================================
+
+# 回合结束时检查未完成的 todo
+[[hooks]]
+event = "Stop"
+command = "/home/lee/.kimi/agents/kimi-tachi/hooks/check-todos.sh"
+timeout = 5
+
+# ============================================
+# kimi-tachi 安全保护 Hooks
+# ============================================
+
+# 阻止直接修改敏感文件
+[[hooks]]
+event = "PreToolUse"
+matcher = "WriteFile|StrReplaceFile"
+command = "/home/lee/.kimi/agents/kimi-tachi/hooks/protect-sensitive.sh"
+timeout = 5
+
+# ============================================
+# 可选: 其他有用的 Hooks
+# ============================================
+
+# 代码格式化 (PostToolUse)
+# [[hooks]]
+# event = "PostToolUse"
+# matcher = "WriteFile|StrReplaceFile"
+# command = "jq -r '.tool_input.file_path' | xargs -I {} sh -c 'black {} 2>/dev/null || prettier --write {} 2>/dev/null || true'"
+# timeout = 30
+
+# 桌面通知 (Notification)
+# [[hooks]]
+# event = "Notification"
+# matcher = "permission_prompt"
+# command = "osascript -e 'display notification \"Kimi needs your approval\" with title \"Kimi CLI\"' 2>/dev/null || notify-send 'Kimi CLI' 'Kimi needs your approval' 2>/dev/null || true"
+# timeout = 5

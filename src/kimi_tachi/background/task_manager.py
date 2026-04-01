@@ -12,9 +12,9 @@ Example:
         description="Deep codebase analysis",
         prompt="Analyze the entire codebase architecture...",
     )
-    
+
     # Continue with other work...
-    
+
     # Check status later
     status = manager.get_task_status(task.task_id)
     if status.is_complete:
@@ -23,15 +23,16 @@ Example:
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, List, Optional, Callable, Any
 import asyncio
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
 
 
 class TaskStatus(Enum):
     """Status of a background task"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -49,11 +50,12 @@ class TaskInfo:
     description: str
     status: TaskStatus
     created_at: float
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
-    result: Optional[str] = None
-    error: Optional[str] = None
+    started_at: float | None = None
+    completed_at: float | None = None
+    result: str | None = None
+    error: str | None = None
     progress: float = 0.0  # 0.0 to 1.0
+    timeout: int | None = None  # Timeout in seconds (30-3600, kimi-cli 1.28.0+)
 
     @property
     def duration(self) -> float:
@@ -96,18 +98,19 @@ class BackgroundTaskManager:
     """
 
     def __init__(self):
-        self._tasks: Dict[str, TaskInfo] = {}
-        self._callbacks: Dict[str, List[Callable[[TaskInfo], None]]] = {}
+        self._tasks: dict[str, TaskInfo] = {}
+        self._callbacks: dict[str, list[Callable[[TaskInfo], None]]] = {}
         self._monitoring: bool = False
-        self._monitor_task: Optional[asyncio.Task] = None
+        self._monitor_task: asyncio.Task | None = None
 
     async def start_task(
         self,
         agent_type: str,
         description: str,
         prompt: str,
-        task_id: Optional[str] = None,
-        on_complete: Optional[Callable[[TaskInfo], None]] = None,
+        task_id: str | None = None,
+        timeout: int | None = None,
+        on_complete: Callable[[TaskInfo], None] | None = None,
     ) -> TaskInfo:
         """
         Start a background task.
@@ -120,15 +123,25 @@ class BackgroundTaskManager:
             description: Short description of the task
             prompt: The task prompt
             task_id: Optional custom task ID
+            timeout: Optional timeout in seconds (30-3600, kimi-cli 1.28.0+)
             on_complete: Optional callback when task completes
 
         Returns:
             TaskInfo for the started task
+
+        Note:
+            Timeout feature requires kimi-cli >=1.28.0.
+            The agent will be stopped if it exceeds the timeout.
         """
         # Generate IDs
         import uuid
+
         actual_task_id = task_id or f"task_{uuid.uuid4().hex[:8]}"
         agent_id = f"a{uuid.uuid4().hex[:8]}"
+
+        # Validate timeout (kimi-cli 1.28.0+: 30-3600 seconds)
+        if timeout is not None:
+            timeout = max(30, min(3600, timeout))
 
         # Create task info
         task = TaskInfo(
@@ -138,6 +151,7 @@ class BackgroundTaskManager:
             description=description,
             status=TaskStatus.PENDING,
             created_at=time.time(),
+            timeout=timeout,
         )
 
         self._tasks[actual_task_id] = task
@@ -151,13 +165,14 @@ class BackgroundTaskManager:
         #     prompt=prompt,
         #     subagent_type=agent_type,
         #     run_in_background=True,
+        #     timeout=timeout,  # kimi-cli 1.28.0+
         # )
         # For now, simulate starting the task
-        asyncio.create_task(self._simulate_task_execution(actual_task_id, prompt))
+        asyncio.create_task(self._simulate_task_execution(actual_task_id, prompt, timeout))
 
         return task
 
-    async def _simulate_task_execution(self, task_id: str, prompt: str):
+    async def _simulate_task_execution(self, task_id: str, prompt: str, timeout: int | None = None):
         """Simulate task execution (replace with actual Agent tool call)"""
         task = self._tasks.get(task_id)
         if not task:
@@ -169,15 +184,30 @@ class BackgroundTaskManager:
 
         # Simulate work (in reality, this would be the background agent running)
         try:
-            # Simulate progress updates
-            for i in range(10):
-                await asyncio.sleep(0.1)  # Replace with actual work
-                task.progress = (i + 1) / 10
+            # Apply timeout if specified (kimi-cli 1.28.0+)
+            if timeout:
+                # Simulate work with timeout
+                for i in range(10):
+                    await asyncio.sleep(0.1)  # Replace with actual work
+                    task.progress = (i + 1) / 10
+                    # Check if we would exceed timeout
+                    if task.started_at and (time.time() - task.started_at) > timeout:
+                        raise TimeoutError(f"Task timed out after {timeout}s")
+            else:
+                # Simulate progress updates without timeout
+                for i in range(10):
+                    await asyncio.sleep(0.1)  # Replace with actual work
+                    task.progress = (i + 1) / 10
 
             # Mark complete
             task.status = TaskStatus.COMPLETED
             task.completed_at = time.time()
             task.result = f"Completed: {prompt[:50]}..."
+
+        except TimeoutError as e:
+            task.status = TaskStatus.FAILED
+            task.completed_at = time.time()
+            task.error = f"Timeout: {str(e)}"
 
         except Exception as e:
             task.status = TaskStatus.FAILED
@@ -199,15 +229,15 @@ class BackgroundTaskManager:
             except Exception as e:
                 print(f"Callback error for task {task.task_id}: {e}")
 
-    def get_task(self, task_id: str) -> Optional[TaskInfo]:
+    def get_task(self, task_id: str) -> TaskInfo | None:
         """Get task information by ID"""
         return self._tasks.get(task_id)
 
     def list_tasks(
         self,
-        status: Optional[TaskStatus] = None,
-        agent_type: Optional[str] = None,
-    ) -> List[TaskInfo]:
+        status: TaskStatus | None = None,
+        agent_type: str | None = None,
+    ) -> list[TaskInfo]:
         """
         List tasks with optional filtering.
 
@@ -228,9 +258,11 @@ class BackgroundTaskManager:
 
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
-    def list_active_tasks(self) -> List[TaskInfo]:
+    def list_active_tasks(self) -> list[TaskInfo]:
         """List all active (pending or running) tasks"""
-        return self.list_tasks(status=TaskStatus.RUNNING) + self.list_tasks(status=TaskStatus.PENDING)
+        return self.list_tasks(status=TaskStatus.RUNNING) + self.list_tasks(
+            status=TaskStatus.PENDING
+        )
 
     def cancel_task(self, task_id: str) -> bool:
         """
@@ -253,8 +285,8 @@ class BackgroundTaskManager:
     def get_stats(self) -> dict:
         """Get statistics about all tasks"""
         total = len(self._tasks)
-        by_status = {status: 0 for status in TaskStatus}
-        by_type: Dict[str, int] = {}
+        by_status = dict.fromkeys(TaskStatus, 0)
+        by_type: dict[str, int] = {}
 
         for task in self._tasks.values():
             by_status[task.status] = by_status.get(task.status, 0) + 1
@@ -296,9 +328,9 @@ class BackgroundTaskManager:
     async def wait_for_task(
         self,
         task_id: str,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         poll_interval: float = 1.0,
-    ) -> Optional[TaskInfo]:
+    ) -> TaskInfo | None:
         """
         Wait for a task to complete.
 
@@ -327,7 +359,7 @@ class BackgroundTaskManager:
 
 
 # Global task manager instance
-_task_manager: Optional[BackgroundTaskManager] = None
+_task_manager: BackgroundTaskManager | None = None
 
 
 def get_task_manager() -> BackgroundTaskManager:
