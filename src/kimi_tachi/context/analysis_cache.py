@@ -129,10 +129,10 @@ class AnalysisResultCache:
         # 1. 检查内存缓存
         if key in self._memory_cache:
             entry = self._memory_cache[key]
-            if entry["expires_at"] > time.time():
-                if self._validate_file_hashes(query.file_hashes, entry["file_hashes"]):
-                    entry["hit_count"] += 1
-                    return entry["result"]
+            if (entry["expires_at"] > time.time() and
+                self._validate_file_hashes(query.file_hashes, entry["file_hashes"])):
+                entry["hit_count"] += 1
+                return entry["result"]
 
         # 2. 检查磁盘缓存
         if not self.db_path:

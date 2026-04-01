@@ -669,7 +669,7 @@ wheels = [
 
 [[package]]
 name = "kimi-tachi"
-version = "0.5.1"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "kimi-sdk" },
@@ -701,7 +701,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "kimi-sdk", specifier = ">=0.2.1" },
-    { name = "memnexus", specifier = ">=0.1.0" },
+    { name = "memnexus", specifier = ">=0.4.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
@@ -851,7 +851,7 @@ wheels = [
 
 [[package]]
 name = "memnexus"
-version = "0.3.0"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -864,10 +864,11 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/c0/3a9dc28e35a7e76666cffc6b5337ca769f4bf39011e0df20dedeadb3361f/memnexus-0.3.0.tar.gz", hash = "sha256:f3044dc87c68773c0958b066a7d5abf44dee2b5ec2f1492ed066f7fe8624d9f7", size = 291292, upload-time = "2026-03-30T03:09:06.198Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/a5/bffb28d0787c8cf72fba97c84a4f42c1319d5e4a62e0d9bb8a51f610b468/memnexus-0.4.0.tar.gz", hash = "sha256:9030733a475f494d4cb4c820a431eeeca801f45ddfdfe4ff6794b4932807ff9d", size = 315361, upload-time = "2026-04-01T08:50:16.554Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/60/123978cf6e11659133b4308b196a7508b1980eca35c7702a72c5ac5e413f/memnexus-0.3.0-py3-none-any.whl", hash = "sha256:9e0fd0b5bb96ca22231fe0b9227fb3c83ba777d0cd7fefc6cefa0afe6bc6c937", size = 130954, upload-time = "2026-03-30T03:09:04.574Z" },
+    { url = "https://files.pythonhosted.org/packages/25/f5/2a242d3b8f6104da5b6ca2c57eb94bfc156730c1d72a2af5c66c0fde3095/memnexus-0.4.0-py3-none-any.whl", hash = "sha256:faa13b908b0202843c05e69cf2c976e06b70396599bf259bf19c97773e4223ba", size = 148847, upload-time = "2026-04-01T08:50:17.71Z" },
 ]
 
 [[package]]

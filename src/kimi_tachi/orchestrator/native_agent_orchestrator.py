@@ -27,14 +27,17 @@ except ImportError:
     get_tracer = None
 
 
-class AgentType(str, Enum):
+class AgentType(Enum):
     """Native Agent tool types from kimi-cli 1.25.0+"""
     CODER = "coder"
     EXPLORE = "explore"
     PLAN = "plan"
 
+    def __str__(self) -> str:
+        return self.value
 
-class AgentPersonality(str, Enum):
+
+class AgentPersonality(Enum):
     """kimi-tachi anime characters"""
     NEKOBASU = "nekobasu"      # 🚌 Cat Bus - Fast exploration
     CALCIFER = "calcifer"      # 🔥 Fire Demon - Implementation
@@ -317,7 +320,7 @@ class NativeAgentInstance:
     created_at: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
     use_count: int = 0
-    
+
     def touch(self) -> None:
         """Update last used timestamp and increment use count"""
         self.last_used = time.time()
@@ -339,22 +342,22 @@ class AgentResult:
 class NativeAgentOrchestrator:
     """
     Orchestrator using kimi-cli 1.25.0+ native Agent tool.
-    
+
     Preserves kimi-tachi anime character personalities while using
     native agent types (coder/explore/plan) for optimal performance.
-    
+
     Example:
         >>> orch = NativeAgentOrchestrator()
         >>> result = await orch.delegate(
         ...     personality=AgentPersonality.NEKOBASU,
         ...     task="Find all Python files"
         ... )
-    
+
     Environment Variables:
         KIMI_TACHI_SUBAGENT_CACHE_TTL: Cache TTL in seconds (default: 300)
         KIMI_TACHI_DEBUG_AGENTS: Enable debug logging
     """
-    
+
     def __init__(
         self,
         cache_ttl: int | None = None,
@@ -362,17 +365,17 @@ class NativeAgentOrchestrator:
         enable_tracing: bool = True,
     ):
         import os
-        
+
         self.cache_ttl = cache_ttl or int(
             os.environ.get("KIMI_TACHI_SUBAGENT_CACHE_TTL", "300")
         )
         self.debug = debug or os.environ.get(
             "KIMI_TACHI_DEBUG_AGENTS", ""
         ).lower() in ("1", "true", "yes")
-        
+
         # Cache of native agent instances
         self._agents: dict[AgentPersonality, NativeAgentInstance] = {}
-        
+
         # Statistics
         self._stats = {
             "created": 0,
@@ -380,24 +383,24 @@ class NativeAgentOrchestrator:
             "cache_hits": 0,
             "cache_misses": 0,
         }
-        
+
         # Tracing support (Phase 4)
         self._tracer: AgentTracer | None = None
         if enable_tracing and TRACING_AVAILABLE and get_tracer:
             self._tracer = get_tracer(debug=debug)
-        
+
         if self.debug:
-            print(f"[NativeAgentOrchestrator] Initialized")
+            print("[NativeAgentOrchestrator] Initialized")
             print(f"  cache_ttl: {self.cache_ttl}s")
             print(f"  tracing: {'enabled' if self._tracer else 'disabled'}")
-    
+
     def _get_or_create_agent(
         self,
         personality: AgentPersonality,
     ) -> NativeAgentInstance:
         """
         Get existing agent or create new one using native Agent tool.
-        
+
         This method would use the actual Agent tool in production:
         ```python
         agent_result = Agent(
@@ -407,7 +410,7 @@ class NativeAgentOrchestrator:
         )
         agent_id = agent_result.agent_id
         ```
-        
+
         For now, we simulate the agent creation.
         """
         # Check cache
@@ -427,26 +430,25 @@ class NativeAgentOrchestrator:
                 if self.debug:
                     print(f"[NativeAgentOrchestrator] Cache expired for {personality.value}")
                 del self._agents[personality]
-        
+
         # Create new agent
-        config = AGENT_PERSONALITIES[personality]
         agent_type = PERSONALITY_TO_TYPE[personality]
-        
+
         # In production, this would call the actual Agent tool
         # For now, generate a simulated agent_id
         import uuid
         agent_id = f"{personality.value}_{uuid.uuid4().hex[:8]}"
-        
+
         agent = NativeAgentInstance(
             agent_id=agent_id,
             personality=personality,
             agent_type=agent_type,
         )
-        
+
         self._agents[personality] = agent
         self._stats["created"] += 1
         self._stats["cache_misses"] += 1
-        
+
         # Trace agent creation (Phase 4)
         if self._tracer:
             self._tracer.on_agent_created(
@@ -454,13 +456,13 @@ class NativeAgentOrchestrator:
                 personality=personality.value,
                 subagent_type=agent_type.value,
             )
-        
+
         if self.debug:
             print(f"[NativeAgentOrchestrator] Created {personality.value} "
                   f"as {agent_type.value} (id={agent_id})")
-        
+
         return agent
-    
+
     async def delegate(
         self,
         personality: AgentPersonality,
@@ -470,48 +472,48 @@ class NativeAgentOrchestrator:
     ) -> AgentResult:
         """
         Delegate task to an anime character using native Agent tool.
-        
+
         Args:
             personality: Anime character to delegate to
             task: Task description
             context: Additional context
             timeout: Max execution time in seconds
-        
+
         Returns:
             AgentResult with execution output
         """
         import asyncio
-        
+
         config = AGENT_PERSONALITIES[personality]
         print(f"◕‿◕ Delegating to {config['icon']} {config['name']}: {task[:60]}...")
-        
+
         start_time = time.time()
-        
+
         # Get or create agent
         agent = self._get_or_create_agent(personality)
-        
+
         # Trace task start (Phase 4)
         if self._tracer:
             self._tracer.on_task_started(
                 agent_id=agent.agent_id,
                 task=task,
             )
-        
-        # Build full prompt
-        full_prompt = self._build_prompt(personality, task, context)
-        
+
+        # Build full prompt (stored for future use)
+        _ = self._build_prompt(personality, task, context)
+
         # In production, this would use Task tool with agent_id:
         # task_result = Task(agent_id=agent.agent_id, prompt=full_prompt)
-        # 
+        #
         # For now, simulate execution
         if self.debug:
             print(f"[NativeAgentOrchestrator] Would call Task(agent_id={agent.agent_id})")
-        
+
         # Simulate async work
         await asyncio.sleep(0.1)
-        
+
         duration_ms = int((time.time() - start_time) * 1000)
-        
+
         # Trace task completion (Phase 4)
         if self._tracer:
             self._tracer.on_task_completed(
@@ -519,7 +521,7 @@ class NativeAgentOrchestrator:
                 returncode=0,
                 duration_ms=duration_ms,
             )
-        
+
         # Return simulated result
         return AgentResult(
             agent=personality.value,
@@ -530,7 +532,7 @@ class NativeAgentOrchestrator:
             returncode=0,
             duration_ms=duration_ms,
         )
-    
+
     def _build_prompt(
         self,
         personality: AgentPersonality,
@@ -539,22 +541,22 @@ class NativeAgentOrchestrator:
     ) -> str:
         """Build full prompt with character personality"""
         config = AGENT_PERSONALITIES[personality]
-        
+
         parts = [
             f"## Your Role\n{config['system_prompt']}",
             f"## Task\n{task}",
         ]
-        
+
         if context:
             parts.append(f"## Context\n{context}")
-        
+
         return "\n\n".join(parts)
-    
+
     def get_agent_info(self, personality: AgentPersonality) -> dict[str, Any]:
         """Get information about an agent personality"""
         config = AGENT_PERSONALITIES[personality]
         agent_type = PERSONALITY_TO_TYPE[personality]
-        
+
         return {
             "personality": personality.value,
             "name": config["name"],
@@ -563,7 +565,7 @@ class NativeAgentOrchestrator:
             "native_type": agent_type.value,
             "cached": personality in self._agents,
         }
-    
+
     def list_personalities(self) -> list[dict[str, Any]]:
         """List all available personalities"""
         return [
@@ -576,7 +578,7 @@ class NativeAgentOrchestrator:
             }
             for p in AgentPersonality
         ]
-    
+
     def get_stats(self) -> dict[str, Any]:
         """Get orchestrator statistics"""
         return {
@@ -584,11 +586,11 @@ class NativeAgentOrchestrator:
             "active_agents": len(self._agents),
             "cache_ttl": self.cache_ttl,
         }
-    
+
     def cleanup(self) -> int:
         """
         Clean up all cached agents.
-        
+
         Returns:
             Number of agents cleaned up
         """
@@ -597,12 +599,12 @@ class NativeAgentOrchestrator:
             print(f"[NativeAgentOrchestrator] Cleaning up {count} agents")
         self._agents.clear()
         return count
-    
+
     # Phase 4: Workflow tracing methods
     def start_workflow(self, workflow_type: str, task_description: str) -> None:
         """
         Start tracing a new workflow.
-        
+
         Args:
             workflow_type: Type of workflow (feature, bugfix, etc.)
             task_description: Task description
@@ -611,11 +613,11 @@ class NativeAgentOrchestrator:
             self._tracer.start_workflow(workflow_type, task_description)
             if self.debug:
                 print(f"[NativeAgentOrchestrator] Started workflow: {workflow_type}")
-    
+
     def complete_workflow(self, status: str = "completed") -> None:
         """
         Complete the current workflow.
-        
+
         Args:
             status: Final status (completed, failed, cancelled)
         """
@@ -623,11 +625,11 @@ class NativeAgentOrchestrator:
             trace = self._tracer.complete_workflow(status)
             if self.debug and trace:
                 print(f"[NativeAgentOrchestrator] Completed workflow: {trace.trace_id}")
-    
+
     def get_tracer(self) -> AgentTracer | None:
         """Get the tracer instance (for advanced usage)"""
         return self._tracer
-    
+
     def export_traces(self) -> list[dict]:
         """Export all traces as dictionaries"""
         if self._tracer:

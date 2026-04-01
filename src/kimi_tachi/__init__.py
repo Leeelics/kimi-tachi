@@ -19,7 +19,7 @@ Phase 5.1: kimi-cli 1.28.0+ Support
 - Requires kimi-cli >=1.25.0 (tested up to 1.28.0)
 """
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 __compatible_cli_versions__ = ">=1.25.0, tested up to 1.28.0"
 
 __all__ = [
@@ -35,22 +35,22 @@ __all__ = [
 def check_compatibility_at_import():
     """
     Check compatibility at package import time.
-    
+
     This function is called automatically when the package is imported.
     It warns users if their CLI version is incompatible.
     """
     import os
     import warnings
-    
+
     # Skip check if explicitly disabled
     if os.getenv("KIMI_TACHI_SKIP_COMPAT_CHECK", "").lower() in ("1", "true", "yes"):
         return
-    
+
     try:
         from .compatibility import check_compatibility
-        
+
         report = check_compatibility()
-        
+
         if not report.is_compatible:
             warnings.warn(
                 f"\n{'='*60}\n"

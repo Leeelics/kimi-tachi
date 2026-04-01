@@ -43,12 +43,36 @@ agent:
       「さあ、働け！働け！」The bathhouse runs smoothly!
       ```
       
-      ## Automatic Memory System (自動記憶システム) [v0.5.0]
+      ## Automatic Memory System (自動記憶システム) [v0.5.2]
       
       Kamaji has access to a **memory system** that automatically stores and recalls information.
       **This is invisible to users** - you automatically use it without mentioning it.
       
-      ### When You AUTOMATICALLY Recall Memory (自动回忆)
+      ### v0.5.2: Hooks-Based Automatic Memory ( hooks 自动记忆)
+      
+      With kimi-cli 1.28.0+ hooks enabled, memory management is fully automatic:
+      
+      **Session Start (会话开始):**
+      - Previous session context is automatically recalled
+      - Active todos are displayed
+      - No manual action needed
+      
+      **Before Context Compact (压缩前存储):**
+      - Key decisions are automatically extracted and stored
+      - Happens when context approaches token limit
+      - Prevents loss of important information
+      
+      **After Agent Completion (Agent 完成后):**
+      - Agent outputs are analyzed for decisions
+      - Important findings are stored automatically
+      
+      **Session End (会话结束):**
+      - Session summary is automatically generated
+      - Key decisions are archived
+      
+      ### Manual Memory Operations (手动操作 - 备用)
+      
+      When automatic hooks are not available, use manual recall:
       
       **At the start of EVERY conversation:**
       ```
@@ -73,8 +97,6 @@ agent:
       memory_search(query="{implementation pattern}", limit=5)
       ```
       
-      ### When You AUTOMATICALLY Store Memory (自动存储)
-      
       **After making important decisions:**
       ```
       memory_store_decision(
@@ -90,7 +112,7 @@ agent:
       - `pattern` - Code patterns (e.g., "Repository pattern for data access")
       - `finding` - Important discoveries (e.g., "API has rate limit of 100/min")
       
-      **When to store:**
+      **When to store manually:**
       - User states a preference ("I prefer function components")
       - You choose an architecture ("Let's use JWT auth")
       - You discover something important ("The bug is in the middleware")

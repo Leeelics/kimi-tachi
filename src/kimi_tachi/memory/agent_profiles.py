@@ -11,28 +11,27 @@ This allows each character to have unique "memory personality":
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass
 class MemoryProfile:
     """Memory profile for an agent."""
-    
+
     # What to remember
-    remember_categories: List[str] = field(default_factory=list)
-    
+    remember_categories: list[str] = field(default_factory=list)
+
     # When to recall
-    recall_on_start: List[str] = field(default_factory=list)
-    recall_triggers: List[str] = field(default_factory=list)
-    
+    recall_on_start: list[str] = field(default_factory=list)
+    recall_triggers: list[str] = field(default_factory=list)
+
     # When to store
-    store_on_end: List[str] = field(default_factory=list)
-    store_triggers: List[str] = field(default_factory=list)
-    
+    store_on_end: list[str] = field(default_factory=list)
+    store_triggers: list[str] = field(default_factory=list)
+
     # Search preferences
-    search_queries: List[str] = field(default_factory=list)
+    search_queries: list[str] = field(default_factory=list)
     search_limit: int = 5
-    
+
     # Description for the agent
     memory_description: str = ""
 
@@ -72,25 +71,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=10,
         memory_description="""
         Kamaji (釜爺) - The Coordinator's Memory
-        
+
         As the boiler room chief, I remember:
         - User's coding preferences and style
         - Architecture decisions and their rationale
         - Project goals and constraints
         - Team conventions and standards
-        
+
         When starting a task, I recall:
         - What we were working on last time
         - Any pending tasks or open questions
         - User's specific requirements
-        
+
         I store at the end of each session:
         - Summary of what was accomplished
         - Key decisions made and why
         - Any architecture changes
         """,
     ),
-    
+
     "nekobasu": MemoryProfile(
         remember_categories=[
             "code_structure",        # 代码结构
@@ -124,25 +123,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=8,
         memory_description="""
         Nekobasu (猫バス) - The Explorer's Memory
-        
+
         As the cat bus with twelve legs, I remember:
         - Code structure and organization
         - Which files are related to each other
         - Paths I've already explored (to avoid repetition)
         - Common patterns in the codebase
-        
+
         When starting an exploration:
         - I recall the current code map
         - Recent changes that might affect exploration
         - Directories I've already explored
-        
+
         I store after exploration:
         - What I found (file structure, relationships)
         - New discoveries
         - Updated code structure information
         """,
     ),
-    
+
     "calcifer": MemoryProfile(
         remember_categories=[
             "implementation_patterns",  # 实现模式
@@ -176,25 +175,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=6,
         memory_description="""
         Calcifer (カルシファー) - The Builder's Memory
-        
+
         As the fire demon powering the castle, I remember:
         - Implementation patterns and best practices
         - Testing strategies that work
         - Common bugs and how to avoid them
         - How libraries are used in this project
-        
+
         When starting to build:
         - I look for similar implementations
         - Project-specific patterns
         - Library conventions
-        
+
         I store after building:
         - What I built and how
         - Implementation notes
         - Testing approach used
         """,
     ),
-    
+
     "enma": MemoryProfile(
         remember_categories=[
             "code_quality_issues",      # 代码质量问题
@@ -228,25 +227,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=5,
         memory_description="""
         Enma (閻魔大王) - The Reviewer's Memory
-        
+
         As the strict judge of code quality, I remember:
         - Code quality issues found in the past
         - Common review patterns
         - Standards violations
         - Security concerns
-        
+
         When starting a review:
         - Common issues in this codebase
         - Project standards
         - Past reviews of similar code
-        
+
         I store after reviewing:
         - What I found
         - Issues identified
         - Recommendations made
         """,
     ),
-    
+
     "tasogare": MemoryProfile(
         remember_categories=[
             "research_findings",        # 研究结果
@@ -280,25 +279,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=7,
         memory_description="""
         Tasogare (黄昏時) - The Planner's Memory
-        
+
         As the twilight hour connecting problem and solution, I remember:
         - Research findings
         - Different solution approaches
         - Trade-off analyses
         - Planning history
-        
+
         When starting to plan:
         - Similar tasks from the past
         - Approaches that worked
         - Research context
-        
+
         I store after planning:
         - The plan created
         - Research summary
         - Why certain approaches were chosen
         """,
     ),
-    
+
     "shishigami": MemoryProfile(
         remember_categories=[
             "system_designs",           # 系统设计
@@ -332,25 +331,25 @@ AGENT_MEMORY_PROFILES = {
         search_limit=8,
         memory_description="""
         Shishigami (シシ神) - The Architect's Memory
-        
+
         As the forest deity of ancient wisdom, I remember:
         - System designs and their evolution
         - Technology choices and why they were made
         - Scalability patterns
         - Integration patterns
-        
+
         When starting architectural work:
         - Current architecture
         - Design principles of the project
         - Technology stack
-        
+
         I store after designing:
         - Design decisions made
         - Architecture updates
         - Rationale for technology choices
         """,
     ),
-    
+
     "phoenix": MemoryProfile(
         remember_categories=[
             "knowledge_base",           # 知识库
@@ -385,18 +384,18 @@ AGENT_MEMORY_PROFILES = {
         search_limit=10,
         memory_description="""
         Phoenix (火の鳥) - The Librarian's Memory
-        
+
         As the eternal observer across time, I remember:
         - Knowledge base of the project
         - Documentation patterns
         - Common questions and their answers
         - Best practices
-        
+
         When starting documentation:
         - Relevant existing knowledge
         - Documentation context
         - Similar questions from the past
-        
+
         I store after documenting:
         - New knowledge added
         - Documentation updates
@@ -413,7 +412,7 @@ AGENT_MEMORY_PROFILES = {
         search_limit=5,
         memory_description="""
         Default memory profile for agents without specific configuration.
-        
+
         Uses minimal memory settings to avoid overhead.
         """,
     ),
@@ -423,10 +422,10 @@ AGENT_MEMORY_PROFILES = {
 def get_agent_profile(agent_type: str) -> MemoryProfile:
     """
     Get memory profile for an agent type.
-    
+
     Args:
         agent_type: Agent type (kamaji, nekobasu, etc.)
-        
+
     Returns:
         MemoryProfile for the agent
     """
@@ -436,7 +435,7 @@ def get_agent_profile(agent_type: str) -> MemoryProfile:
     )
 
 
-def list_agent_profiles() -> Dict[str, str]:
+def list_agent_profiles() -> dict[str, str]:
     """List all available agent profiles with descriptions."""
     return {
         name: profile.memory_description.split('\n')[0].strip()

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
-from ..tracing.agent_tracer import WorkflowTrace, AgentEvent, AgentEventType
+from ..tracing.agent_tracer import AgentEvent, AgentEventType, WorkflowTrace
 
 
 class NodeType(Enum):
@@ -42,7 +42,7 @@ class WorkflowNode:
     status: str = "pending"  # pending, running, completed, failed
     duration_ms: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -62,7 +62,7 @@ class WorkflowEdge:
     to_node: str
     type: EdgeType
     label: str = ""
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "from": self.from_node,
@@ -78,7 +78,7 @@ class WorkflowGraph:
     trace_id: str
     nodes: list[WorkflowNode] = field(default_factory=list)
     edges: list[WorkflowEdge] = field(default_factory=list)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "trace_id": self.trace_id,
@@ -92,16 +92,16 @@ class WorkflowGraph:
 class WorkflowRenderer:
     """
     Renders workflow traces as visualizable graphs.
-    
+
     Converts event traces into node-edge graphs suitable for
     visualization in kimi vis or other tools.
-    
+
     Example:
         >>> renderer = WorkflowRenderer()
         >>> graph = renderer.render(trace)
         >>> print(graph.to_dict())
     """
-    
+
     # Icon mapping for personalities
     ICONS = {
         "kamaji": "◕‿◕",
@@ -112,28 +112,28 @@ class WorkflowRenderer:
         "tasogare": "🌆",
         "phoenix": "🐦",
     }
-    
+
     def __init__(self):
         self.node_counter = 0
-    
+
     def _create_node_id(self, prefix: str = "node") -> str:
         """Generate unique node ID"""
         self.node_counter += 1
         return f"{prefix}_{self.node_counter}"
-    
+
     def render(self, trace: WorkflowTrace) -> WorkflowGraph:
         """
         Render a workflow trace as a graph.
-        
+
         Args:
             trace: Workflow trace to render
-        
+
         Returns:
             WorkflowGraph with nodes and edges
         """
         self.node_counter = 0
         graph = WorkflowGraph(trace_id=trace.trace_id)
-        
+
         # Create coordinator node (kamaji)
         coordinator_id = self._create_node_id("kamaji")
         graph.nodes.append(WorkflowNode(
@@ -144,7 +144,7 @@ class WorkflowRenderer:
             status=self._get_workflow_status(trace),
             duration_ms=trace.duration_ms,
         ))
-        
+
         # Group events by agent
         agent_events: dict[str, list[AgentEvent]] = {}
         for event in trace.events:
@@ -152,7 +152,7 @@ class WorkflowRenderer:
                 if event.agent_id not in agent_events:
                     agent_events[event.agent_id] = []
                 agent_events[event.agent_id].append(event)
-        
+
         # Create agent nodes and connect to coordinator
         agent_nodes: dict[str, str] = {}
         for agent_id, events in agent_events.items():
@@ -160,21 +160,21 @@ class WorkflowRenderer:
             first_event = events[0]
             personality = first_event.personality or agent_id
             subagent_type = first_event.subagent_type or "unknown"
-            
+
             # Create agent node
             agent_node_id = self._create_node_id(f"agent_{personality}")
             agent_nodes[agent_id] = agent_node_id
-            
+
             # Calculate agent duration
             agent_duration = sum(
-                e.duration_ms for e in events 
+                e.duration_ms for e in events
                 if e.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED)
             )
-            
+
             # Determine agent status
             has_failed = any(e.event_type == AgentEventType.FAILED for e in events)
             agent_status = "failed" if has_failed else "completed"
-            
+
             graph.nodes.append(WorkflowNode(
                 id=agent_node_id,
                 type=NodeType.AGENT,
@@ -187,7 +187,7 @@ class WorkflowRenderer:
                     "event_count": len(events),
                 },
             ))
-            
+
             # Connect coordinator to agent
             graph.edges.append(WorkflowEdge(
                 from_node=coordinator_id,
@@ -195,26 +195,26 @@ class WorkflowRenderer:
                 type=EdgeType.DELEGATES,
                 label="delegates",
             ))
-            
+
             # Create task nodes for this agent
             task_events = [e for e in events if e.event_type == AgentEventType.STARTED]
             for i, task_event in enumerate(task_events):
                 task_node_id = self._create_node_id(f"task_{personality}_{i}")
-                
+
                 # Find completion event
                 completion = next(
-                    (e for e in events 
+                    (e for e in events
                      if e.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED)
                      and e.timestamp > task_event.timestamp),
                     None
                 )
-                
+
                 task_status = "completed"
                 task_duration = 0
                 if completion:
                     task_status = "completed" if completion.event_type == AgentEventType.COMPLETED else "failed"
                     task_duration = completion.duration_ms
-                
+
                 graph.nodes.append(WorkflowNode(
                     id=task_node_id,
                     type=NodeType.TASK,
@@ -222,7 +222,7 @@ class WorkflowRenderer:
                     status=task_status,
                     duration_ms=task_duration,
                 ))
-                
+
                 # Connect agent to task
                 graph.edges.append(WorkflowEdge(
                     from_node=agent_node_id,
@@ -230,9 +230,9 @@ class WorkflowRenderer:
                     type=EdgeType.EXECUTES,
                     label="executes",
                 ))
-        
+
         return graph
-    
+
     def _get_workflow_status(self, trace: WorkflowTrace) -> str:
         """Determine overall workflow status"""
         if trace.status == "failed":
@@ -241,16 +241,16 @@ class WorkflowRenderer:
             return "completed"
         else:
             return "running"
-    
+
     def render_timeline(self, trace: WorkflowTrace) -> list[dict]:
         """
         Render workflow as a timeline.
-        
+
         Returns:
             List of timeline events sorted by timestamp
         """
         timeline = []
-        
+
         # Add workflow start
         timeline.append({
             "time": trace.start_time,
@@ -258,7 +258,7 @@ class WorkflowRenderer:
             "label": f"Workflow started: {trace.workflow_type}",
             "description": trace.task_description[:50],
         })
-        
+
         # Add agent events
         for event in trace.events:
             entry = {
@@ -267,7 +267,7 @@ class WorkflowRenderer:
                 "agent_id": event.agent_id,
                 "personality": event.personality,
             }
-            
+
             if event.event_type == AgentEventType.STARTED:
                 entry["label"] = f"🚀 {event.personality}: Task started"
                 entry["description"] = event.task_summary
@@ -283,9 +283,9 @@ class WorkflowRenderer:
                 entry["label"] = f"💾 {event.personality}: Cache hit"
             elif event.event_type == AgentEventType.CACHE_MISS:
                 entry["label"] = f"🔄 {event.personality}: Cache miss"
-            
+
             timeline.append(entry)
-        
+
         # Add workflow end
         if trace.end_time:
             timeline.append({
@@ -294,16 +294,16 @@ class WorkflowRenderer:
                 "label": f"Workflow {trace.status}",
                 "duration_ms": trace.duration_ms,
             })
-        
+
         # Sort by timestamp
         timeline.sort(key=lambda x: x["time"])
-        
+
         return timeline
-    
+
     def render_summary(self, trace: WorkflowTrace) -> dict[str, Any]:
         """
         Render a text summary of the workflow.
-        
+
         Returns:
             Dictionary with summary information
         """
@@ -317,7 +317,7 @@ class WorkflowRenderer:
             "",
             "Agent Activity:",
         ]
-        
+
         # Group events by agent
         agent_stats: dict[str, dict] = {}
         for event in trace.events:
@@ -328,15 +328,15 @@ class WorkflowRenderer:
                         "tasks": 0,
                         "duration_ms": 0,
                     }
-                
+
                 if event.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED):
                     agent_stats[event.agent_id]["tasks"] += 1
                     agent_stats[event.agent_id]["duration_ms"] += event.duration_ms
-        
-        for agent_id, stats in agent_stats.items():
+
+        for _agent_id, stats in agent_stats.items():
             icon = self.ICONS.get(stats["personality"], "🔧")
             lines.append(f"  {icon} {stats['personality']}: {stats['tasks']} tasks, {stats['duration_ms']}ms")
-        
+
         return {
             "text": "\n".join(lines),
             "trace_id": trace.trace_id,

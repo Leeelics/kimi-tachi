@@ -7,7 +7,7 @@ Version: 0.3.0
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -17,31 +17,31 @@ class AgentMetrics:
     agent_id: str = ""
     personality: str = ""
     subagent_type: str = ""
-    
+
     # Execution metrics
     total_tasks: int = 0
     successful_tasks: int = 0
     failed_tasks: int = 0
     total_duration_ms: int = 0
-    
+
     # Cache metrics
     cache_hits: int = 0
     cache_misses: int = 0
-    
+
     @property
     def avg_duration_ms(self) -> float:
         """Average task duration"""
         if self.total_tasks == 0:
             return 0.0
         return self.total_duration_ms / self.total_tasks
-    
+
     @property
     def success_rate(self) -> float:
         """Task success rate (0-1)"""
         if self.total_tasks == 0:
             return 0.0
         return self.successful_tasks / self.total_tasks
-    
+
     @property
     def cache_hit_rate(self) -> float:
         """Cache hit rate (0-1)"""
@@ -49,7 +49,7 @@ class AgentMetrics:
         if total == 0:
             return 0.0
         return self.cache_hits / total
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
@@ -72,34 +72,34 @@ class WorkflowMetrics:
     """Performance metrics for a workflow"""
     trace_id: str = ""
     workflow_type: str = ""
-    
+
     # Execution metrics
     duration_ms: int = 0
     agent_count: int = 0
     task_count: int = 0
-    
+
     # Success metrics
     successful_tasks: int = 0
     failed_tasks: int = 0
-    
+
     # Parallelization metrics
     sequential_tasks: int = 0
     parallel_tasks: int = 0
-    
+
     @property
     def success_rate(self) -> float:
         """Task success rate"""
         if self.task_count == 0:
             return 0.0
         return self.successful_tasks / self.task_count
-    
+
     @property
     def parallelization_ratio(self) -> float:
         """Ratio of parallel to total tasks"""
         if self.task_count == 0:
             return 0.0
         return self.parallel_tasks / self.task_count
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "trace_id": self.trace_id,
@@ -118,11 +118,11 @@ class WorkflowMetrics:
 
 class MetricsCollector:
     """Collects and aggregates metrics from traces"""
-    
+
     def __init__(self):
         self.agent_metrics: dict[str, AgentMetrics] = {}
         self.workflow_metrics: list[WorkflowMetrics] = []
-    
+
     def record_agent_task(
         self,
         agent_id: str,
@@ -139,41 +139,41 @@ class MetricsCollector:
                 personality=personality,
                 subagent_type=subagent_type,
             )
-        
+
         metrics = self.agent_metrics[agent_id]
         metrics.total_tasks += 1
         metrics.total_duration_ms += duration_ms
-        
+
         if success:
             metrics.successful_tasks += 1
         else:
             metrics.failed_tasks += 1
-        
+
         if cache_hit:
             metrics.cache_hits += 1
         else:
             metrics.cache_misses += 1
-    
+
     def record_workflow(self, workflow_metrics: WorkflowMetrics) -> None:
         """Record workflow metrics"""
         self.workflow_metrics.append(workflow_metrics)
-    
+
     def get_agent_summary(self) -> list[dict]:
         """Get summary of all agent metrics"""
         return [m.to_dict() for m in self.agent_metrics.values()]
-    
+
     def get_workflow_summary(self, n: int = 10) -> list[dict]:
         """Get summary of recent workflow metrics"""
         return [m.to_dict() for m in self.workflow_metrics[-n:]]
-    
+
     def get_overall_stats(self) -> dict[str, Any]:
         """Get overall statistics"""
         if not self.workflow_metrics:
             return {"workflows": 0, "agents": 0}
-        
+
         total_duration = sum(w.duration_ms for w in self.workflow_metrics)
         total_tasks = sum(w.task_count for w in self.workflow_metrics)
-        
+
         return {
             "workflows": len(self.workflow_metrics),
             "agents": len(self.agent_metrics),

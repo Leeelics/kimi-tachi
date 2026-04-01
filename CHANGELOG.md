@@ -5,7 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.1] - 2026-04-01
+## [0.5.3] - 2026-04-01
+
+### Added
+- **Smart Session Exploration** (主动探查与去重):
+  - `SessionExplorer` 类：智能探查历史 session，发现跨会话关联
+  - `DecisionDeduplicator`：基于内容指纹的决策去重机制
+  - 相关性评分算法：关键词匹配 + 项目关联 + 时间衰减
+  - 已探查 Session 追踪：防止重复探查同一 session
+  - 增量探查：只处理新增的 session
+
+### Enhanced
+- **Memory System v0.5.3**:
+  - `recall_on_session_start()` Hook 增强：主动探查其他相关 session
+  - Agent 启动时自动发现历史相关决策
+  - 决策存储时自动添加指纹标记
+  - 新增 `get_exploration_stats()` 查看探查统计
+
+### Technical Details
+- New module: `src/kimi_tachi/memory/session_explorer.py`
+  - `DecisionFingerprint`: 决策指纹生成与管理
+  - `SessionExplorer`: Session 探查与相关性计算
+  - Storage: `~/.kimi-tachi/memory/session_explorer/`
+- Storage format: JSON (fingerprints + explored sessions)
+- Relevance algorithm: keyword overlap (0.3/term) + project match (1.0) + time decay (7-day half-life)
+
+## [0.5.2] - 2026-04-01
 
 ### Added
 - **kimi-cli 1.28.0+ Compatibility**:
@@ -29,8 +54,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `agents/nekobasu.yaml` with thoroughness levels and git context guidance
 - Updated `agents/kamaji.yaml` with delegation guide for nekobasu thoroughness levels
 
+### Added (v0.5.2 - Automatic Memory Management)
+- **Hooks-Based Automatic Memory** (requires kimi-cli 1.28.0+):
+  - `hooks/recall-on-start.sh` - SessionStart hook: Auto-recall context on session start
+  - `hooks/store-before-compact.sh` - PreCompact hook: Store key decisions before context compression
+  - `hooks/summarize-on-end.sh` - SessionEnd hook: Auto-generate session summary
+  - `hooks/process-agent.sh` - PostToolUse hook: Record agent decisions automatically
+  - `src/kimi_tachi/hooks/tools.py` - Python tools for hook processing
+  - Updated `hooks/config.toml.example` with new automatic memory hooks
+  - Updated `docs/HOOKS_INTEGRATION.md` with v0.5.2 features
+  - Updated `agents/kamaji.yaml` with automatic memory workflow documentation
+
 ### Compatibility
-- Requires kimi-cli >=1.25.0 (kimi-cli 1.28.0+ for timeout and thoroughness features)
+- Requires kimi-cli >=1.25.0 (kimi-cli 1.28.0+ for timeout, thoroughness, and automatic memory features)
 - All changes are backward compatible
 
 ## [0.5.0] - 2026-03-26

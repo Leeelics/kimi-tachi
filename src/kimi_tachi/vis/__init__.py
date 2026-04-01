@@ -7,8 +7,8 @@ Author: kimi-tachi Team
 Version: 0.3.0
 """
 
-from .workflow_renderer import WorkflowRenderer, NodeType, EdgeType
 from .exporter import VisExporter, export_for_kimi_vis
+from .workflow_renderer import EdgeType, NodeType, WorkflowRenderer
 
 __all__ = [
     "WorkflowRenderer",

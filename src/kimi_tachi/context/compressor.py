@@ -171,11 +171,11 @@ class ContextCompressor:
                 continue
 
             # 保留全局变量/常量定义
-            if stripped and not stripped.startswith("#"):
-                if "=" in stripped and not stripped.startswith("def "):
-                    # 可能是变量定义
-                    if current_indent == 0:
-                        preserved_lines.append(line)
+            if (stripped and not stripped.startswith("#") and
+                "=" in stripped and not stripped.startswith("def ") and
+                current_indent == 0):
+                # 可能是变量定义
+                preserved_lines.append(line)
 
         compressed = "\n".join(preserved_lines)
 

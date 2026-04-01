@@ -7,6 +7,6 @@ background task functionality.
 v0.4.0: Added background task support
 """
 
-from .task_manager import BackgroundTaskManager, TaskStatus, TaskInfo
+from .task_manager import BackgroundTaskManager, TaskInfo, TaskStatus
 
 __all__ = ["BackgroundTaskManager", "TaskStatus", "TaskInfo"]

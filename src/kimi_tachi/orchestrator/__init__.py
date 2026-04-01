@@ -8,13 +8,13 @@ Phase 3.0/4.0: Native Agent Tool Support + Tracing
 from .context_manager import ContextManager
 from .hybrid_orchestrator import HybridOrchestrator
 from .native_agent_orchestrator import (
+    AGENT_PERSONALITIES,
+    PERSONALITY_TO_TYPE,
     AgentPersonality,
     AgentResult,
     AgentType,
     NativeAgentInstance,
     NativeAgentOrchestrator,
-    PERSONALITY_TO_TYPE,
-    AGENT_PERSONALITIES,
     get_personality_by_name,
     get_personality_by_role,
 )
@@ -23,7 +23,7 @@ from .workflow_engine import Phase, Workflow, WorkflowEngine, WorkflowPhase
 
 # Optional tracing imports (Phase 4)
 try:
-    from ..tracing import (
+    from ..tracing import (  # noqa: F401
         AgentEvent,
         AgentEventType,
         AgentTracer,
@@ -44,9 +44,9 @@ except ImportError:
 
 # Optional vis imports (Phase 4)
 try:
-    from ..vis import (
-        WorkflowRenderer,
+    from ..vis import (  # noqa: F401
         VisExporter,
+        WorkflowRenderer,
         export_for_kimi_vis,
     )
     VIS_EXPORTS = [

@@ -56,9 +56,9 @@ except ImportError:
 # Optional native agent orchestrator import
 try:
     from .native_agent_orchestrator import (
-        NativeAgentOrchestrator,
-        AgentPersonality,
         PERSONALITY_TO_TYPE,
+        AgentPersonality,
+        NativeAgentOrchestrator,
     )
 
     NATIVE_AGENT_AVAILABLE = True
@@ -219,7 +219,7 @@ class HybridOrchestrator:
         # Determine agent execution mode (Phase 3.0)
         if agent_mode is None:
             agent_mode = os.environ.get("KIMI_TACHI_AGENT_MODE", "auto")
-        
+
         self._agent_mode_setting = agent_mode
         self._effective_agent_mode = self._resolve_agent_mode(agent_mode)
         self.use_native_agents = self._effective_agent_mode == "native"

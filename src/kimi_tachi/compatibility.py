@@ -48,13 +48,13 @@ class CompatibilityReport:
 def parse_version(version_string: str) -> VersionInfo:
     """
     Parse version string into VersionInfo.
-    
+
     Args:
         version_string: Version string like "1.25.0" or "kimi 1.25.0"
-    
+
     Returns:
         VersionInfo tuple
-    
+
     Raises:
         ValueError: If version string cannot be parsed
     """
@@ -62,7 +62,7 @@ def parse_version(version_string: str) -> VersionInfo:
     match = re.search(r'(\d+)\.(\d+)\.(\d+)', version_string)
     if not match:
         raise ValueError(f"Cannot parse version from: {version_string}")
-    
+
     major, minor, patch = map(int, match.groups())
     return VersionInfo(major, minor, patch, version_string)
 
@@ -70,10 +70,10 @@ def parse_version(version_string: str) -> VersionInfo:
 def get_cli_version(timeout: float = 5.0) -> VersionInfo | None:
     """
     Get installed kimi-cli version.
-    
+
     Args:
         timeout: Timeout for subprocess call in seconds
-    
+
     Returns:
         VersionInfo if successful, None otherwise
     """
@@ -84,15 +84,15 @@ def get_cli_version(timeout: float = 5.0) -> VersionInfo | None:
             text=True,
             timeout=timeout,
         )
-        
+
         if result.returncode != 0:
             return None
-        
+
         version_line = result.stdout.strip()
         # Handle both "1.25.0" and "kimi version 1.25.0"
         return parse_version(version_line)
-        
-    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError) as e:
+
+    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
         # kimi not installed or not in PATH
         return None
 
@@ -102,16 +102,16 @@ def check_compatibility(
 ) -> CompatibilityReport:
     """
     Check if installed kimi-cli is compatible.
-    
+
     Args:
         required_version: Minimum required (major, minor) version
-    
+
     Returns:
         CompatibilityReport with details
     """
     cli_version = get_cli_version()
     required_str = f"{required_version[0]}.{required_version[1]}.0"
-    
+
     if cli_version is None:
         return CompatibilityReport(
             is_compatible=False,
@@ -120,7 +120,7 @@ def check_compatibility(
             message="Cannot detect kimi-cli version. Is it installed?",
             recommendation="Install kimi-cli: https://github.com/your-org/kimi-cli",
         )
-    
+
     if cli_version >= required_version:
         return CompatibilityReport(
             is_compatible=True,
@@ -145,22 +145,22 @@ def ensure_compatibility(
 ) -> bool:
     """
     Ensure compatibility with kimi-cli.
-    
+
     Args:
         auto_fallback: Deprecated, kept for API compatibility but has no effect
         warn: If True, emit warnings on incompatibility
-    
+
     Returns:
         True if compatible, False otherwise
-        
+
     Note:
         Legacy fallback was removed in v0.3.0. kimi-cli 1.25.0+ is required.
     """
     report = check_compatibility()
-    
+
     if report.is_compatible:
         return True
-    
+
     # Not compatible - legacy mode no longer available
     if warn:
         warnings.warn(
@@ -168,17 +168,17 @@ def ensure_compatibility(
             UserWarning,
             stacklevel=2,
         )
-    
+
     return False
 
 
 def get_recommended_agent_mode() -> str:
     """
     Get recommended agent mode based on CLI version.
-    
+
     Returns:
         "native" if CLI >= 1.25.0
-        
+
     Note:
         Legacy mode was removed in v0.3.0. Only native mode is supported.
     """
@@ -197,12 +197,12 @@ def get_recommended_agent_mode() -> str:
 def print_compatibility_status():
     """Print compatibility status for CLI commands"""
     report = check_compatibility()
-    
+
     print(f"Kimi CLI Version: {report.cli_version or 'Unknown'}")
     print(f"Required Version: {report.required_version}+")
     print(f"Status: {'✅ Compatible' if report.is_compatible else '❌ Incompatible'}")
     print(f"Message: {report.message}")
-    
+
     if not report.is_compatible:
         print(f"Recommendation: {report.recommendation}")
         print(f"Current Mode: {get_recommended_agent_mode()}")

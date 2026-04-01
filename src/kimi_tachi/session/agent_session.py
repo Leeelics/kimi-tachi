@@ -8,7 +8,7 @@ Example:
     # First interaction
     result = session.create_agent("nekobasu", "Find auth files")
     agent_id = result.agent_id  # e.g., "a1b2c3d4"
-    
+
     # Later interaction - resume with context preserved
     result = session.resume_agent("a1b2c3d4", "Analyze those auth files")
 """
@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -30,7 +29,7 @@ class AgentInstance:
     created_at: float
     last_used_at: float
     interaction_count: int = 0
-    task_history: List[str] = field(default_factory=list)
+    task_history: list[str] = field(default_factory=list)
     is_active: bool = True
 
 
@@ -42,10 +41,10 @@ class AgentSessionManager:
     allowing them to be resumed later with preserved context.
     """
 
-    def __init__(self, session_id: Optional[str] = None):
+    def __init__(self, session_id: str | None = None):
         self.session_id = session_id
-        self._agents: Dict[str, AgentInstance] = {}
-        self._type_to_agent: Dict[str, str] = {}  # agent_type -> latest agent_id
+        self._agents: dict[str, AgentInstance] = {}
+        self._type_to_agent: dict[str, str] = {}  # agent_type -> latest agent_id
 
     def register_agent(
         self,
@@ -77,11 +76,11 @@ class AgentSessionManager:
         self._type_to_agent[agent_type] = agent_id
         return instance
 
-    def get_agent(self, agent_id: str) -> Optional[AgentInstance]:
+    def get_agent(self, agent_id: str) -> AgentInstance | None:
         """Get an agent instance by ID"""
         return self._agents.get(agent_id)
 
-    def get_latest_agent_of_type(self, agent_type: str) -> Optional[AgentInstance]:
+    def get_latest_agent_of_type(self, agent_type: str) -> AgentInstance | None:
         """Get the most recently created agent of a specific type"""
         agent_id = self._type_to_agent.get(agent_type)
         if agent_id:
@@ -107,7 +106,7 @@ class AgentSessionManager:
             return True
         return False
 
-    def should_resume(self, agent_type: str, max_age_seconds: float = 1800) -> Optional[str]:
+    def should_resume(self, agent_type: str, max_age_seconds: float = 1800) -> str | None:
         """
         Determine if we should resume an existing agent of this type.
 
@@ -141,7 +140,7 @@ class AgentSessionManager:
             return True
         return False
 
-    def list_active_agents(self) -> List[AgentInstance]:
+    def list_active_agents(self) -> list[AgentInstance]:
         """List all currently active agents"""
         return [a for a in self._agents.values() if a.is_active]
 
@@ -149,7 +148,7 @@ class AgentSessionManager:
         """Get session statistics"""
         total = len(self._agents)
         active = len(self.list_active_agents())
-        by_type: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
         for agent in self._agents.values():
             by_type[agent.agent_type] = by_type.get(agent.agent_type, 0) + 1
 
@@ -183,10 +182,10 @@ class AgentSessionManager:
 
 
 # Global session manager instance
-_session_manager: Optional[AgentSessionManager] = None
+_session_manager: AgentSessionManager | None = None
 
 
-def get_session_manager(session_id: Optional[str] = None) -> AgentSessionManager:
+def get_session_manager(session_id: str | None = None) -> AgentSessionManager:
     """Get or create the global session manager"""
     global _session_manager
     if _session_manager is None or (_session_manager.session_id != session_id and session_id is not None):

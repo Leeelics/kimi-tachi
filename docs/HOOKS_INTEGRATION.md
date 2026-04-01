@@ -1,10 +1,34 @@
 # kimi-tachi Hooks 集成指南
 
 > 与 kimi-cli 1.28.0+ Hooks 系统的集成方案
+> 
+> **v0.5.2 更新**: 新增自动记忆管理 Hooks
 
 ## 概述
 
-kimi-cli 1.28.0 引入了 **Hooks 系统** (Beta)，允许在 Agent 生命周期的关键点执行自定义命令。kimi-tachi 可以利用此系统实现自动观察、追踪和记忆功能。
+kimi-cli 1.28.0 引入了 **Hooks 系统** (Beta)，允许在 Agent 生命周期的关键点执行自定义命令。kimi-tachi 利用此系统实现**自动记忆管理**、追踪和安全功能。
+
+### v0.5.2 核心功能
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              自动记忆管理流程 (v0.5.2)                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  SessionStart          PreCompact          SessionEnd       │
+│       │                     │                    │          │
+│       ▼                     ▼                    ▼          │
+│  ┌─────────┐          ┌─────────┐          ┌─────────┐     │
+│  │ 回忆    │          │ 存储    │          │ 总结    │     │
+│  │ 上下文  │          │ 决策    │          │ 归档    │     │
+│  └─────────┘          └─────────┘          └─────────┘     │
+│       │                     │                    │          │
+│       ▼                     ▼                    ▼          │
+│  加载之前              压缩前保存            生成摘要       │
+│  的决策                关键信息              存储历史       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## 什么是 Hooks
 
@@ -28,190 +52,358 @@ kimi-cli 1.28.0 支持 13 种生命周期事件：
 | `UserPromptSubmit` | 用户提交输入时 | 输入分析、模式识别 |
 | `Stop` | Agent 回合结束时 | 任务完成检查、自动存储 |
 | `StopFailure` | 回合因错误结束时 | 错误报告、恢复逻辑 |
-| `SessionStart` | 会话创建/恢复时 | 自动 recall 上下文 |
-| `SessionEnd` | 会话关闭时 | 存储 session 摘要 |
+| `SessionStart` | 会话创建/恢复时 | **自动 recall 上下文** ⭐ |
+| `SessionEnd` | 会话关闭时 | **存储 session 摘要** ⭐ |
 | `SubagentStart` | 子代理启动时 | 开始追踪 span |
 | `SubagentStop` | 子代理结束时 | 结束追踪 span、存储决策 |
-| `PreCompact` | 上下文压缩前 | 记录压缩原因 |
+| `PreCompact` | 上下文压缩前 | **存储关键决策** ⭐⭐⭐ |
 | `PostCompact` | 上下文压缩后 | 更新记忆索引 |
 | `Notification` | 通知送达时 | 桌面通知、外部告警 |
 
-## kimi-tachi Hooks 策略
+## 快速开始
 
-### 推荐配置
+### 1. 安装 Hooks
 
-在 `~/.kimi/config.toml` 中添加：
+```bash
+# 确保 hooks 目录存在
+ls ~/.kimi/agents/kimi-tachi/hooks/
+
+# 检查脚本权限
+ls -la ~/.kimi/agents/kimi-tachi/hooks/*.sh
+```
+
+### 2. 配置 kimi-cli
+
+复制配置到 `~/.kimi/config.toml`：
+
+```bash
+cat ~/.kimi/agents/kimi-tachi/hooks/config.toml.example >> ~/.kimi/config.toml
+# 编辑修改路径
+```
+
+### 3. 验证配置
+
+在 kimi shell 中执行：
+
+```
+/hooks
+
+# 预期输出：
+# Configured Hooks:
+#   SessionStart: 1 hook(s)
+#   PreCompact: 1 hook(s)
+#   SessionEnd: 1 hook(s)
+#   PostToolUse: 1 hook(s)
+#   SubagentStart: 1 hook(s)
+#   SubagentStop: 1 hook(s)
+```
+
+## v0.5.2 自动记忆 Hooks
+
+### 核心 Hooks
+
+#### 1. `recall-on-start.sh` - SessionStart
+
+**功能**: 会话开始时自动回忆上下文
+
+**输出示例**:
+```
+📚 **Context from previous session:**
+
+**Recent decisions:**
+• Decided to use JWT authentication
+• Chose PostgreSQL for database
+
+**Agent activity:**
+• Used: shishigami (architecture)
+• Used: calcifer (implementation)
+
+---
+
+📋 **Active todos:**
+
+• [🔄] Implement user login endpoint
+• [⏳] Add password validation
+• [⏳] Write tests for auth module
+
+---
+```
+
+**配置**:
+```toml
+[[hooks]]
+event = "SessionStart"
+command = "/path/to/kimi-tachi/hooks/recall-on-start.sh"
+timeout = 10
+```
+
+#### 2. `store-before-compact.sh` - PreCompact ⭐
+
+**功能**: 上下文压缩前自动存储关键决策
+
+**这是最重要的 hook**，防止重要信息在压缩中丢失。
+
+**工作流程**:
+```
+上下文接近上限 → 触发 PreCompact
+        ↓
+提取关键决策（包含 decision/conclusion/final 的消息）
+        ↓
+存储到记忆系统
+        ↓
+kimi-cli 执行压缩
+```
+
+**配置**:
+```toml
+[[hooks]]
+event = "PreCompact"
+command = "/path/to/kimi-tachi/hooks/store-before-compact.sh"
+timeout = 10
+```
+
+#### 3. `summarize-on-end.sh` - SessionEnd
+
+**功能**: 会话结束时自动生成总结
+
+**执行内容**:
+- 统计会话数据（决策数、事件数、压缩次数）
+- 生成会话摘要
+- 归档到历史目录
+- 清理过期数据
+
+**配置**:
+```toml
+[[hooks]]
+event = "SessionEnd"
+command = "/path/to/kimi-tachi/hooks/summarize-on-end.sh"
+timeout = 15
+```
+
+#### 4. `process-agent.sh` - PostToolUse (Agent)
+
+**功能**: Agent 调用后自动记录
+
+**记录内容**:
+- Agent 调用事件
+- 从输出中提取的决策
+- 时间戳和元数据
+
+**配置**:
+```toml
+[[hooks]]
+event = "PostToolUse"
+matcher = "Agent"
+command = "/path/to/kimi-tachi/hooks/process-agent.sh"
+timeout = 5
+```
+
+### 完整配置示例
 
 ```toml
-# 自动记录 Agent 调用到追踪系统
+# ~/.kimi/config.toml
+
+# ============================================
+# kimi-tachi 自动记忆管理 (v0.5.2)
+# ============================================
+
+# 1. 会话开始 - 回忆上下文
+[[hooks]]
+event = "SessionStart"
+command = "~/.kimi/agents/kimi-tachi/hooks/recall-on-start.sh"
+timeout = 10
+
+# 2. 压缩前 - 存储关键决策 (最重要)
+[[hooks]]
+event = "PreCompact"
+command = "~/.kimi/agents/kimi-tachi/hooks/store-before-compact.sh"
+timeout = 10
+
+# 3. 会话结束 - 生成总结
+[[hooks]]
+event = "SessionEnd"
+command = "~/.kimi/agents/kimi-tachi/hooks/summarize-on-end.sh"
+timeout = 15
+
+# 4. Agent 调用后 - 记录决策
+[[hooks]]
+event = "PostToolUse"
+matcher = "Agent"
+command = "~/.kimi/agents/kimi-tachi/hooks/process-agent.sh"
+timeout = 5
+
+# 5. 追踪 Agent 调用
 [[hooks]]
 event = "SubagentStart"
-command = "kimi-tachi hooks trace-start --agent {{agent_name}} --prompt '{{prompt}}'"
+command = "~/.kimi/agents/kimi-tachi/hooks/trace-agent.sh"
 timeout = 5
 
 [[hooks]]
 event = "SubagentStop"
-command = "kimi-tachi hooks trace-stop --agent {{agent_name}} --response '{{response}}'"
+command = "~/.kimi/agents/kimi-tachi/hooks/trace-agent.sh"
 timeout = 5
 
-# 自动存储关键决策
-[[hooks]]
-event = "PostToolUse"
-matcher = "Agent"
-command = "kimi-tachi hooks store-decision --tool-call-id {{tool_call_id}}"
-timeout = 10
-
-# Session 开始时自动 recall 上下文
-[[hooks]]
-event = "SessionStart"
-command = "kimi-tachi hooks recall-context --source {{source}}"
-timeout = 10
-
-# Session 结束时存储摘要
-[[hooks]]
-event = "SessionEnd"
-command = "kimi-tachi hooks store-session --reason {{reason}}"
-timeout = 10
-
-# 检查未完成的 todo
+# 6. 检查未完成的 todo
 [[hooks]]
 event = "Stop"
-command = "kimi-tachi hooks check-todos"
+command = "~/.kimi/agents/kimi-tachi/hooks/check-todos.sh"
+timeout = 5
+
+# 7. 保护敏感文件
+[[hooks]]
+event = "PreToolUse"
+matcher = "WriteFile|StrReplaceFile"
+command = "~/.kimi/agents/kimi-tachi/hooks/protect-sensitive.sh"
 timeout = 5
 ```
 
-### 事件载荷示例
+## 事件载荷示例
 
-#### SubagentStart
+### SessionStart
 ```json
 {
-  "hook_event_name": "SubagentStart",
+  "hook_event_name": "SessionStart",
   "session_id": "abc123",
   "cwd": "/path/to/project",
-  "agent_name": "nekobasu",
-  "prompt": "Find auth-related files"
+  "source": "startup"
 }
 ```
 
-#### PostToolUse (Agent tool)
+### PreCompact
 ```json
 {
-  "hook_event_name": "PostToolUse",
+  "hook_event_name": "PreCompact",
   "session_id": "abc123",
   "cwd": "/path/to/project",
-  "tool_name": "Agent",
-  "tool_input": {
-    "description": "nekobasu explores auth",
-    "prompt": "Find auth files",
-    "subagent_type": "nekobasu"
-  },
-  "tool_output": "...",
-  "tool_call_id": "call_123"
+  "trigger": "token_limit",
+  "token_count": 15000
+}
+```
+
+### SessionEnd
+```json
+{
+  "hook_event_name": "SessionEnd",
+  "session_id": "abc123",
+  "cwd": "/path/to/project",
+  "reason": "user_exit"
+}
+```
+
+## 数据存储
+
+### 会话数据存储路径
+
+```
+~/.kimi-tachi/memory/hooks/
+├── session_<id>.json          # 当前活跃会话
+├── session_<id>.json          # 其他活跃会话
+├── history/                   # 归档的历史会话
+│   ├── session_20260401_abc.json
+│   └── session_20260401_def.json
+├── precompact.log             # PreCompact 操作日志
+├── session.log                # 会话事件日志
+└── agent.log                  # Agent 调用日志
+```
+
+### 会话数据结构
+
+```json
+{
+  "session_id": "abc123",
+  "started_at": "2026-04-01T12:00:00",
+  "ended_at": "2026-04-01T14:30:00",
+  "source": "startup",
+  "cwd": "/home/user/project",
+  "decisions": [
+    {
+      "type": "decision",
+      "content": "Use JWT authentication",
+      "timestamp": "2026-04-01T12:15:00"
+    }
+  ],
+  "events": [
+    {
+      "type": "agent_call",
+      "agent": "shishigami",
+      "timestamp": "2026-04-01T12:10:00"
+    }
+  ],
+  "compactions": [
+    {
+      "trigger": "token_limit",
+      "token_count": 15000,
+      "timestamp": "2026-04-01T13:00:00"
+    }
+  ],
+  "summary": "Session Summary: ..."
 }
 ```
 
 ## 实现路线图
 
-### Phase 1: 基础集成 (v0.5.1)
+### ✅ Phase 1: 自动记忆 (v0.5.2) - 已完成
 
-- [ ] 提供 Hooks 配置模板
-- [ ] 文档说明如何手动配置
-- [ ] 示例 hooks 脚本
+- [x] `recall-on-start.sh` - 自动回忆上下文
+- [x] `store-before-compact.sh` - 压缩前存储决策
+- [x] `summarize-on-end.sh` - 会话总结
+- [x] `process-agent.sh` - Agent 决策记录
+- [x] Python 工具模块 (`kimi_tachi/hooks/tools.py`)
+- [x] 完整配置模板
 
-### Phase 2: CLI 集成 (v0.6.0)
+### Phase 2: 增强功能 (v0.6.0)
 
-- [ ] `kimi-tachi hooks install` - 自动安装 hooks 配置
-- [ ] `kimi-tachi hooks trace-start/stop` - 追踪命令
-- [ ] `kimi-tachi hooks store-decision` - 存储决策
-- [ ] `kimi-tachi hooks recall-context` - 召回上下文
+- [ ] `kimi-tachi hooks install` - 自动安装配置
+- [ ] 智能上下文选择（基于语义相似度）
+- [ ] 跨会话上下文继承
+- [ ] Token 预算管理
 
-### Phase 3: 自动观察 (v0.6.0+)
+### Phase 3: 高级功能 (v0.7.0+)
 
-- [ ] 自动 workflow 追踪
-- [ ] 智能决策存储
 - [ ] 个性化工作流学习
+- [ ] 自动决策分类
+- [ ] 记忆重要性评估
+- [ ] 长期趋势分析
 
-## 示例 Hooks 脚本
+## 故障排除
 
-### 1. 自动追踪 Agent 调用
+### 检查 Hook 是否执行
 
 ```bash
-#!/bin/bash
-# ~/.kimi/hooks/trace-agent.sh
+# 查看日志
+tail -f ~/.kimi-tachi/memory/hooks/session.log
+tail -f ~/.kimi-tachi/memory/hooks/precompact.log
 
-read JSON
-EVENT=$(echo "$JSON" | jq -r '.hook_event_name')
-AGENT=$(echo "$JSON" | jq -r '.agent_name')
-SESSION=$(echo "$JSON" | jq -r '.session_id')
-
-if [ "$EVENT" = "SubagentStart" ]; then
-    echo "[kimi-tachi] Agent started: $AGENT" >&2
-    # 记录到追踪系统
-    echo "$JSON" >> ~/.kimi-tachi/traces/$(date +%Y%m%d).jsonl
-elif [ "$EVENT" = "SubagentStop" ]; then
-    echo "[kimi-tachi] Agent completed: $AGENT" >&2
-fi
-
-exit 0
+# 检查会话数据
+ls -la ~/.kimi-tachi/memory/hooks/
+cat ~/.kimi-tachi/memory/hooks/session_*.json
 ```
 
-### 2. 检查未完成的 Todo
+### Hook 超时
+
+如果 hook 经常超时：
+1. 增加 `timeout` 值（默认 5-15 秒）
+2. 检查磁盘空间
+3. 简化 hook 逻辑
+
+### 权限问题
 
 ```bash
-#!/bin/bash
-# ~/.kimi/hooks/check-todos.sh
+# 确保脚本可执行
+chmod +x ~/.kimi/agents/kimi-tachi/hooks/*.sh
 
-# 检查是否有未完成的 todo
-if grep -q '"status": "pending"' ~/.kimi-tachi/memory/todos.json 2>/dev/null; then
-    echo "⚠️  You have unfinished todos. Use /todo to check them." >&2
-    # 不阻止，只是提醒
-fi
-
-exit 0
-```
-
-### 3. 保护敏感文件
-
-```bash
-#!/bin/bash
-# ~/.kimi/hooks/protect-sensitive.sh
-
-read JSON
-TOOL=$(echo "$JSON" | jq -r '.tool_name')
-FILE=$(echo "$JSON" | jq -r '.tool_input.file_path // empty')
-
-# 阻止直接修改敏感文件
-if [ "$TOOL" = "WriteFile" ] || [ "$TOOL" = "StrReplaceFile" ]; then
-    if echo "$FILE" | grep -qE '\.env$|\.env\.local$|\.ssh/|\.aws/'; then
-        echo "❌ Direct modification of $FILE is not allowed." >&2
-        exit 2
-    fi
-fi
-
-exit 0
-```
-
-## 配置验证
-
-配置 hooks 后，使用以下命令验证：
-
-```bash
-# 在 kimi shell 中查看已配置的 hooks
-/hooks
-
-# 预期输出:
-# Configured Hooks:
-#   SubagentStart: 1 hook(s)
-#   SubagentStop: 1 hook(s)
-#   PostToolUse: 1 hook(s)
+# 确保目录可写
+mkdir -p ~/.kimi-tachi/memory/hooks
+touch ~/.kimi-tachi/memory/hooks/test && rm ~/.kimi-tachi/memory/hooks/test
 ```
 
 ## 注意事项
 
 1. **Beta 特性**: Hooks 系统目前是 Beta，API 可能变化
-2. **Fail-Open**: Hooks 执行失败（超时、崩溃）默认允许操作
-3. **超时**: 建议设置合理的 timeout（5-30 秒）
+2. **Fail-Open**: Hooks 执行失败（超时、崩溃）默认允许操作，不会阻塞主流程
+3. **幂等性**: 自动记忆 hooks 设计为幂等，多次执行不会重复存储
 4. **性能**: 多个 hooks 并行执行，相同命令自动去重
+5. **隐私**: 会话数据存储在本地，不会上传到云端
 
 ## 与 Plugins 的区别
 
@@ -227,6 +419,7 @@ exit 0
 - [kimi-cli Hooks 文档](https://github.com/moonshot-ai/Kimi-CLI/blob/main/docs/hooks.md)
 - [kimi-tachi VISION.md](./VISION.md)
 - [kimi-tachi ROADMAP.md](./ROADMAP.md)
+- [kimi-tachi Memory Guide](./MEMORY_TEST_GUIDE.md)
 
 ---
 
