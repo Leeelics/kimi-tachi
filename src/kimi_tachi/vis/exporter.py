@@ -26,6 +26,7 @@ class VisFormat:
     This structure matches what kimi vis expects for displaying
     agent workflows and events.
     """
+
     version: str = "1.0"
     trace_id: str = ""
     title: str = ""
@@ -115,12 +116,14 @@ class VisExporter:
         for event in trace.events:
             if event.agent_id and event.agent_id not in agent_ids:
                 agent_ids.add(event.agent_id)
-                agents.append({
-                    "id": event.agent_id,
-                    "personality": event.personality,
-                    "subagent_type": event.subagent_type,
-                    "icon": self.renderer.ICONS.get(event.personality, "🔧"),
-                })
+                agents.append(
+                    {
+                        "id": event.agent_id,
+                        "personality": event.personality,
+                        "subagent_type": event.subagent_type,
+                        "icon": self.renderer.ICONS.get(event.personality, "🔧"),
+                    }
+                )
 
         # Calculate metrics
         metrics = {

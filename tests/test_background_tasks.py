@@ -1,9 +1,10 @@
 """Tests for BackgroundTaskManager"""
 
-import pytest
 import asyncio
 
-from kimi_tachi.background import BackgroundTaskManager, TaskStatus, TaskInfo
+import pytest
+
+from kimi_tachi.background import BackgroundTaskManager, TaskInfo, TaskStatus
 
 
 class TestBackgroundTaskManager:
@@ -60,9 +61,9 @@ class TestBackgroundTaskManager:
     async def test_list_tasks(self):
         """Test listing tasks with filters"""
         # Create some tasks
-        task1 = await self.manager.start_task("nekobasu", "Task 1", "Prompt 1")
-        task2 = await self.manager.start_task("calcifer", "Task 2", "Prompt 2")
-        task3 = await self.manager.start_task("nekobasu", "Task 3", "Prompt 3")
+        _task1 = await self.manager.start_task("nekobasu", "Task 1", "Prompt 1")
+        _task2 = await self.manager.start_task("calcifer", "Task 2", "Prompt 2")
+        _task3 = await self.manager.start_task("nekobasu", "Task 3", "Prompt 3")
 
         # Wait for completion
         await asyncio.sleep(1.5)
@@ -86,7 +87,7 @@ class TestBackgroundTaskManager:
     async def test_list_active_tasks(self):
         """Test listing active tasks"""
         # Create a task
-        task = await self.manager.start_task("nekobasu", "Active task", "Do something")
+        _task = await self.manager.start_task("nekobasu", "Active task", "Do something")
 
         # Immediately check (should be running or pending)
         active = self.manager.list_active_tasks()
@@ -207,29 +208,45 @@ class TestTaskInfo:
         """Test is_complete property"""
         # Pending - not complete
         pending = TaskInfo(
-            task_id="p", agent_id="a", agent_type="t",
-            description="d", status=TaskStatus.PENDING, created_at=0
+            task_id="p",
+            agent_id="a",
+            agent_type="t",
+            description="d",
+            status=TaskStatus.PENDING,
+            created_at=0,
         )
         assert pending.is_complete is False
 
         # Running - not complete
         running = TaskInfo(
-            task_id="r", agent_id="a", agent_type="t",
-            description="d", status=TaskStatus.RUNNING, created_at=0
+            task_id="r",
+            agent_id="a",
+            agent_type="t",
+            description="d",
+            status=TaskStatus.RUNNING,
+            created_at=0,
         )
         assert running.is_complete is False
 
         # Completed - complete
         completed = TaskInfo(
-            task_id="c", agent_id="a", agent_type="t",
-            description="d", status=TaskStatus.COMPLETED, created_at=0
+            task_id="c",
+            agent_id="a",
+            agent_type="t",
+            description="d",
+            status=TaskStatus.COMPLETED,
+            created_at=0,
         )
         assert completed.is_complete is True
 
         # Failed - complete
         failed = TaskInfo(
-            task_id="f", agent_id="a", agent_type="t",
-            description="d", status=TaskStatus.FAILED, created_at=0
+            task_id="f",
+            agent_id="a",
+            agent_type="t",
+            description="d",
+            status=TaskStatus.FAILED,
+            created_at=0,
         )
         assert failed.is_complete is True
 

@@ -19,6 +19,7 @@ from typing import Any
 @dataclass
 class CompressionResult:
     """压缩结果"""
+
     original_tokens: int
     compressed_tokens: int
     content: str
@@ -152,7 +153,10 @@ class ContextCompressor:
                             docstring_lines = []
                             while j < len(lines):
                                 docstring_lines.append(lines[j])
-                                if lines[j].strip().endswith(('"""', "'''")) and len(lines[j].strip()) > 3:
+                                if (
+                                    lines[j].strip().endswith(('"""', "'''"))
+                                    and len(lines[j].strip()) > 3
+                                ):
                                     break
                                 j += 1
                             preserved_lines.extend(docstring_lines[:3])  # 最多 3 行
@@ -171,9 +175,13 @@ class ContextCompressor:
                 continue
 
             # 保留全局变量/常量定义
-            if (stripped and not stripped.startswith("#") and
-                "=" in stripped and not stripped.startswith("def ") and
-                current_indent == 0):
+            if (
+                stripped
+                and not stripped.startswith("#")
+                and "=" in stripped
+                and not stripped.startswith("def ")
+                and current_indent == 0
+            ):
                 # 可能是变量定义
                 preserved_lines.append(line)
 
@@ -327,7 +335,7 @@ class ContextCompressor:
 
         # 向前查找换行符
         for i in range(truncate_point, max(0, truncate_point - 200), -1):
-            if content[i:i+2] == "\n\n":
+            if content[i : i + 2] == "\n\n":
                 truncate_point = i
                 break
 
@@ -359,10 +367,7 @@ class ContextCompressor:
 
         # 压缩旧消息
         compressed_older = []
-        current_tokens = sum(
-            self.estimate_tokens(m.get("content", ""))
-            for m in recent_messages
-        )
+        current_tokens = sum(self.estimate_tokens(m.get("content", "")) for m in recent_messages)
 
         # 从旧到新处理，保留关键信息
         for msg in reversed(older_messages):
@@ -406,10 +411,21 @@ class ContextCompressor:
 
             # 保留决策、结论、关键信息
             indicators = [
-                "decision:", "conclusion:", "summary:", "key:",
-                "important:", "note:", "warning:", "error:",
+                "decision:",
+                "conclusion:",
+                "summary:",
+                "key:",
+                "important:",
+                "note:",
+                "warning:",
+                "error:",
             ]
-            if any(ind in stripped.lower() for ind in indicators) or stripped.startswith("```") or len(stripped) < 100 and stripped:
+            if (
+                any(ind in stripped.lower() for ind in indicators)
+                or stripped.startswith("```")
+                or len(stripped) < 100
+                and stripped
+            ):
                 key_lines.append(line)
 
         if not key_lines:

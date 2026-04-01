@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
+import uuid
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
 from typing import Any
@@ -346,8 +347,9 @@ class MessageBus:
             if agent_id == message.source:
                 continue  # 不发送给自己
 
-            # 创建副本
+            # 创建副本并生成新的 message_id
             msg_copy = message.model_copy(deep=True)
+            msg_copy.header.message_id = str(uuid.uuid4())
             msg_copy.header.target = agent_id
 
             # 持久化
@@ -389,8 +391,9 @@ class MessageBus:
             if agent_id not in self._agents:
                 continue
 
-            # 创建副本
+            # 创建副本并生成新的 message_id
             msg_copy = message.model_copy(deep=True)
+            msg_copy.header.message_id = str(uuid.uuid4())
             msg_copy.header.target = agent_id
 
             # 持久化
@@ -508,8 +511,9 @@ class MessageBus:
             if not sub.matches(message):
                 continue
 
-            # 创建副本
+            # 创建副本并生成新的 message_id
             msg_copy = message.model_copy(deep=True)
+            msg_copy.header.message_id = str(uuid.uuid4())
             msg_copy.header.target = sub.subscriber_id
 
             # 入队

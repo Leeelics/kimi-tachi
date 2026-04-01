@@ -28,6 +28,7 @@ try:
     from memnexus import CodeMemory, MemoryType
     from memnexus.mechanisms.global_memory import GlobalMemory
     from memnexus.memory import MemoryEntry
+
     MEMNEXUS_AVAILABLE = True
 except ImportError:
     MEMNEXUS_AVAILABLE = False
@@ -64,9 +65,7 @@ class MemoryConfig:
 
     def __post_init__(self):
         if self.storage_path is None:
-            self.storage_path = os.path.join(
-                self.project_path, ".kimi-tachi", "memory"
-            )
+            self.storage_path = os.path.join(self.project_path, ".kimi-tachi", "memory")
 
 
 class TachiMemoryV2:
@@ -109,9 +108,7 @@ class TachiMemoryV2:
 
     @classmethod
     async def init(
-        cls,
-        project_path: str = ".",
-        config: MemoryConfig | None = None
+        cls, project_path: str = ".", config: MemoryConfig | None = None
     ) -> TachiMemoryV2:
         """Initialize TachiMemoryV2."""
         instance = cls(project_path, config)
@@ -133,8 +130,7 @@ class TachiMemoryV2:
 
         # CodeMemory for project-specific memories
         self._mn_memory = await CodeMemory.init(
-            project_path=str(self.project_path),
-            storage_path=str(self._storage_path / "code")
+            project_path=str(self.project_path), storage_path=str(self._storage_path / "code")
         )
 
         # GlobalMemory for cross-project knowledge
@@ -152,11 +148,7 @@ class TachiMemoryV2:
     # ORCHESTRATION APIs (what kimi-tachi provides)
     # ========================================================================
 
-    async def recall_for_task(
-        self,
-        task: str,
-        agent_type: str | None = None
-    ) -> dict[str, Any]:
+    async def recall_for_task(self, task: str, agent_type: str | None = None) -> dict[str, Any]:
         """
         Recall context for a task.
 
@@ -186,8 +178,7 @@ class TachiMemoryV2:
         if self._mn_memory and self._mn_memory.store:
             try:
                 results = await self._mn_memory.store.search(
-                    query=task,
-                    limit=self.config.recall_limit
+                    query=task, limit=self.config.recall_limit
                 )
                 context["project_memories"] = self._format_memories(results)
             except Exception as e:
@@ -201,7 +192,7 @@ class TachiMemoryV2:
                     query=task,
                     context={"cwd": str(self.project_path), "agent": agent_type},
                     limit=self.config.exploration_limit,
-                    min_relevance=self.config.min_relevance
+                    min_relevance=self.config.min_relevance,
                 )
                 context["related_decisions"] = [
                     {
@@ -227,11 +218,7 @@ class TachiMemoryV2:
 
         return context
 
-    async def store_decision(
-        self,
-        content: str,
-        metadata: dict | None = None
-    ) -> str | None:
+    async def store_decision(self, content: str, metadata: dict | None = None) -> str | None:
         """
         Store a decision (with automatic deduplication).
 
@@ -247,9 +234,7 @@ class TachiMemoryV2:
 
         # Delegate to adapter (which handles deduplication)
         fingerprint = await self._adapter.store_decision(
-            content=content,
-            source_session=self._current_session_id or "",
-            metadata=metadata
+            content=content, source_session=self._current_session_id or "", metadata=metadata
         )
 
         # Also store in memnexus if available
@@ -259,10 +244,7 @@ class TachiMemoryV2:
                     content=content,
                     memory_type=MemoryType.DECISION,
                     source=f"session:{self._current_session_id}",
-                    metadata={
-                        "fingerprint": fingerprint,
-                        **(metadata or {})
-                    }
+                    metadata={"fingerprint": fingerprint, **(metadata or {})},
                 )
                 await self._mn_memory.store.store(entry)
             except Exception as e:
@@ -270,11 +252,7 @@ class TachiMemoryV2:
 
         return fingerprint
 
-    def start_session(
-        self,
-        session_id: str | None = None,
-        task: str = ""
-    ) -> str:
+    def start_session(self, session_id: str | None = None, task: str = "") -> str:
         """
         Start a new session.
 
@@ -304,13 +282,15 @@ class TachiMemoryV2:
         """Format memnexus results for CLI."""
         formatted = []
         for r in results:
-            formatted.append({
-                "id": getattr(r, 'id', str(id(r))),
-                "content": getattr(r, 'content', str(r)),
-                "type": getattr(r, 'memory_type', 'unknown'),
-                "source": getattr(r, 'source', 'unknown'),
-                "score": getattr(r, 'score', 1.0),
-            })
+            formatted.append(
+                {
+                    "id": getattr(r, "id", str(id(r))),
+                    "content": getattr(r, "content", str(r)),
+                    "type": getattr(r, "memory_type", "unknown"),
+                    "source": getattr(r, "source", "unknown"),
+                    "score": getattr(r, "score", 1.0),
+                }
+            )
         return formatted
 
     def _format_for_cli(self, context: dict) -> str:
@@ -327,8 +307,8 @@ class TachiMemoryV2:
             has_content = True
             lines.append("📚 Related decisions from other sessions:")
             for d in context["related_decisions"][:3]:
-                source = d.get('source', 'unknown')[:8]
-                content = d.get('content', '')[:80]
+                source = d.get("source", "unknown")[:8]
+                content = d.get("content", "")[:80]
                 lines.append(f"  - [{source}] {content}")
 
         # Project memories
@@ -338,7 +318,7 @@ class TachiMemoryV2:
                 lines.append("")
             lines.append("📋 Recent project context:")
             for m in context["project_memories"][:3]:
-                content = m.get('content', '')[:80]
+                content = m.get("content", "")[:80]
                 lines.append(f"  - {content}")
 
         # Global knowledge
@@ -348,22 +328,24 @@ class TachiMemoryV2:
                 lines.append("")
             lines.append("🌍 Cross-project knowledge:")
             for k in context["global_knowledge"][:2]:
-                content = k.get('content', '')[:80]
-                project = k.get('project', 'unknown')
+                content = k.get("content", "")[:80]
+                project = k.get("project", "unknown")
                 lines.append(f"  - [{project}] {content}")
 
         if not has_content:
             return ""
 
-        return "\n".join([
-            "",
-            "=" * 50,
-            "🧠 kimi-tachi Memory Context:",
-            "=" * 50,
-            *lines,
-            "=" * 50,
-            "",
-        ])
+        return "\n".join(
+            [
+                "",
+                "=" * 50,
+                "🧠 kimi-tachi Memory Context:",
+                "=" * 50,
+                *lines,
+                "=" * 50,
+                "",
+            ]
+        )
 
     # ========================================================================
     # UTILITY METHODS
@@ -382,9 +364,7 @@ class TachiMemoryV2:
 
         try:
             results = await self._mn_memory.store.search(
-                query=query,
-                limit=limit,
-                memory_types=["code"]
+                query=query, limit=limit, memory_types=["code"]
             )
             return self._format_memories(results)
         except Exception as e:

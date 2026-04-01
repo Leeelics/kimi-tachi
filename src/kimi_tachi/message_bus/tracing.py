@@ -547,6 +547,11 @@ def trace_message_send(message: Message) -> None:
     )
     span.add_event("message_sent", {"timestamp": time.time()})
 
+    # Ensure message has trace_id after span creation
+    # (start_span may create a new trace if none exists)
+    if message.header.trace_id is None:
+        message.header.trace_id = _current_trace_id.get()
+
 
 def trace_message_receive(message: Message, handler: str) -> Span:
     """追踪消息接收"""

@@ -19,6 +19,7 @@ from kimi_tachi import __version__
 # Optional memory support
 try:
     from kimi_tachi.memory import AGENT_MEMORY_PROFILES, TachiMemory
+
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -361,14 +362,25 @@ def list_agents():
 
 # ========== Memory Commands ==========
 
+
 @app.command()
 def memory(
-    action: Annotated[str, typer.Argument(help="Action: init, index, search, global-search, recall, status")],
-    query: Annotated[str | None, typer.Argument(help="Search query (for search/global-search)")] = None,
-    agent: Annotated[str | None, typer.Option("--agent", "-a", help="Agent type (for recall)")] = None,
+    action: Annotated[
+        str, typer.Argument(help="Action: init, index, search, global-search, recall, status")
+    ],
+    query: Annotated[
+        str | None, typer.Argument(help="Search query (for search/global-search)")
+    ] = None,
+    agent: Annotated[
+        str | None, typer.Option("--agent", "-a", help="Agent type (for recall)")
+    ] = None,
     work_dir: Annotated[str, typer.Option("--work-dir", "-w", help="Working directory")] = ".",
-    incremental: Annotated[bool, typer.Option("--incremental/--full", help="Use incremental indexing")] = True,
-    project_name: Annotated[str | None, typer.Option("--project", "-p", help="Project name for global memory")] = None,
+    incremental: Annotated[
+        bool, typer.Option("--incremental/--full", help="Use incremental indexing")
+    ] = True,
+    project_name: Annotated[
+        str | None, typer.Option("--project", "-p", help="Project name for global memory")
+    ] = None,
 ):
     """
     Manage code memory for kimi-tachi.
@@ -416,7 +428,7 @@ def memory(
                 typer.echo("✅ Indexing complete:")
                 typer.echo(f"   Git commits: {stats.get('git_commits', 0)}")
                 typer.echo(f"   Code symbols: {stats.get('code_symbols', 0)}")
-                if stats.get('skipped', 0) > 0:
+                if stats.get("skipped", 0) > 0:
                     typer.echo(f"   Skipped (unchanged): {stats['skipped']}")
             except Exception as e:
                 typer.echo(f"❌ Error: {e}", err=True)
@@ -494,7 +506,9 @@ def memory(
                     table.add_row(project, source, content)
 
                 console.print(table)
-                typer.echo(f"\nFound {len(results)} results from {len({r.get('project') for r in results})} projects")
+                typer.echo(
+                    f"\nFound {len(results)} results from {len({r.get('project') for r in results})} projects"
+                )
 
             except Exception as e:
                 typer.echo(f"❌ Error: {e}", err=True)
@@ -510,7 +524,9 @@ def memory(
                 memory = await TachiMemory.init(work_dir)
                 success = await memory.register_in_global_memory(project_name)
                 if success:
-                    typer.echo("✅ Project registered. Run 'kimi-tachi memory sync-global' to sync.")
+                    typer.echo(
+                        "✅ Project registered. Run 'kimi-tachi memory sync-global' to sync."
+                    )
                 else:
                     typer.echo("❌ Registration failed")
             except Exception as e:
@@ -535,7 +551,9 @@ def memory(
         elif action == "recall":
             if not agent:
                 typer.echo("❌ Please specify --agent for recall", err=True)
-                typer.echo("Available agents: kamaji, nekobasu, calcifer, enma, tasogare, shishigami, phoenix")
+                typer.echo(
+                    "Available agents: kamaji, nekobasu, calcifer, enma, tasogare, shishigami, phoenix"
+                )
                 raise typer.Exit(1) from None
 
             typer.echo(f"🧠 Recalling context for {agent}...")
@@ -554,12 +572,16 @@ def memory(
                 typer.echo(f"   Relevant code: {len(context.relevant_code)}")
 
                 if context.cross_project_knowledge:
-                    typer.echo(f"   Cross-project knowledge: {len(context.cross_project_knowledge)}")
+                    typer.echo(
+                        f"   Cross-project knowledge: {len(context.cross_project_knowledge)}"
+                    )
 
                 if context.recent_memories:
                     typer.echo("\n📝 Recent Memories:")
                     for m in context.recent_memories[:5]:
-                        typer.echo(f"   - [{m.get('source', 'unknown')}] {m.get('content', '')[:60]}...")
+                        typer.echo(
+                            f"   - [{m.get('source', 'unknown')}] {m.get('content', '')[:60]}..."
+                        )
 
                 if context.relevant_code:
                     typer.echo("\n💻 Relevant Code:")
@@ -584,7 +606,7 @@ def memory(
                 typer.echo(f"   Project: {status.get('project_path', 'Unknown')}")
                 typer.echo(f"   Session: {status.get('session_id', 'Unknown')}")
 
-                stats = status.get('stats', {})
+                stats = status.get("stats", {})
                 if stats:
                     typer.echo("\n📊 Statistics:")
                     typer.echo(f"   Git commits indexed: {stats.get('git_commits_indexed', 0)}")
@@ -604,6 +626,7 @@ def memory(
 
 
 # ========== Status Command ==========
+
 
 @app.command()
 def status():
@@ -964,7 +987,9 @@ def sessions(
 
 @app.command()
 def traces(
-    export: Annotated[str | None, typer.Option("--export", "-e", help="Export traces to directory")] = None,
+    export: Annotated[
+        str | None, typer.Option("--export", "-e", help="Export traces to directory")
+    ] = None,
     clear: Annotated[bool, typer.Option("--clear", "-c", help="Clear all traces")] = False,
     json_out: Annotated[bool, typer.Option("--json", "-j", help="Output as JSON")] = False,
 ):
@@ -995,6 +1020,7 @@ def traces(
 
     if json_out:
         import json
+
         typer.echo(json.dumps(stats, indent=2))
         return
 
@@ -1004,7 +1030,7 @@ def traces(
     typer.echo(f"Completed: {stats['completed_workflows']}")
     typer.echo(f"Failed: {stats['failed_workflows']}")
 
-    if stats['total_traces'] > 0:
+    if stats["total_traces"] > 0:
         typer.echo(f"Avg duration: {stats['avg_duration_ms']}ms")
 
         typer.echo("\nRecent traces:")

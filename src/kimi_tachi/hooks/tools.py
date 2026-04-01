@@ -24,6 +24,7 @@ try:
     from memnexus import MemoryEntry, MemoryType  # noqa: F401
 
     from ..memory.tachi_memory import TachiMemory  # noqa: F401
+
     MEMNEXUS_AVAILABLE = True
 except ImportError:
     MEMNEXUS_AVAILABLE = False
@@ -31,6 +32,7 @@ except ImportError:
 # v0.6.0: Use memnexus 0.4.0+ Session Explorer directly
 try:
     from memnexus.session import ExploreOptions, SessionExplorer
+
     MEMNEXUS_SESSION_AVAILABLE = True
 except ImportError:
     MEMNEXUS_SESSION_AVAILABLE = False
@@ -96,6 +98,7 @@ def extract_key_decisions(messages: list[dict], session_id: str = "") -> list[di
     if MEMNEXUS_SESSION_AVAILABLE:
         try:
             from memnexus.session import DecisionDeduplicator
+
             deduplicator = DecisionDeduplicator()
         except Exception:
             pass
@@ -107,9 +110,18 @@ def extract_key_decisions(messages: list[dict], session_id: str = "") -> list[di
 
         # 检测决策标记
         decision_indicators = [
-            "decision:", "decided:", "conclusion:", "concluded:",
-            "final:", "chosen:", "selected:", "确定", "决定",
-            "结论", "选择", "采用",
+            "decision:",
+            "decided:",
+            "conclusion:",
+            "concluded:",
+            "final:",
+            "chosen:",
+            "selected:",
+            "确定",
+            "决定",
+            "结论",
+            "选择",
+            "采用",
         ]
 
         content_lower = content.lower()
@@ -165,20 +177,25 @@ def extract_important_events(messages: list[dict]) -> list[dict]:
         if "Agent(" in content or "subagent_type" in content:
             # 提取 Agent 类型
             import re
+
             match = re.search(r'subagent_type[=:]"([^"]+)"', content)
             if match:
-                events.append({
-                    "type": "agent_call",
-                    "agent": match.group(1),
-                    "timestamp": datetime.now().isoformat(),
-                })
+                events.append(
+                    {
+                        "type": "agent_call",
+                        "agent": match.group(1),
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
         # 检测文件修改
         if any(tool in content for tool in ["WriteFile", "StrReplaceFile"]):
-            events.append({
-                "type": "file_edit",
-                "timestamp": datetime.now().isoformat(),
-            })
+            events.append(
+                {
+                    "type": "file_edit",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
     return events[-10:]  # 保留最近10个事件
 
@@ -186,6 +203,7 @@ def extract_important_events(messages: list[dict]) -> list[dict]:
 # ============================================================================
 # Hook 处理函数
 # ============================================================================
+
 
 def store_before_compact(
     session_id: str,
@@ -219,11 +237,13 @@ def store_before_compact(
         session_data = load_session_data(session_id)
 
         # 记录压缩事件
-        session_data["compactions"].append({
-            "trigger": trigger,
-            "token_count": token_count,
-            "timestamp": datetime.now().isoformat(),
-        })
+        session_data["compactions"].append(
+            {
+                "trigger": trigger,
+                "token_count": token_count,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         # 如果有 memnexus，存储关键信息
         if MEMNEXUS_AVAILABLE:
@@ -303,12 +323,14 @@ def recall_on_session_start(
                 explorer = SessionExplorer()
                 options = ExploreOptions(limit=5, min_relevance=0.3, skip_explored=True)
 
-                exploration = asyncio.run(explorer.explore_related(
-                    current_session_id=session_id,
-                    query=cwd,
-                    context={"cwd": cwd},
-                    options=options
-                ))
+                exploration = asyncio.run(
+                    explorer.explore_related(
+                        current_session_id=session_id,
+                        query=cwd,
+                        context={"cwd": cwd},
+                        options=options,
+                    )
+                )
 
                 if exploration.decisions:
                     recalled_context.append("📚 Related decisions from other sessions:")
@@ -346,15 +368,17 @@ def recall_on_session_start(
                         recalled_context.append("  - Modified files")
 
         if recalled_context:
-            output = "\n".join([
-                "",
-                "=" * 50,
-                "🧠 kimi-tachi Memory Context:",
-                "=" * 50,
-                *recalled_context,
-                "=" * 50,
-                "",
-            ])
+            output = "\n".join(
+                [
+                    "",
+                    "=" * 50,
+                    "🧠 kimi-tachi Memory Context:",
+                    "=" * 50,
+                    *recalled_context,
+                    "=" * 50,
+                    "",
+                ]
+            )
             print(output)
             result["recalled"] = True
             result["context_lines"] = len(recalled_context)
@@ -411,11 +435,13 @@ def summarize_on_session_end(
         events_count = len(session_data.get("events", []))
         compactions_count = len(session_data.get("compactions", []))
 
-        summary_lines.extend([
-            f"Decisions made: {decisions_count}",
-            f"Events recorded: {events_count}",
-            f"Context compactions: {compactions_count}",
-        ])
+        summary_lines.extend(
+            [
+                f"Decisions made: {decisions_count}",
+                f"Events recorded: {events_count}",
+                f"Context compactions: {compactions_count}",
+            ]
+        )
 
         summary = "\n".join(summary_lines)
         session_data["summary"] = summary
@@ -484,8 +510,14 @@ def process_agent_decision(
         # 提取决策（从输出中）
         if tool_output:
             decision_indicators = [
-                "decision", "conclusion", "final", "chosen",
-                "implemented", "created", "modified", "fixed",
+                "decision",
+                "conclusion",
+                "final",
+                "chosen",
+                "implemented",
+                "created",
+                "modified",
+                "fixed",
             ]
 
             output_lower = tool_output.lower()
@@ -538,6 +570,7 @@ def calculate_duration(start: str | None, end: str | None) -> str:
 # ============================================================================
 # CLI 入口
 # ============================================================================
+
 
 def main():
     """CLI 入口，用于从 shell 脚本调用"""

@@ -6,9 +6,9 @@ Check kimi-cli version compatibility.
 """
 
 import json
-import sys
-import subprocess
 import re
+import subprocess
+import sys
 
 
 def get_cli_version():
@@ -22,14 +22,14 @@ def get_cli_version():
         )
         if result.returncode == 0:
             # Parse version from output like "kimi, version 1.25.0"
-            match = re.search(r'(\d+)\.(\d+)\.(\d+)', result.stdout)
+            match = re.search(r"(\d+)\.(\d+)\.(\d+)", result.stdout)
             if match:
                 return {
                     "version": match.group(0),
                     "major": int(match.group(1)),
                     "minor": int(match.group(2)),
                     "patch": int(match.group(3)),
-                    "raw": result.stdout.strip()
+                    "raw": result.stdout.strip(),
                 }
         return None
     except Exception:
@@ -39,7 +39,7 @@ def get_cli_version():
 def check_compatibility():
     """Check compatibility with kimi-cli"""
     cli_version = get_cli_version()
-    
+
     if cli_version is None:
         return {
             "success": False,
@@ -48,33 +48,33 @@ def check_compatibility():
             "required_version": ">=1.25.0",
             "message": "Cannot detect kimi-cli. Is it installed?",
             "recommendation": "Install kimi-cli first",
-            "output": "❌ kimi-cli not found"
+            "output": "❌ kimi-cli not found",
         }
-    
+
     major, minor = cli_version["major"], cli_version["minor"]
     is_compatible = (major, minor) >= (1, 25)
-    
+
     lines = [
         "Kimi-Tachi Compatibility Check",
         "",
         f"kimi-cli version: {cli_version['version']}",
-        f"Required: >= 1.25.0",
+        "Required: >= 1.25.0",
         "",
     ]
-    
+
     if is_compatible:
-        lines.append(f"✅ Compatible! You can use native agent mode.")
-        lines.append(f"   Agent mode: native")
+        lines.append("✅ Compatible! You can use native agent mode.")
+        lines.append("   Agent mode: native")
         recommendation = "You're good to go!"
     else:
         lines.append(f"⚠️  kimi-cli {cli_version['version']} is too old.")
-        lines.append(f"   Required: 1.25.0+")
-        lines.append(f"   Agent mode: legacy (fallback)")
+        lines.append("   Required: 1.25.0+")
+        lines.append("   Agent mode: legacy (fallback)")
         recommendation = "Upgrade: pip install -U kimi-cli"
-    
+
     lines.append("")
     lines.append(f"Recommendation: {recommendation}")
-    
+
     return {
         "success": True,
         "compatible": is_compatible,
@@ -82,7 +82,7 @@ def check_compatibility():
         "required_version": ">=1.25.0",
         "message": f"kimi-cli {cli_version['version']} detected",
         "recommendation": recommendation,
-        "output": "\n".join(lines)
+        "output": "\n".join(lines),
     }
 
 

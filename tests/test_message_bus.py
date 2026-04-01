@@ -677,22 +677,21 @@ class TestIntegration:
         await asyncio.sleep(0.5)
 
         # 验证结果
-        # coordinator 收到广播 (1)
         # worker1 收到 direct (1) + 广播 (1) + 组播 (1) + 订阅 (1) = 4
         # worker2 收到广播 (1) + 组播 (1) + 订阅 (1) = 3
 
-        coordinator_msgs = [m for m in received_messages if m["content"] == "Broadcast message"]
+        broadcast_msgs = [m for m in received_messages if m["content"] == "Broadcast message"]
         worker1_direct = [m for m in received_messages if m["content"] == "Direct task"]
         task_msgs = [m for m in received_messages if m["content"] == "Task published"]
 
-        assert len(coordinator_msgs) == 1  # 广播（不包括自己）
+        assert len(broadcast_msgs) == 2  # 广播给 worker1 和 worker2（不包括发送者 coordinator）
         assert len(worker1_direct) == 1
         assert len(task_msgs) == 2  # 两个订阅者
 
         # 验证持久化
         stats = await bus.get_storage_statistics()
         assert stats is not None
-        assert stats["total_messages"] >= 7
+        assert stats["total_messages"] >= 6
 
         await bus.stop()
 

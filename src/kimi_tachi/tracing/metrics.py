@@ -14,6 +14,7 @@ from typing import Any
 @dataclass
 class AgentMetrics:
     """Performance metrics for a single agent"""
+
     agent_id: str = ""
     personality: str = ""
     subagent_type: str = ""
@@ -70,6 +71,7 @@ class AgentMetrics:
 @dataclass
 class WorkflowMetrics:
     """Performance metrics for a workflow"""
+
     trace_id: str = ""
     workflow_type: str = ""
 

@@ -26,6 +26,7 @@ from .types import Symbol, SymbolType
 # 初始化 Python 解析器
 try:
     import tree_sitter_python as tspython
+
     PYTHON_LANGUAGE = Language(tspython.language())
     _PARSER_AVAILABLE = True
 except ImportError:
@@ -231,8 +232,8 @@ class SemanticIndex:
                 if child.type == "expression_statement":
                     for subchild in child.children:
                         if subchild.type == "string":
-                            doc = content[subchild.start_byte:subchild.end_byte]
-                            return doc.strip('"\' ')
+                            doc = content[subchild.start_byte : subchild.end_byte]
+                            return doc.strip("\"' ")
             return None
 
         def extract_signature(node) -> str | None:
@@ -245,7 +246,7 @@ class SemanticIndex:
 
             # 提取到冒号前
             if ":" in line:
-                return line[:line.index(":")].strip()
+                return line[: line.index(":")].strip()
             return line.strip()
 
         def walk(node, parent_name: str | None = None):
@@ -254,7 +255,7 @@ class SemanticIndex:
                 # 获取函数名
                 name_node = node.child_by_field_name("name")
                 if name_node:
-                    name = content[name_node.start_byte:name_node.end_byte]
+                    name = content[name_node.start_byte : name_node.end_byte]
 
                     symbol = Symbol(
                         name=name,
@@ -277,7 +278,7 @@ class SemanticIndex:
             elif node.type == "class_definition":
                 name_node = node.child_by_field_name("name")
                 if name_node:
-                    name = content[name_node.start_byte:name_node.end_byte]
+                    name = content[name_node.start_byte : name_node.end_byte]
 
                     symbol = Symbol(
                         name=name,
@@ -299,7 +300,7 @@ class SemanticIndex:
             elif node.type == "method_definition":
                 name_node = node.child_by_field_name("name")
                 if name_node:
-                    name = content[name_node.start_byte:name_node.end_byte]
+                    name = content[name_node.start_byte : name_node.end_byte]
 
                     symbol = Symbol(
                         name=name,
@@ -499,9 +500,7 @@ class SemanticIndex:
                 file_count = cursor.fetchone()[0]
 
                 # 类型分布
-                cursor = conn.execute(
-                    "SELECT type, COUNT(*) FROM symbols GROUP BY type"
-                )
+                cursor = conn.execute("SELECT type, COUNT(*) FROM symbols GROUP BY type")
                 type_distribution = {row[0]: row[1] for row in cursor.fetchall()}
 
                 return {

@@ -32,10 +32,14 @@ class TestDependencyAnalyzer:
         """测试线性依赖"""
         graph = DependencyGraph(phases=["a", "b", "c"])
         graph.add_edge(
-            type("Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0}
+            )()
         )
         graph.add_edge(
-            type("Edge", (), {"from_phase": "b", "to_phase": "c", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "b", "to_phase": "c", "reason": "test", "strength": 1.0}
+            )()
         )
 
         # 拓扑排序
@@ -53,17 +57,25 @@ class TestDependencyAnalyzer:
         graph = DependencyGraph(phases=["a", "b", "c", "d"])
         # a -> b, a -> c (b 和 c 可以并行)
         graph.add_edge(
-            type("Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0}
+            )()
         )
         graph.add_edge(
-            type("Edge", (), {"from_phase": "a", "to_phase": "c", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "a", "to_phase": "c", "reason": "test", "strength": 1.0}
+            )()
         )
         # b -> d, c -> d
         graph.add_edge(
-            type("Edge", (), {"from_phase": "b", "to_phase": "d", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "b", "to_phase": "d", "reason": "test", "strength": 1.0}
+            )()
         )
         graph.add_edge(
-            type("Edge", (), {"from_phase": "c", "to_phase": "d", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "c", "to_phase": "d", "reason": "test", "strength": 1.0}
+            )()
         )
 
         groups = graph.find_parallel_groups()
@@ -77,10 +89,14 @@ class TestDependencyAnalyzer:
         """测试循环依赖检测"""
         graph = DependencyGraph(phases=["a", "b"])
         graph.add_edge(
-            type("Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "a", "to_phase": "b", "reason": "test", "strength": 1.0}
+            )()
         )
         graph.add_edge(
-            type("Edge", (), {"from_phase": "b", "to_phase": "a", "reason": "test", "strength": 1.0})()
+            type(
+                "Edge", (), {"from_phase": "b", "to_phase": "a", "reason": "test", "strength": 1.0}
+            )()
         )
 
         with pytest.raises(ValueError, match="Circular dependency"):
@@ -174,9 +190,7 @@ class TestTaskDependencyAnalyzer:
         assert "src/main.py" in read_pattern.reads
 
         # 测试写入模式
-        write_pattern = analyzer._extract_file_pattern(
-            "Create tests/test_main.py with test cases"
-        )
+        write_pattern = analyzer._extract_file_pattern("Create tests/test_main.py with test cases")
         assert "tests/test_main.py" in write_pattern.writes
 
 

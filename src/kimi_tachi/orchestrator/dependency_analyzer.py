@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 @dataclass
 class DependencyEdge:
     """依赖边"""
+
     from_phase: str
     to_phase: str
     reason: str  # 依赖原因: "file", "semantic", "explicit"
@@ -30,6 +31,7 @@ class DependencyEdge:
 @dataclass
 class DependencyGraph:
     """依赖关系图"""
+
     phases: list[str] = field(default_factory=list)
     edges: list[DependencyEdge] = field(default_factory=list)
 
@@ -116,6 +118,7 @@ class DependencyGraph:
 @dataclass
 class FileAccessPattern:
     """文件访问模式"""
+
     reads: set[str] = field(default_factory=set)
     writes: set[str] = field(default_factory=set)
 
@@ -168,7 +171,7 @@ class TaskDependencyAnalyzer:
         # 从 phases 提取显式依赖
         phase_deps: dict[str, list[str]] = {}
         for p in phases:
-            if hasattr(p, 'dependencies') and p.dependencies:
+            if hasattr(p, "dependencies") and p.dependencies:
                 phase_deps[p.name] = p.dependencies
 
         # 合并外部传入的依赖
@@ -179,12 +182,14 @@ class TaskDependencyAnalyzer:
         if phase_deps:
             for phase_name, deps in phase_deps.items():
                 for dep in deps:
-                    graph.add_edge(DependencyEdge(
-                        from_phase=dep,
-                        to_phase=phase_name,
-                        reason="explicit",
-                        strength=1.0,
-                    ))
+                    graph.add_edge(
+                        DependencyEdge(
+                            from_phase=dep,
+                            to_phase=phase_name,
+                            reason="explicit",
+                            strength=1.0,
+                        )
+                    )
 
         # 2. 分析基于 task_template 的语义依赖
         for phase in phases:
@@ -197,14 +202,19 @@ class TaskDependencyAnalyzer:
                 if category == impl_cat:
                     # 找到同类别或之前的依赖
                     for other_name, other_cat in self.semantic_cache.items():
-                        if (other_name != phase_name and other_cat == dep_cat
-                                and not graph.has_dependency(phase_name, other_name)):
-                                graph.add_edge(DependencyEdge(
+                        if (
+                            other_name != phase_name
+                            and other_cat == dep_cat
+                            and not graph.has_dependency(phase_name, other_name)
+                        ):
+                            graph.add_edge(
+                                DependencyEdge(
                                     from_phase=other_name,
                                     to_phase=phase_name,
                                     reason="semantic",
                                     strength=0.7,
-                                ))
+                                )
+                            )
 
         # 3. 分析 task_template 中的文件引用
         for phase in phases:
@@ -223,12 +233,14 @@ class TaskDependencyAnalyzer:
                 # 如果 phase2 读取的文件被 phase1 写入
                 common_files = pattern2.reads & pattern1.writes
                 if common_files:
-                    graph.add_edge(DependencyEdge(
-                        from_phase=phase1.name,
-                        to_phase=phase2.name,
-                        reason="file",
-                        strength=0.9,
-                    ))
+                    graph.add_edge(
+                        DependencyEdge(
+                            from_phase=phase1.name,
+                            to_phase=phase2.name,
+                            reason="file",
+                            strength=0.9,
+                        )
+                    )
 
         return graph
 
@@ -264,23 +276,38 @@ class TaskDependencyAnalyzer:
 
         # 文件路径模式
         file_patterns = [
-            r'[\w\-./]+\.py',
-            r'[\w\-./]+\.md',
-            r'[\w\-./]+\.yaml',
-            r'[\w\-./]+\.json',
-            r'[\w\-./]+\.toml',
+            r"[\w\-./]+\.py",
+            r"[\w\-./]+\.md",
+            r"[\w\-./]+\.yaml",
+            r"[\w\-./]+\.json",
+            r"[\w\-./]+\.toml",
         ]
 
         # 读取关键词
         read_keywords = [
-            "read", "analyze", "explore", "check", "investigate",
-            "survey", "understand", "review", "examine",
+            "read",
+            "analyze",
+            "explore",
+            "check",
+            "investigate",
+            "survey",
+            "understand",
+            "review",
+            "examine",
         ]
 
         # 写入关键词
         write_keywords = [
-            "write", "create", "modify", "update", "implement",
-            "build", "develop", "change", "edit", "add",
+            "write",
+            "create",
+            "modify",
+            "update",
+            "implement",
+            "build",
+            "develop",
+            "change",
+            "edit",
+            "add",
         ]
 
         text = task_template.lower()
@@ -293,7 +320,7 @@ class TaskDependencyAnalyzer:
             for match in matches:
                 # 获取匹配位置周围的上下文
                 idx = text.find(match)
-                context = text[max(0, idx-50):min(len(text), idx+50)]
+                context = text[max(0, idx - 50) : min(len(text), idx + 50)]
 
                 # 判断操作类型（优先检查写入，因为写入更具体）
                 is_read = any(kw in context for kw in read_keywords)

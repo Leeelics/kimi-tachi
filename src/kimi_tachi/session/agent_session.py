@@ -188,7 +188,9 @@ _session_manager: AgentSessionManager | None = None
 def get_session_manager(session_id: str | None = None) -> AgentSessionManager:
     """Get or create the global session manager"""
     global _session_manager
-    if _session_manager is None or (_session_manager.session_id != session_id and session_id is not None):
+    if _session_manager is None or (
+        _session_manager.session_id != session_id and session_id is not None
+    ):
         _session_manager = AgentSessionManager(session_id)
     return _session_manager
 

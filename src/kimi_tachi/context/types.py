@@ -14,6 +14,7 @@ from typing import Any
 
 class SymbolType(Enum):
     """符号类型"""
+
     FUNCTION = "function"
     CLASS = "class"
     METHOD = "method"
@@ -26,6 +27,7 @@ class SymbolType(Enum):
 @dataclass(frozen=True)
 class FileMetadata:
     """文件元数据"""
+
     path: str
     size: int
     mtime: float  # 修改时间
@@ -56,6 +58,7 @@ class FileMetadata:
 @dataclass
 class Symbol:
     """代码符号"""
+
     name: str
     type: SymbolType
     file_path: str
@@ -100,6 +103,7 @@ class Symbol:
 @dataclass
 class CacheEntry:
     """缓存条目"""
+
     key: str
     value: Any
     created_at: datetime = field(default_factory=datetime.now)
@@ -123,6 +127,7 @@ class CacheEntry:
 @dataclass
 class CacheStatistics:
     """缓存统计信息"""
+
     # 文件缓存
     file_cache_hits: int = 0
     file_cache_misses: int = 0

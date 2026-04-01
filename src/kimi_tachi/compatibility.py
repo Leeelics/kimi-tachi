@@ -18,6 +18,7 @@ from typing import NamedTuple
 
 class VersionInfo(NamedTuple):
     """Version information tuple"""
+
     major: int
     minor: int
     patch: int
@@ -38,6 +39,7 @@ class VersionInfo(NamedTuple):
 @dataclass
 class CompatibilityReport:
     """Compatibility check report"""
+
     is_compatible: bool
     cli_version: VersionInfo | None
     required_version: str
@@ -59,7 +61,7 @@ def parse_version(version_string: str) -> VersionInfo:
         ValueError: If version string cannot be parsed
     """
     # Extract version numbers from string
-    match = re.search(r'(\d+)\.(\d+)\.(\d+)', version_string)
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", version_string)
     if not match:
         raise ValueError(f"Cannot parse version from: {version_string}")
 
@@ -185,8 +187,7 @@ def get_recommended_agent_mode() -> str:
     report = check_compatibility()
     if not report.is_compatible:
         warnings.warn(
-            f"kimi-cli {report.cli_version} is not supported. "
-            "Please upgrade to 1.25.0 or later.",
+            f"kimi-cli {report.cli_version} is not supported. Please upgrade to 1.25.0 or later.",
             UserWarning,
             stacklevel=2,
         )

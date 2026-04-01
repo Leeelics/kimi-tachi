@@ -24,6 +24,7 @@ from typing import Any
 @dataclass
 class AnalysisQuery:
     """分析查询"""
+
     query_type: str  # "find_functions", "analyze_class", etc.
     params: dict[str, Any]
     file_hashes: dict[str, str]  # 依赖文件的路径 -> hash
@@ -129,8 +130,9 @@ class AnalysisResultCache:
         # 1. 检查内存缓存
         if key in self._memory_cache:
             entry = self._memory_cache[key]
-            if (entry["expires_at"] > time.time() and
-                self._validate_file_hashes(query.file_hashes, entry["file_hashes"])):
+            if entry["expires_at"] > time.time() and self._validate_file_hashes(
+                query.file_hashes, entry["file_hashes"]
+            ):
                 entry["hit_count"] += 1
                 return entry["result"]
 
@@ -394,9 +396,7 @@ class AnalysisResultCache:
                 expired = cursor.fetchone()[0]
 
                 # 总命中次数
-                cursor = conn.execute(
-                    "SELECT SUM(hit_count) FROM analysis_cache"
-                )
+                cursor = conn.execute("SELECT SUM(hit_count) FROM analysis_cache")
                 total_hits = cursor.fetchone()[0] or 0
 
                 # 按类型统计

@@ -246,6 +246,7 @@ class ContextCacheManager:
         file_hashes = {}
         for fp in file_paths:
             from .types import FileMetadata
+
             meta = FileMetadata.from_path(Path(fp))
             if meta:
                 file_hashes[str(Path(fp).resolve())] = meta.content_hash

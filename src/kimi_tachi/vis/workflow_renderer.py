@@ -18,23 +18,26 @@ from ..tracing.agent_tracer import AgentEvent, AgentEventType, WorkflowTrace
 
 class NodeType(Enum):
     """Types of workflow nodes"""
-    COORDINATOR = auto()   # kamaji
-    AGENT = auto()         # Worker agent
-    TASK = auto()          # Individual task
-    DECISION = auto()      # Decision point
+
+    COORDINATOR = auto()  # kamaji
+    AGENT = auto()  # Worker agent
+    TASK = auto()  # Individual task
+    DECISION = auto()  # Decision point
 
 
 class EdgeType(Enum):
     """Types of workflow edges"""
-    DELEGATES = auto()     # Coordinator -> Agent
-    EXECUTES = auto()      # Agent -> Task
-    DEPENDS = auto()       # Task -> Task (dependency)
-    RETURNS = auto()       # Task -> Coordinator (result)
+
+    DELEGATES = auto()  # Coordinator -> Agent
+    EXECUTES = auto()  # Agent -> Task
+    DEPENDS = auto()  # Task -> Task (dependency)
+    RETURNS = auto()  # Task -> Coordinator (result)
 
 
 @dataclass
 class WorkflowNode:
     """Node in workflow visualization"""
+
     id: str
     type: NodeType
     label: str
@@ -58,6 +61,7 @@ class WorkflowNode:
 @dataclass
 class WorkflowEdge:
     """Edge in workflow visualization"""
+
     from_node: str
     to_node: str
     type: EdgeType
@@ -75,6 +79,7 @@ class WorkflowEdge:
 @dataclass
 class WorkflowGraph:
     """Complete workflow graph for visualization"""
+
     trace_id: str
     nodes: list[WorkflowNode] = field(default_factory=list)
     edges: list[WorkflowEdge] = field(default_factory=list)
@@ -136,14 +141,16 @@ class WorkflowRenderer:
 
         # Create coordinator node (kamaji)
         coordinator_id = self._create_node_id("kamaji")
-        graph.nodes.append(WorkflowNode(
-            id=coordinator_id,
-            type=NodeType.COORDINATOR,
-            label="釜爺 (Kamaji)",
-            icon="◕‿◕",
-            status=self._get_workflow_status(trace),
-            duration_ms=trace.duration_ms,
-        ))
+        graph.nodes.append(
+            WorkflowNode(
+                id=coordinator_id,
+                type=NodeType.COORDINATOR,
+                label="釜爺 (Kamaji)",
+                icon="◕‿◕",
+                status=self._get_workflow_status(trace),
+                duration_ms=trace.duration_ms,
+            )
+        )
 
         # Group events by agent
         agent_events: dict[str, list[AgentEvent]] = {}
@@ -167,7 +174,8 @@ class WorkflowRenderer:
 
             # Calculate agent duration
             agent_duration = sum(
-                e.duration_ms for e in events
+                e.duration_ms
+                for e in events
                 if e.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED)
             )
 
@@ -175,26 +183,30 @@ class WorkflowRenderer:
             has_failed = any(e.event_type == AgentEventType.FAILED for e in events)
             agent_status = "failed" if has_failed else "completed"
 
-            graph.nodes.append(WorkflowNode(
-                id=agent_node_id,
-                type=NodeType.AGENT,
-                label=f"{self.ICONS.get(personality, '🔧')} {personality}",
-                icon=self.ICONS.get(personality, "🔧"),
-                status=agent_status,
-                duration_ms=agent_duration,
-                metadata={
-                    "subagent_type": subagent_type,
-                    "event_count": len(events),
-                },
-            ))
+            graph.nodes.append(
+                WorkflowNode(
+                    id=agent_node_id,
+                    type=NodeType.AGENT,
+                    label=f"{self.ICONS.get(personality, '🔧')} {personality}",
+                    icon=self.ICONS.get(personality, "🔧"),
+                    status=agent_status,
+                    duration_ms=agent_duration,
+                    metadata={
+                        "subagent_type": subagent_type,
+                        "event_count": len(events),
+                    },
+                )
+            )
 
             # Connect coordinator to agent
-            graph.edges.append(WorkflowEdge(
-                from_node=coordinator_id,
-                to_node=agent_node_id,
-                type=EdgeType.DELEGATES,
-                label="delegates",
-            ))
+            graph.edges.append(
+                WorkflowEdge(
+                    from_node=coordinator_id,
+                    to_node=agent_node_id,
+                    type=EdgeType.DELEGATES,
+                    label="delegates",
+                )
+            )
 
             # Create task nodes for this agent
             task_events = [e for e in events if e.event_type == AgentEventType.STARTED]
@@ -203,33 +215,46 @@ class WorkflowRenderer:
 
                 # Find completion event
                 completion = next(
-                    (e for e in events
-                     if e.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED)
-                     and e.timestamp > task_event.timestamp),
-                    None
+                    (
+                        e
+                        for e in events
+                        if e.event_type in (AgentEventType.COMPLETED, AgentEventType.FAILED)
+                        and e.timestamp > task_event.timestamp
+                    ),
+                    None,
                 )
 
                 task_status = "completed"
                 task_duration = 0
                 if completion:
-                    task_status = "completed" if completion.event_type == AgentEventType.COMPLETED else "failed"
+                    task_status = (
+                        "completed"
+                        if completion.event_type == AgentEventType.COMPLETED
+                        else "failed"
+                    )
                     task_duration = completion.duration_ms
 
-                graph.nodes.append(WorkflowNode(
-                    id=task_node_id,
-                    type=NodeType.TASK,
-                    label=task_event.task_summary[:30] + "..." if len(task_event.task_summary) > 30 else task_event.task_summary,
-                    status=task_status,
-                    duration_ms=task_duration,
-                ))
+                graph.nodes.append(
+                    WorkflowNode(
+                        id=task_node_id,
+                        type=NodeType.TASK,
+                        label=task_event.task_summary[:30] + "..."
+                        if len(task_event.task_summary) > 30
+                        else task_event.task_summary,
+                        status=task_status,
+                        duration_ms=task_duration,
+                    )
+                )
 
                 # Connect agent to task
-                graph.edges.append(WorkflowEdge(
-                    from_node=agent_node_id,
-                    to_node=task_node_id,
-                    type=EdgeType.EXECUTES,
-                    label="executes",
-                ))
+                graph.edges.append(
+                    WorkflowEdge(
+                        from_node=agent_node_id,
+                        to_node=task_node_id,
+                        type=EdgeType.EXECUTES,
+                        label="executes",
+                    )
+                )
 
         return graph
 
@@ -252,12 +277,14 @@ class WorkflowRenderer:
         timeline = []
 
         # Add workflow start
-        timeline.append({
-            "time": trace.start_time,
-            "type": "workflow_start",
-            "label": f"Workflow started: {trace.workflow_type}",
-            "description": trace.task_description[:50],
-        })
+        timeline.append(
+            {
+                "time": trace.start_time,
+                "type": "workflow_start",
+                "label": f"Workflow started: {trace.workflow_type}",
+                "description": trace.task_description[:50],
+            }
+        )
 
         # Add agent events
         for event in trace.events:
@@ -288,12 +315,14 @@ class WorkflowRenderer:
 
         # Add workflow end
         if trace.end_time:
-            timeline.append({
-                "time": trace.end_time,
-                "type": "workflow_end",
-                "label": f"Workflow {trace.status}",
-                "duration_ms": trace.duration_ms,
-            })
+            timeline.append(
+                {
+                    "time": trace.end_time,
+                    "type": "workflow_end",
+                    "label": f"Workflow {trace.status}",
+                    "duration_ms": trace.duration_ms,
+                }
+            )
 
         # Sort by timestamp
         timeline.sort(key=lambda x: x["time"])
@@ -335,7 +364,9 @@ class WorkflowRenderer:
 
         for _agent_id, stats in agent_stats.items():
             icon = self.ICONS.get(stats["personality"], "🔧")
-            lines.append(f"  {icon} {stats['personality']}: {stats['tasks']} tasks, {stats['duration_ms']}ms")
+            lines.append(
+                f"  {icon} {stats['personality']}: {stats['tasks']} tasks, {stats['duration_ms']}ms"
+            )
 
         return {
             "text": "\n".join(lines),

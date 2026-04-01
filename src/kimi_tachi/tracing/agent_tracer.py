@@ -19,13 +19,14 @@ from typing import Any
 
 class AgentEventType(Enum):
     """Types of agent lifecycle events"""
-    CREATED = auto()       # Agent instance created
-    STARTED = auto()       # Task execution started
-    COMPLETED = auto()     # Task execution completed successfully
-    FAILED = auto()        # Task execution failed
-    CANCELLED = auto()     # Task was cancelled
-    CACHE_HIT = auto()     # Agent reused from cache
-    CACHE_MISS = auto()    # New agent created (not in cache)
+
+    CREATED = auto()  # Agent instance created
+    STARTED = auto()  # Task execution started
+    COMPLETED = auto()  # Task execution completed successfully
+    FAILED = auto()  # Task execution failed
+    CANCELLED = auto()  # Task was cancelled
+    CACHE_HIT = auto()  # Agent reused from cache
+    CACHE_MISS = auto()  # New agent created (not in cache)
 
 
 @dataclass
@@ -46,6 +47,7 @@ class AgentEvent:
         duration_ms: Event duration in milliseconds (for completed events)
         metadata: Additional event metadata
     """
+
     event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     event_type: AgentEventType = AgentEventType.CREATED
     agent_id: str = ""
@@ -90,6 +92,7 @@ class WorkflowTrace:
         events: List of agent events in chronological order
         status: Workflow status (running, completed, failed)
     """
+
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     workflow_type: str = ""
     task_description: str = ""
@@ -127,7 +130,9 @@ class WorkflowTrace:
             "start_time": self.start_time,
             "start_datetime": datetime.fromtimestamp(self.start_time).isoformat(),
             "end_time": self.end_time,
-            "end_datetime": datetime.fromtimestamp(self.end_time).isoformat() if self.end_time else None,
+            "end_datetime": datetime.fromtimestamp(self.end_time).isoformat()
+            if self.end_time
+            else None,
             "duration_ms": self.duration_ms,
             "status": self.status,
             "agent_count": self.agent_count,
@@ -192,7 +197,7 @@ class AgentTracer:
 
         # Trim old traces if needed
         if len(self.traces) > self.max_traces:
-            self.traces = self.traces[-self.max_traces:]
+            self.traces = self.traces[-self.max_traces :]
 
         if self.debug:
             print(f"[AgentTracer] Started workflow {trace.trace_id}: {task_description[:50]}...")

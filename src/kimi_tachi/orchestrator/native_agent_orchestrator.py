@@ -20,6 +20,7 @@ from typing import Any
 # Optional tracing import
 try:
     from ..tracing import AgentTracer, get_tracer
+
     TRACING_AVAILABLE = True
 except ImportError:
     TRACING_AVAILABLE = False
@@ -29,6 +30,7 @@ except ImportError:
 
 class AgentType(Enum):
     """Native Agent tool types from kimi-cli 1.25.0+"""
+
     CODER = "coder"
     EXPLORE = "explore"
     PLAN = "plan"
@@ -39,12 +41,16 @@ class AgentType(Enum):
 
 class AgentPersonality(Enum):
     """kimi-tachi anime characters"""
-    NEKOBASU = "nekobasu"      # 🚌 Cat Bus - Fast exploration
-    CALCIFER = "calcifer"      # 🔥 Fire Demon - Implementation
-    TASOGARE = "tasogare"      # 🌆 Twilight - Planning
+
+    NEKOBASU = "nekobasu"  # 🚌 Cat Bus - Fast exploration
+    CALCIFER = "calcifer"  # 🔥 Fire Demon - Implementation
+    TASOGARE = "tasogare"  # 🌆 Twilight - Planning
     SHISHIGAMI = "shishigami"  # 🦌 Deer God - Architecture
-    ENMA = "enma"              # 👹 King Enma - Review
-    PHOENIX = "phoenix"        # 🐦 Phoenix - Knowledge
+    ENMA = "enma"  # 👹 King Enma - Review
+    PHOENIX = "phoenix"  # 🐦 Phoenix - Knowledge
+
+    def __str__(self) -> str:
+        return self.value
 
 
 # Map anime characters to native agent types
@@ -53,7 +59,7 @@ PERSONALITY_TO_TYPE: dict[AgentPersonality, AgentType] = {
     AgentPersonality.CALCIFER: AgentType.CODER,
     AgentPersonality.TASOGARE: AgentType.PLAN,
     AgentPersonality.SHISHIGAMI: AgentType.PLAN,  # Architecture starts with planning
-    AgentPersonality.ENMA: AgentType.CODER,       # Review uses coder type
+    AgentPersonality.ENMA: AgentType.CODER,  # Review uses coder type
     AgentPersonality.PHOENIX: AgentType.EXPLORE,  # Knowledge uses explore for search
 }
 
@@ -314,6 +320,7 @@ While others write code and move on, remember:
 @dataclass
 class NativeAgentInstance:
     """Represents a native Agent tool instance"""
+
     agent_id: str
     personality: AgentPersonality
     agent_type: AgentType
@@ -330,6 +337,7 @@ class NativeAgentInstance:
 @dataclass
 class AgentResult:
     """Result from agent execution"""
+
     agent: str
     personality: AgentPersonality
     task: str
@@ -366,12 +374,12 @@ class NativeAgentOrchestrator:
     ):
         import os
 
-        self.cache_ttl = cache_ttl or int(
-            os.environ.get("KIMI_TACHI_SUBAGENT_CACHE_TTL", "300")
+        self.cache_ttl = cache_ttl or int(os.environ.get("KIMI_TACHI_SUBAGENT_CACHE_TTL", "300"))
+        self.debug = debug or os.environ.get("KIMI_TACHI_DEBUG_AGENTS", "").lower() in (
+            "1",
+            "true",
+            "yes",
         )
-        self.debug = debug or os.environ.get(
-            "KIMI_TACHI_DEBUG_AGENTS", ""
-        ).lower() in ("1", "true", "yes")
 
         # Cache of native agent instances
         self._agents: dict[AgentPersonality, NativeAgentInstance] = {}
@@ -422,8 +430,10 @@ class NativeAgentOrchestrator:
                 self._stats["reused"] += 1
                 self._stats["cache_hits"] += 1
                 if self.debug:
-                    print(f"[NativeAgentOrchestrator] Reusing {personality.value} "
-                          f"(age={age:.1f}s, uses={agent.use_count})")
+                    print(
+                        f"[NativeAgentOrchestrator] Reusing {personality.value} "
+                        f"(age={age:.1f}s, uses={agent.use_count})"
+                    )
                 return agent
             else:
                 # Expired
@@ -437,6 +447,7 @@ class NativeAgentOrchestrator:
         # In production, this would call the actual Agent tool
         # For now, generate a simulated agent_id
         import uuid
+
         agent_id = f"{personality.value}_{uuid.uuid4().hex[:8]}"
 
         agent = NativeAgentInstance(
@@ -458,8 +469,10 @@ class NativeAgentOrchestrator:
             )
 
         if self.debug:
-            print(f"[NativeAgentOrchestrator] Created {personality.value} "
-                  f"as {agent_type.value} (id={agent_id})")
+            print(
+                f"[NativeAgentOrchestrator] Created {personality.value} "
+                f"as {agent_type.value} (id={agent_id})"
+            )
 
         return agent
 

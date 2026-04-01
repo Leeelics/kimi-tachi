@@ -53,12 +53,12 @@ def check_compatibility_at_import():
 
         if not report.is_compatible:
             warnings.warn(
-                f"\n{'='*60}\n"
+                f"\n{'=' * 60}\n"
                 f"Kimi-Tachi v{__version__} Compatibility Warning\n"
-                f"{'='*60}\n"
+                f"{'=' * 60}\n"
                 f"{report.message}\n\n"
                 f"Recommendation: {report.recommendation}\n"
-                f"{'='*60}\n",
+                f"{'=' * 60}\n",
                 UserWarning,
                 stacklevel=2,
             )

@@ -11,13 +11,13 @@ Usage:
 
 import json
 import sys
-import os
 from pathlib import Path
 
 # Add kimi-tachi to path if available
 try:
-    from kimi_tachi.orchestrator import HybridOrchestrator, WorkflowEngine, ContextManager
     from kimi_tachi.config import KimiTachiConfig
+    from kimi_tachi.orchestrator import ContextManager, HybridOrchestrator, WorkflowEngine
+
     KIMI_TACHI_AVAILABLE = True
 except ImportError:
     KIMI_TACHI_AVAILABLE = False
@@ -26,12 +26,12 @@ except ImportError:
 def run_workflow(task: str, workflow_type: str = "auto", work_dir: str = ".") -> dict:
     """
     Run a kimi-tachi workflow.
-    
+
     Args:
         task: Task description
         workflow_type: Type of workflow (auto, feature, bugfix, explore, refactor, quick)
         work_dir: Working directory
-    
+
     Returns:
         Result dictionary with status, output, and metadata
     """
@@ -39,20 +39,20 @@ def run_workflow(task: str, workflow_type: str = "auto", work_dir: str = ".") ->
         return {
             "success": False,
             "error": "kimi-tachi not installed. Install with: pip install kimi-tachi",
-            "output": ""
+            "output": "",
         }
-    
+
     import asyncio
-    
+
     async def async_run():
         work_path = Path(work_dir).resolve()
-        
+
         # Initialize orchestrator
-        config = KimiTachiConfig.from_env()
+        _ = KimiTachiConfig.from_env()  # Ensure config is loaded
         orch = HybridOrchestrator(work_dir=work_path)
         ctx_manager = ContextManager(work_path)
         engine = WorkflowEngine(orch, ctx_manager)
-        
+
         # Analyze task if auto
         if workflow_type == "auto":
             analysis = await orch.analyze_task_complexity(task)
@@ -69,29 +69,29 @@ def run_workflow(task: str, workflow_type: str = "auto", work_dir: str = ".") ->
                 return {
                     "success": False,
                     "error": f"Unknown workflow type: {workflow_type}",
-                    "output": ""
+                    "output": "",
                 }
-        
+
         # Execute workflow
         results = await engine.execute(workflow, task)
-        
+
         # Build output
         output_lines = []
         output_lines.append(f"✨ Workflow completed: {workflow_type}")
         output_lines.append(f"📁 Working directory: {work_path}")
         output_lines.append("")
-        
+
         for i, result in enumerate(results, 1):
             status = "✅" if result.returncode == 0 else "❌"
             output_lines.append(f"{i}. {status} {result.agent}: {result.task[:50]}...")
-        
+
         output_lines.append("")
         output_lines.append(f"📊 Total steps: {len(results)}")
-        
+
         # Save session
         ctx_manager.save()
         output_lines.append(f"💾 Session saved: {ctx_manager.session_id}")
-        
+
         return {
             "success": True,
             "output": "\n".join(output_lines),
@@ -100,12 +100,12 @@ def run_workflow(task: str, workflow_type: str = "auto", work_dir: str = ".") ->
                     "agent": r.agent,
                     "task": r.task,
                     "returncode": r.returncode,
-                    "stdout": r.stdout[:500]  # Truncate for JSON
+                    "stdout": r.stdout[:500],  # Truncate for JSON
                 }
                 for r in results
-            ]
+            ],
         }
-    
+
     return asyncio.run(async_run())
 
 
@@ -114,39 +114,27 @@ def main():
     try:
         # Read parameters from stdin
         params = json.load(sys.stdin)
-        
+
         task = params.get("task", "")
         workflow_type = params.get("workflow_type", "auto")
         work_dir = params.get("work_dir", ".")
-        
+
         if not task:
-            result = {
-                "success": False,
-                "error": "Missing required parameter: task",
-                "output": ""
-            }
+            result = {"success": False, "error": "Missing required parameter: task", "output": ""}
         else:
             result = run_workflow(task, workflow_type, work_dir)
-        
+
         # Output result as JSON
         print(json.dumps(result, indent=2))
-        
+
         # Exit with appropriate code
         sys.exit(0 if result.get("success") else 1)
-        
+
     except json.JSONDecodeError as e:
-        print(json.dumps({
-            "success": False,
-            "error": f"Invalid JSON input: {e}",
-            "output": ""
-        }))
+        print(json.dumps({"success": False, "error": f"Invalid JSON input: {e}", "output": ""}))
         sys.exit(1)
     except Exception as e:
-        print(json.dumps({
-            "success": False,
-            "error": f"Unexpected error: {e}",
-            "output": ""
-        }))
+        print(json.dumps({"success": False, "error": f"Unexpected error: {e}", "output": ""}))
         sys.exit(1)
 
 

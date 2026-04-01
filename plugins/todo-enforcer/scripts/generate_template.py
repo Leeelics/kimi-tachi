@@ -8,7 +8,6 @@ Generate todo list templates for common task types.
 import json
 import sys
 
-
 TEMPLATES = {
     "feature": [
         {"title": "Analyze requirements and understand the feature", "status": "pending"},
@@ -56,27 +55,27 @@ TEMPLATES = {
 def generate_template(task_type: str, task_description: str = "") -> dict:
     """Generate todo template for task type"""
     template = TEMPLATES.get(task_type, TEMPLATES["feature"])
-    
+
     lines = [
         f"Generated Todo Template: {task_type}",
         "",
     ]
-    
+
     if task_description:
         lines.append(f"Task: {task_description}")
         lines.append("")
-    
+
     lines.append("```json")
     lines.append(json.dumps({"todos": template}, indent=2))
     lines.append("```")
     lines.append("")
     lines.append("Copy the JSON above and use with SetTodoList tool.")
-    
+
     return {
         "success": True,
         "template": template,
         "task_type": task_type,
-        "output": "\n".join(lines)
+        "output": "\n".join(lines),
     }
 
 
@@ -86,15 +85,12 @@ def main():
         params = json.load(sys.stdin)
         task_type = params.get("task_type", "feature")
         task_description = params.get("task_description", "")
-        
+
         result = generate_template(task_type, task_description)
         print(json.dumps(result, indent=2))
-        
+
     except Exception as e:
-        print(json.dumps({
-            "success": False,
-            "error": str(e)
-        }))
+        print(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)
 
 

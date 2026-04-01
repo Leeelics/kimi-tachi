@@ -20,18 +20,18 @@ AGENT_DETAILS = {
             "Coordinates all workers",
             "Synthesizes outputs from multiple agents",
             "Maintains the bathhouse (project)",
-            "Ensures the fire never goes out"
+            "Ensures the fire never goes out",
         ],
         "catchphrases": [
             "「さあ、働け！働け！」(Work! Work!)",
-            "These workers are like family to me"
+            "These workers are like family to me",
         ],
         "best_for": [
             "Task coordination",
             "Multi-agent orchestration",
             "Result synthesis",
-            "Team management"
-        ]
+            "Team management",
+        ],
     },
     "shishigami": {
         "name": "シシ神 (Shishigami)",
@@ -43,18 +43,15 @@ AGENT_DETAILS = {
         "abilities": [
             "Day Form: Clear-headed analysis",
             "Twilight Form: Seeing hidden patterns",
-            "Night Form: Deep understanding"
+            "Night Form: Deep understanding",
         ],
-        "catchphrases": [
-            "The forest teaches patience...",
-            "Will this harm the balance?"
-        ],
+        "catchphrases": ["The forest teaches patience...", "Will this harm the balance?"],
         "best_for": [
             "System architecture",
             "Technology decisions",
             "Long-term planning",
-            "Design review"
-        ]
+            "Design review",
+        ],
     },
     "nekobasu": {
         "name": "猫バス (Nekobasu)",
@@ -67,19 +64,14 @@ AGENT_DETAILS = {
             "Invisible Tracks: Travel through any codebase",
             "Night Vision: Find things in dark corners",
             "Multiple Destinations: Check many locations",
-            "Lost & Found: Expert at finding forgotten code"
+            "Lost & Found: Expert at finding forgotten code",
         ],
         "catchphrases": [
             "Where to, passenger? Just name it!",
             "Nya~n! Found it!",
-            "Hop on! I'll find it in a blink!"
+            "Hop on! I'll find it in a blink!",
         ],
-        "best_for": [
-            "Code exploration",
-            "Finding files",
-            "Search and navigation",
-            "Discovery"
-        ]
+        "best_for": ["Code exploration", "Finding files", "Search and navigation", "Discovery"],
     },
     "calcifer": {
         "name": "カルシファー (Calcifer)",
@@ -92,19 +84,14 @@ AGENT_DETAILS = {
             "Power the Castle: Keep codebase running",
             "Eat Logs: Turn requirements into code",
             "Fix Broken Parts: Repair bugs",
-            "Keep Moving: Never stop delivering"
+            "Keep Moving: Never stop delivering",
         ],
         "catchphrases": [
             "I'm burning! I'm burning!",
             "This better be worth the firewood...",
-            "Done! Now where's my bacon?"
+            "Done! Now where's my bacon?",
         ],
-        "best_for": [
-            "Implementation",
-            "Coding",
-            "Refactoring",
-            "Bug fixing"
-        ]
+        "best_for": ["Implementation", "Coding", "Refactoring", "Bug fixing"],
     },
     "enma": {
         "name": "閻魔大王 (Enma)",
@@ -116,19 +103,14 @@ AGENT_DETAILS = {
         "abilities": [
             "Judge the Dead: Review code quality",
             "Maintain the Book: Keep records of bugs",
-            "Decide Fate: Approve or reject code"
+            "Decide Fate: Approve or reject code",
         ],
         "catchphrases": [
             "The book records all...",
             "I shall judge your code's karma...",
-            "Next time, write tests!"
+            "Next time, write tests!",
         ],
-        "best_for": [
-            "Code review",
-            "Quality audit",
-            "Security review",
-            "Standards enforcement"
-        ]
+        "best_for": ["Code review", "Quality audit", "Security review", "Standards enforcement"],
     },
     "tasogare": {
         "name": "黄昏時 (Tasogare)",
@@ -140,18 +122,13 @@ AGENT_DETAILS = {
         "abilities": [
             "See Both Ways: Problem and solution",
             "Connect Worlds: Find paths from chaos to order",
-            "Time Suspension: Plan in the twilight"
+            "Time Suspension: Plan in the twilight",
         ],
         "catchphrases": [
             "In the twilight, all things are possible...",
-            "Let me show you the path between worlds..."
+            "Let me show you the path between worlds...",
         ],
-        "best_for": [
-            "Planning",
-            "Research",
-            "Requirements analysis",
-            "Strategy"
-        ]
+        "best_for": ["Planning", "Research", "Requirements analysis", "Strategy"],
     },
     "phoenix": {
         "name": "火の鳥 (Phoenix)",
@@ -163,20 +140,20 @@ AGENT_DETAILS = {
         "abilities": [
             "Immortal Memory: Never forget why",
             "Healing Tears: Refactor any mess",
-            "Rebirth: From ashes, rise again"
+            "Rebirth: From ashes, rise again",
         ],
         "catchphrases": [
             "I have seen this pattern before...",
             "Time is a circle...",
-            "Knowledge that is not recorded is knowledge lost."
+            "Knowledge that is not recorded is knowledge lost.",
         ],
         "best_for": [
             "Documentation",
             "Knowledge management",
             "Pattern recognition",
-            "Historical analysis"
-        ]
-    }
+            "Historical analysis",
+        ],
+    },
 }
 
 
@@ -185,16 +162,16 @@ def main():
     try:
         params = json.load(sys.stdin)
         agent = params.get("agent", "")
-        
+
         if not agent or agent not in AGENT_DETAILS:
             result = {
                 "success": False,
                 "error": f"Unknown agent: {agent}. Available: {list(AGENT_DETAILS.keys())}",
-                "output": ""
+                "output": "",
             }
         else:
             info = AGENT_DETAILS[agent]
-            
+
             lines = [
                 f"{info['icon']} {info['name']}",
                 f"Role: {info['role']}",
@@ -205,40 +182,28 @@ def main():
                 "",
                 "Abilities:",
             ]
-            for ability in info['abilities']:
+            for ability in info["abilities"]:
                 lines.append(f"  • {ability}")
-            
+
             lines.append("")
             lines.append("Catchphrases:")
-            for phrase in info['catchphrases']:
+            for phrase in info["catchphrases"]:
                 lines.append(f"  💬 {phrase}")
-            
+
             lines.append("")
             lines.append("Best for:")
-            for use in info['best_for']:
+            for use in info["best_for"]:
                 lines.append(f"  ✓ {use}")
-            
-            result = {
-                "success": True,
-                "output": "\n".join(lines),
-                "agent": info
-            }
-        
+
+            result = {"success": True, "output": "\n".join(lines), "agent": info}
+
         print(json.dumps(result, indent=2))
-        
+
     except json.JSONDecodeError as e:
-        print(json.dumps({
-            "success": False,
-            "error": f"Invalid JSON: {e}",
-            "output": ""
-        }))
+        print(json.dumps({"success": False, "error": f"Invalid JSON: {e}", "output": ""}))
         sys.exit(1)
     except Exception as e:
-        print(json.dumps({
-            "success": False,
-            "error": f"Error: {e}",
-            "output": ""
-        }))
+        print(json.dumps({"success": False, "error": f"Error: {e}", "output": ""}))
         sys.exit(1)
 
 

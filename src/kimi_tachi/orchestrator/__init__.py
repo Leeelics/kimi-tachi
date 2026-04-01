@@ -31,6 +31,7 @@ try:
         get_tracer,
         reset_tracer,
     )
+
     TRACING_EXPORTS = [
         "AgentEvent",
         "AgentEventType",
@@ -49,6 +50,7 @@ try:
         WorkflowRenderer,
         export_for_kimi_vis,
     )
+
     VIS_EXPORTS = [
         "WorkflowRenderer",
         "VisExporter",
@@ -57,22 +59,26 @@ try:
 except ImportError:
     VIS_EXPORTS = []
 
-__all__ = [
-    "HybridOrchestrator",
-    "NativeAgentOrchestrator",
-    "ContextManager",
-    "WorkflowEngine",
-    "Phase",
-    "Workflow",
-    "WorkflowPhase",
-    "SessionManager",
-    # Native agent exports
-    "AgentPersonality",
-    "AgentType",
-    "AgentResult",
-    "NativeAgentInstance",
-    "PERSONALITY_TO_TYPE",
-    "AGENT_PERSONALITIES",
-    "get_personality_by_name",
-    "get_personality_by_role",
-] + TRACING_EXPORTS + VIS_EXPORTS
+__all__ = (
+    [
+        "HybridOrchestrator",
+        "NativeAgentOrchestrator",
+        "ContextManager",
+        "WorkflowEngine",
+        "Phase",
+        "Workflow",
+        "WorkflowPhase",
+        "SessionManager",
+        # Native agent exports
+        "AgentPersonality",
+        "AgentType",
+        "AgentResult",
+        "NativeAgentInstance",
+        "PERSONALITY_TO_TYPE",
+        "AGENT_PERSONALITIES",
+        "get_personality_by_name",
+        "get_personality_by_role",
+    ]
+    + TRACING_EXPORTS
+    + VIS_EXPORTS
+)

@@ -10,7 +10,6 @@ import json
 import re
 import sys
 import tomllib
-from pathlib import Path
 
 
 def get_pyproject_version() -> str:
@@ -42,44 +41,44 @@ def get_changelog_version() -> str | None:
     with open("CHANGELOG.md") as f:
         content = f.read()
     # Look for ## [x.y.z] pattern
-    match = re.search(r'## \[([\d.]+)\]', content)
+    match = re.search(r"## \[([\d.]+)\]", content)
     return match.group(1) if match else None
 
 
 def check_versions(expected: str | None = None) -> bool:
     """Check all versions are consistent."""
     print("Checking version consistency...\n")
-    
+
     versions = {
         "pyproject.toml": get_pyproject_version(),
         "__init__.py": get_init_version(),
         "plugin.json": get_plugin_version(),
     }
-    
+
     # Display versions
     for source, version in versions.items():
         print(f"  {source:20s}: {version}")
-    
+
     # Check consistency
     unique_versions = set(versions.values())
     if len(unique_versions) != 1:
         print("\n❌ Version mismatch!")
         return False
-    
+
     version = list(unique_versions)[0]
     print(f"\n✅ All versions match: {version}")
-    
+
     # Check against expected version
     if expected:
         # Remove 'v' prefix if present
         expected = expected.lstrip("v")
         if version != expected:
-            print(f"\n❌ Version mismatch with expected!")
+            print("\n❌ Version mismatch with expected!")
             print(f"   Expected: {expected}")
             print(f"   Got:      {version}")
             return False
         print(f"\n✅ Version matches expected: {expected}")
-    
+
     # Check CHANGELOG
     changelog_version = get_changelog_version()
     if changelog_version:
@@ -90,7 +89,7 @@ def check_versions(expected: str | None = None) -> bool:
         print("\n✅ CHANGELOG is up to date")
     else:
         print("\n⚠️  No version found in CHANGELOG")
-    
+
     return True
 
 
@@ -98,12 +97,10 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Check version consistency")
     parser.add_argument(
-        "--expected",
-        help="Expected version (for release validation)",
-        default=None
+        "--expected", help="Expected version (for release validation)", default=None
     )
     args = parser.parse_args()
-    
+
     try:
         if check_versions(args.expected):
             sys.exit(0)

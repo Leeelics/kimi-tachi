@@ -77,12 +77,16 @@ class WorkflowEngine:
 
         # Initialize components
         self.dependency_analyzer = TaskDependencyAnalyzer()
-        self.parallel_scheduler = ParallelScheduler(
-            orchestrator=orchestrator,
-            message_bus=message_bus,
-            metrics_collector=metrics_collector,
-            max_parallel=max_parallel,
-        ) if use_parallel else None
+        self.parallel_scheduler = (
+            ParallelScheduler(
+                orchestrator=orchestrator,
+                message_bus=message_bus,
+                metrics_collector=metrics_collector,
+                max_parallel=max_parallel,
+            )
+            if use_parallel
+            else None
+        )
 
     async def execute(self, workflow: Workflow, task: str) -> list[AgentResult]:
         """
@@ -110,9 +114,7 @@ class WorkflowEngine:
     async def _execute_parallel(self, workflow: Workflow, task: str) -> list[AgentResult]:
         """Execute workflow using parallel scheduler"""
         # Build dependency graph
-        explicit_deps = {
-            p.name: p.dependencies for p in workflow.phases if p.dependencies
-        }
+        explicit_deps = {p.name: p.dependencies for p in workflow.phases if p.dependencies}
 
         graph = self.dependency_analyzer.analyze(
             phases=workflow.phases,
@@ -124,9 +126,9 @@ class WorkflowEngine:
         print("📊 Parallel Analysis:")
         print(f"   Parallel ratio: {analysis['parallel_ratio']:.1%}")
         print(f"   Estimated time reduction: {analysis['estimated_time_reduction']}")
-        if analysis['recommendations']:
+        if analysis["recommendations"]:
             print("   Recommendations:")
-            for rec in analysis['recommendations']:
+            for rec in analysis["recommendations"]:
                 print(f"      • {rec}")
         print()
 

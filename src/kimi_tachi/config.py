@@ -125,6 +125,7 @@ class KimiTachiConfig:
             KIMI_TACHI_SHOW_AGENT_EVENTS: "true" or "false"
             KIMI_TACHI_TRACE_WORKFLOW: "true" or "false"
         """
+
         def get_bool(key: str, default: bool) -> bool:
             value = os.getenv(key, "").lower()
             if value in ("1", "true", "yes", "on"):

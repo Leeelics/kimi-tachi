@@ -139,10 +139,13 @@ class FileContentCache:
                 content = self._get_from_disk(path_str, current_meta)
                 if content is not None:
                     # 加载到内存缓存
-                    self._add_to_memory(path_str, {
-                        "content": content,
-                        "metadata": current_meta,
-                    })
+                    self._add_to_memory(
+                        path_str,
+                        {
+                            "content": content,
+                            "metadata": current_meta,
+                        },
+                    )
                     self._stats.file_cache_hits += 1
                     return content
 
@@ -222,8 +225,7 @@ class FileContentCache:
             return
 
         # 淘汰旧缓存直到有足够空间
-        while (self._current_memory_size + content_size > self.memory_limit
-               and self._memory_cache):
+        while self._current_memory_size + content_size > self.memory_limit and self._memory_cache:
             self._evict_oldest()
 
         # 添加新缓存
@@ -378,10 +380,7 @@ class FileContentCache:
         cleaned = 0
 
         with self._lock:
-            expired = [
-                key for key, entry in self._memory_cache.items()
-                if entry.is_expired()
-            ]
+            expired = [key for key, entry in self._memory_cache.items() if entry.is_expired()]
             for key in expired:
                 self._remove_from_memory(key)
                 cleaned += 1

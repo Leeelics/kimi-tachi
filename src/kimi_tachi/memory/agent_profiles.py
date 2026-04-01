@@ -40,27 +40,27 @@ class MemoryProfile:
 AGENT_MEMORY_PROFILES = {
     "kamaji": MemoryProfile(
         remember_categories=[
-            "user_preferences",      # 用户偏好
-            "architecture_decisions", # 架构决策
-            "project_goals",         # 项目目标
-            "team_conventions",      # 团队约定
+            "user_preferences",  # 用户偏好
+            "architecture_decisions",  # 架构决策
+            "project_goals",  # 项目目标
+            "team_conventions",  # 团队约定
         ],
         recall_on_start=[
             "last_session_summary",  # 上次会话总结
-            "pending_tasks",         # 待办任务
-            "user_preferences",      # 用户偏好
+            "pending_tasks",  # 待办任务
+            "user_preferences",  # 用户偏好
         ],
         recall_triggers=[
-            "new_project",           # 新项目时
-            "architecture_question", # 架构问题时
+            "new_project",  # 新项目时
+            "architecture_question",  # 架构问题时
         ],
         store_on_end=[
-            "session_summary",       # 会话总结
-            "key_decisions",         # 关键决策
+            "session_summary",  # 会话总结
+            "key_decisions",  # 关键决策
             "architecture_changes",  # 架构变更
         ],
         store_triggers=[
-            "user_preference_stated", # 用户明确表达偏好
+            "user_preference_stated",  # 用户明确表达偏好
             "architecture_decision",  # 做出架构决策
         ],
         search_queries=[
@@ -89,31 +89,30 @@ AGENT_MEMORY_PROFILES = {
         - Any architecture changes
         """,
     ),
-
     "nekobasu": MemoryProfile(
         remember_categories=[
-            "code_structure",        # 代码结构
-            "file_relationships",    # 文件关系
-            "explored_paths",        # 已探索路径
-            "common_patterns",       # 常见模式
+            "code_structure",  # 代码结构
+            "file_relationships",  # 文件关系
+            "explored_paths",  # 已探索路径
+            "common_patterns",  # 常见模式
         ],
         recall_on_start=[
-            "code_map",              # 代码地图
-            "recent_changes",        # 最近变更
+            "code_map",  # 代码地图
+            "recent_changes",  # 最近变更
             "explored_directories",  # 已探索目录
         ],
         recall_triggers=[
-            "explore_task",          # 探索任务时
-            "find_code",             # 查找代码时
+            "explore_task",  # 探索任务时
+            "find_code",  # 查找代码时
         ],
         store_on_end=[
-            "exploration_results",   # 探索结果
-            "new_findings",          # 新发现
-            "code_structure_update", # 代码结构更新
+            "exploration_results",  # 探索结果
+            "new_findings",  # 新发现
+            "code_structure_update",  # 代码结构更新
         ],
         store_triggers=[
-            "new_file_discovered",   # 发现新文件
-            "pattern_identified",    # 识别模式
+            "new_file_discovered",  # 发现新文件
+            "pattern_identified",  # 识别模式
         ],
         search_queries=[
             "file structure",
@@ -141,31 +140,30 @@ AGENT_MEMORY_PROFILES = {
         - Updated code structure information
         """,
     ),
-
     "calcifer": MemoryProfile(
         remember_categories=[
             "implementation_patterns",  # 实现模式
-            "testing_strategies",       # 测试策略
-            "common_bugs",              # 常见 bug
-            "library_usage",            # 库使用
+            "testing_strategies",  # 测试策略
+            "common_bugs",  # 常见 bug
+            "library_usage",  # 库使用
         ],
         recall_on_start=[
             "similar_implementations",  # 类似实现
-            "project_patterns",         # 项目模式
-            "library_conventions",      # 库约定
+            "project_patterns",  # 项目模式
+            "library_conventions",  # 库约定
         ],
         recall_triggers=[
-            "implementation_task",      # 实现任务时
-            "bug_fix",                  # 修复 bug 时
+            "implementation_task",  # 实现任务时
+            "bug_fix",  # 修复 bug 时
         ],
         store_on_end=[
-            "code_changes",             # 代码变更
-            "implementation_notes",     # 实现笔记
-            "testing_approach",         # 测试方法
+            "code_changes",  # 代码变更
+            "implementation_notes",  # 实现笔记
+            "testing_approach",  # 测试方法
         ],
         store_triggers=[
-            "pattern_used",             # 使用模式时
-            "bug_fixed",                # 修复 bug 时
+            "pattern_used",  # 使用模式时
+            "bug_fixed",  # 修复 bug 时
         ],
         search_queries=[
             "implementation",
@@ -193,31 +191,30 @@ AGENT_MEMORY_PROFILES = {
         - Testing approach used
         """,
     ),
-
     "enma": MemoryProfile(
         remember_categories=[
-            "code_quality_issues",      # 代码质量问题
-            "review_patterns",          # 审查模式
-            "standards_violations",     # 规范违反
-            "security_concerns",        # 安全问题
+            "code_quality_issues",  # 代码质量问题
+            "review_patterns",  # 审查模式
+            "standards_violations",  # 规范违反
+            "security_concerns",  # 安全问题
         ],
         recall_on_start=[
-            "common_issues",            # 常见问题
-            "project_standards",        # 项目规范
-            "past_reviews",             # 过往审查
+            "common_issues",  # 常见问题
+            "project_standards",  # 项目规范
+            "past_reviews",  # 过往审查
         ],
         recall_triggers=[
-            "review_task",              # 审查任务时
-            "quality_check",            # 质量检查时
+            "review_task",  # 审查任务时
+            "quality_check",  # 质量检查时
         ],
         store_on_end=[
-            "review_results",           # 审查结果
-            "issues_found",             # 发现的问题
-            "recommendations",          # 建议
+            "review_results",  # 审查结果
+            "issues_found",  # 发现的问题
+            "recommendations",  # 建议
         ],
         store_triggers=[
-            "issue_identified",         # 识别问题时
-            "standard_violated",        # 违反规范时
+            "issue_identified",  # 识别问题时
+            "standard_violated",  # 违反规范时
         ],
         search_queries=[
             "code quality",
@@ -245,31 +242,30 @@ AGENT_MEMORY_PROFILES = {
         - Recommendations made
         """,
     ),
-
     "tasogare": MemoryProfile(
         remember_categories=[
-            "research_findings",        # 研究结果
-            "solution_approaches",      # 解决方案
-            "trade_off_analysis",       # 权衡分析
-            "planning_history",         # 规划历史
+            "research_findings",  # 研究结果
+            "solution_approaches",  # 解决方案
+            "trade_off_analysis",  # 权衡分析
+            "planning_history",  # 规划历史
         ],
         recall_on_start=[
-            "similar_tasks",            # 类似任务
-            "past_approaches",          # 过往方法
-            "research_context",         # 研究背景
+            "similar_tasks",  # 类似任务
+            "past_approaches",  # 过往方法
+            "research_context",  # 研究背景
         ],
         recall_triggers=[
-            "planning_task",            # 规划任务时
-            "research_needed",          # 需要研究时
+            "planning_task",  # 规划任务时
+            "research_needed",  # 需要研究时
         ],
         store_on_end=[
-            "planning_results",         # 规划结果
-            "research_summary",         # 研究总结
-            "approach_chosen",          # 选择的方法
+            "planning_results",  # 规划结果
+            "research_summary",  # 研究总结
+            "approach_chosen",  # 选择的方法
         ],
         store_triggers=[
-            "decision_made",            # 做出决策时
-            "research_completed",       # 研究完成时
+            "decision_made",  # 做出决策时
+            "research_completed",  # 研究完成时
         ],
         search_queries=[
             "solution",
@@ -297,31 +293,30 @@ AGENT_MEMORY_PROFILES = {
         - Why certain approaches were chosen
         """,
     ),
-
     "shishigami": MemoryProfile(
         remember_categories=[
-            "system_designs",           # 系统设计
-            "technology_choices",       # 技术选型
-            "scalability_patterns",     # 可扩展性模式
-            "integration_patterns",     # 集成模式
+            "system_designs",  # 系统设计
+            "technology_choices",  # 技术选型
+            "scalability_patterns",  # 可扩展性模式
+            "integration_patterns",  # 集成模式
         ],
         recall_on_start=[
-            "current_architecture",     # 当前架构
-            "design_principles",        # 设计原则
-            "technology_stack",         # 技术栈
+            "current_architecture",  # 当前架构
+            "design_principles",  # 设计原则
+            "technology_stack",  # 技术栈
         ],
         recall_triggers=[
-            "design_task",              # 设计任务时
-            "architecture_review",      # 架构审查时
+            "design_task",  # 设计任务时
+            "architecture_review",  # 架构审查时
         ],
         store_on_end=[
-            "design_decisions",         # 设计决策
-            "architecture_updates",     # 架构更新
-            "technology_rationale",     # 技术选型理由
+            "design_decisions",  # 设计决策
+            "architecture_updates",  # 架构更新
+            "technology_rationale",  # 技术选型理由
         ],
         store_triggers=[
-            "design_pattern_chosen",    # 选择设计模式时
-            "technology_selected",      # 选择技术时
+            "design_pattern_chosen",  # 选择设计模式时
+            "technology_selected",  # 选择技术时
         ],
         search_queries=[
             "architecture",
@@ -349,31 +344,30 @@ AGENT_MEMORY_PROFILES = {
         - Rationale for technology choices
         """,
     ),
-
     "phoenix": MemoryProfile(
         remember_categories=[
-            "knowledge_base",           # 知识库
-            "documentation_patterns",   # 文档模式
-            "common_questions",         # 常见问题
-            "best_practices",           # 最佳实践
+            "knowledge_base",  # 知识库
+            "documentation_patterns",  # 文档模式
+            "common_questions",  # 常见问题
+            "best_practices",  # 最佳实践
         ],
         recall_on_start=[
-            "relevant_knowledge",       # 相关知识
-            "documentation_context",    # 文档背景
-            "similar_questions",        # 类似问题
+            "relevant_knowledge",  # 相关知识
+            "documentation_context",  # 文档背景
+            "similar_questions",  # 类似问题
         ],
         recall_triggers=[
-            "documentation_task",       # 文档任务时
-            "question_asked",           # 被问到问题时
+            "documentation_task",  # 文档任务时
+            "question_asked",  # 被问到问题时
         ],
         store_on_end=[
-            "knowledge_added",          # 新增知识
-            "documentation_updates",    # 文档更新
-            "qa_pairs",                 # 问答对
+            "knowledge_added",  # 新增知识
+            "documentation_updates",  # 文档更新
+            "qa_pairs",  # 问答对
         ],
         store_triggers=[
-            "new_knowledge",            # 新知识时
-            "question_answered",        # 回答问题时
+            "new_knowledge",  # 新知识时
+            "question_answered",  # 回答问题时
         ],
         search_queries=[
             "documentation",
@@ -431,13 +425,13 @@ def get_agent_profile(agent_type: str) -> MemoryProfile:
     """
     return AGENT_MEMORY_PROFILES.get(
         agent_type,
-        MemoryProfile(remember_categories=["general"])  # Default
+        MemoryProfile(remember_categories=["general"]),  # Default
     )
 
 
 def list_agent_profiles() -> dict[str, str]:
     """List all available agent profiles with descriptions."""
     return {
-        name: profile.memory_description.split('\n')[0].strip()
+        name: profile.memory_description.split("\n")[0].strip()
         for name, profile in AGENT_MEMORY_PROFILES.items()
     }

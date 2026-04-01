@@ -270,7 +270,9 @@ class HybridOrchestrator:
                 if self.debug:
                     print("[HybridOrchestrator] Native agent mode enabled")
             except Exception as e:
-                print(f"Warning: NativeAgentOrchestrator not available ({e}), falling back to legacy")
+                print(
+                    f"Warning: NativeAgentOrchestrator not available ({e}), falling back to legacy"
+                )
                 self.use_native_agents = False
                 self._effective_agent_mode = "legacy"
 
@@ -330,6 +332,7 @@ class HybridOrchestrator:
             # Auto-detect based on CLI version
             try:
                 from ..compatibility import check_compatibility
+
                 report = check_compatibility()
                 return "native" if report.is_compatible else "legacy"
             except Exception:

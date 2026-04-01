@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 @dataclass
 class BatchResult:
     """批次执行结果"""
+
     batch_idx: int
     results: dict[str, AgentResult]  # phase_name -> result
     completed: list[str] = field(default_factory=list)
@@ -36,6 +37,7 @@ class BatchResult:
 @dataclass
 class ExecutionContext:
     """执行上下文，在 phases 间共享"""
+
     task: str
     shared_data: dict[str, Any] = field(default_factory=dict)
     intermediate_results: dict[str, AgentResult] = field(default_factory=dict)
@@ -98,6 +100,7 @@ class ParallelScheduler:
             所有 phase 的执行结果
         """
         import uuid
+
         self._execution_id = str(uuid.uuid4())[:8]
         self._completed_phases.clear()
         self._failed_phases.clear()
@@ -182,7 +185,7 @@ class ParallelScheduler:
 
         # 分批处理（考虑 max_parallel 限制）
         for i in range(0, len(phases), self.max_parallel):
-            chunk = phases[i:i + self.max_parallel]
+            chunk = phases[i : i + self.max_parallel]
 
             if len(chunk) == 1:
                 # 单个 phase，串行执行
@@ -208,10 +211,7 @@ class ParallelScheduler:
                 print(f"   🏃 Parallel chunk: {[p.name for p in chunk]}")
 
                 # 创建并行任务
-                tasks = [
-                    self._execute_phase_with_timeout(phase, context, graph)
-                    for phase in chunk
-                ]
+                tasks = [self._execute_phase_with_timeout(phase, context, graph) for phase in chunk]
 
                 # 并行执行
                 chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
