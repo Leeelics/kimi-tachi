@@ -14,7 +14,18 @@ from pathlib import Path
 
 def get_package_version() -> str:
     """Get version from pyproject.toml."""
-    import tomllib
+    try:
+        import tomllib  # Python 3.11+
+    except ImportError:
+        try:
+            import tomli as tomllib  # Python < 3.11
+        except ImportError:
+            # Fallback: parse manually
+            content = Path("pyproject.toml").read_text()
+            for line in content.split("\n"):
+                if line.startswith("version ="):
+                    return line.split("=")[1].strip().strip('"')
+            raise RuntimeError("Could not find version in pyproject.toml") from None
 
     with open("pyproject.toml", "rb") as f:
         data = tomllib.load(f)
@@ -74,16 +85,10 @@ def test_wheel_install() -> bool:
             print(f"❌ Failed to install wheel: {result.stderr}")
             return False
 
-        # Test import using uv run
+        # Test import using venv Python directly
+        python = Path(tmpdir) / "bin" / "python"
         result = subprocess.run(
-            [
-                "uv",
-                "run",
-                "--python",
-                str(tmpdir),
-                "-c",
-                "import kimi_tachi; print(f'kimi-tachi {kimi_tachi.__version__}')",
-            ],
+            [str(python), "-c", "import kimi_tachi; print(f'kimi-tachi {kimi_tachi.__version__}')"],
             capture_output=True,
             text=True,
         )
@@ -101,7 +106,7 @@ def test_wheel_install() -> bool:
 
         # Test CLI
         result = subprocess.run(
-            ["uv", "run", "--python", str(tmpdir), "-m", "kimi_tachi", "--version"],
+            [str(python), "-m", "kimi_tachi", "--version"],
             capture_output=True,
             text=True,
         )
@@ -136,9 +141,10 @@ def test_sdist_install() -> bool:
             print(f"❌ Failed to install sdist: {result.stderr}")
             return False
 
-        # Test import using uv run
+        # Test import using venv Python directly
+        python = Path(tmpdir) / "bin" / "python"
         result = subprocess.run(
-            ["uv", "run", "--python", str(tmpdir), "-c", "import kimi_tachi; print('OK')"],
+            [str(python), "-c", "import kimi_tachi; print('OK')"],
             capture_output=True,
             text=True,
         )
