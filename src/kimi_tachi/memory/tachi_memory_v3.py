@@ -147,15 +147,16 @@ class TachiMemory:
         """Ensure .mnx/ directory and config exist (uses .mnx instead of .memnexus)."""
         mnx_path = self.project_path / ".mnx"
         config_path = mnx_path / "config.yaml"
-        
+
         # Create .mnx directory
         mnx_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Create default config if not exists
         if not config_path.exists():
-            import yaml
             from datetime import datetime
-            
+
+            import yaml
+
             default_config = {
                 "version": "1.0",
                 "project": {
@@ -187,14 +188,14 @@ class TachiMemory:
                     ],
                 },
             }
-            
+
             with open(config_path, "w") as f:
                 yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
-    
+
     async def _initialize_storage(self):
         """Initialize memnexus storage backends."""
         self._storage_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Ensure .mnx/ config exists before memnexus init
         self._ensure_mnx_config()
 
@@ -459,16 +460,16 @@ class TachiMemory:
             console.print(f"[yellow]Code search failed: {e}[/yellow]")
             return []
 
-    def close(self):
+    async def close(self):
         """Close all memnexus connections."""
         if self._mn_explorer:
             self._mn_explorer.close()
         if self._mn_deduplicator:
             self._mn_deduplicator.close()
         if self._mn_memory:
-            self._mn_memory.close()
+            await self._mn_memory.close()
         if self._mn_global:
-            self._mn_global.close()
+            await self._mn_global.close()
 
 
 # Singleton instance

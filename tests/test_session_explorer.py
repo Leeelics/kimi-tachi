@@ -175,7 +175,7 @@ class TestTachiMemoryIntegration:
             assert "related_decisions" in context
             assert "formatted_output" in context
 
-            memory.close()
+            await memory.close()
 
         # 清理
         for f in sessions_dir.glob("tachi_test_*.json"):
@@ -204,4 +204,4 @@ class TestTachiMemoryIntegration:
             _ = await memory.store_decision("Use Docker for deployment", {"source": "test"})
             # 注意：由于 memnexus 的实现，这里可能返回 None 或新的 fingerprint
 
-            memory.close()
+            await memory.close()
