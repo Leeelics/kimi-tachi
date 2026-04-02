@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Test that built packages can be installed and imported.
 
@@ -20,7 +22,7 @@ def get_package_version() -> str:
     return data["project"]["version"]
 
 
-def find_wheel() -> Path | None:
+def find_wheel() -> Path | None:  # noqa: UP007
     """Find built wheel in dist/."""
     dist_dir = Path("dist")
     if not dist_dir.exists():
