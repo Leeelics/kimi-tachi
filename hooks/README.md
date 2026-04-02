@@ -21,7 +21,7 @@ kimi
 
 ### pre-push
 
-自动在 push 前运行 CI 检查（lint + test + version check）：
+自动在 push 前运行完整的 CI 检查，确保代码质量：
 
 ```bash
 # 安装 pre-push hook
@@ -32,15 +32,29 @@ chmod +x .git/hooks/pre-push
 # 检查失败会阻止 push
 ```
 
-**检查内容：**
-1. `make check` - Lint 和格式检查
-2. `make test` - 运行所有测试
-3. `scripts/check_version.py` - 版本一致性检查
+**检查内容（5步）：**
 
-**跳过检查（紧急情况下）：**
+| 步骤 | 命令 | 说明 | 可跳过 |
+|------|------|------|--------|
+| 1 | `make check` | Lint 和格式检查 | `SKIP_LINT=1` |
+| 2 | `make test` | 运行所有测试 | `SKIP_TESTS=1` |
+| 3 | `scripts/check_version.py` | 版本一致性检查 | - |
+| 4 | `make changelog-check` | CHANGELOG 更新检查 | - |
+| 5 | `make build` + `make build-check` | 打包和安装测试 | `SKIP_BUILD=1` |
+
+**快速 push（跳过耗时检查）：**
 ```bash
-git push --no-verify  # 跳过 pre-push hook
+# 仅跳过 build（推荐用于日常开发）
+SKIP_BUILD=1 git push
+
+# 跳过多个检查
+SKIP_BUILD=1 SKIP_TESTS=1 git push
+
+# 完全跳过所有检查（紧急情况下）
+git push --no-verify
 ```
+
+> ⚠️ **注意**：`--no-verify` 会跳过所有检查，可能导致 CI 失败。建议仅在紧急修复时使用。
 
 ## kimi-cli Hooks
 
