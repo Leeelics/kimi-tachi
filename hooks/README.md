@@ -17,7 +17,32 @@ kimi
 > /hooks
 ```
 
-## 可用的 Hooks
+## Git Hooks
+
+### pre-push
+
+自动在 push 前运行 CI 检查（lint + test + version check）：
+
+```bash
+# 安装 pre-push hook
+cp hooks/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+
+# 现在每次 git push 都会自动检查
+# 检查失败会阻止 push
+```
+
+**检查内容：**
+1. `make check` - Lint 和格式检查
+2. `make test` - 运行所有测试
+3. `scripts/check_version.py` - 版本一致性检查
+
+**跳过检查（紧急情况下）：**
+```bash
+git push --no-verify  # 跳过 pre-push hook
+```
+
+## kimi-cli Hooks
 
 | Hook | 事件 | 功能 |
 |------|------|------|
