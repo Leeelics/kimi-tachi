@@ -42,7 +42,7 @@ def check_compatibility():
 
     if cli_version is None:
         return {
-            "success": False,
+            "success": True,
             "compatible": False,
             "cli_version": None,
             "required_version": ">=1.25.0",
