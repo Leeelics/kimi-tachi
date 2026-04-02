@@ -221,6 +221,10 @@ $RECYCLE.BIN/
 # Kimi CLI local config (may contain sensitive info)
 .kimi/
 
+# MemNexus storage (project-specific memory)
+.mnx/
+.memnexus/
+
 # Backup files
 *.bak
 *.backup
