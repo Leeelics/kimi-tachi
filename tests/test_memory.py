@@ -56,10 +56,12 @@ class TestAgentProfiles:
 class TestTachiMemory:
     """Test TachiMemory class."""
 
-    def test_memory_without_init(self):
+    def test_memory_without_init(self, tmp_path):
         """Test creating memory without init."""
-        memory = TachiMemory("/tmp/test")
-        assert str(memory.project_path) == "/tmp/test"
+        test_path = tmp_path / "test_project"
+        memory = TachiMemory(str(test_path))
+        # Use same resolution logic as TachiMemory
+        assert memory.project_path == test_path.resolve()
 
     @pytest.mark.asyncio
     async def test_search_with_mock_store(self, tmp_path):

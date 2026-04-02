@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
-"""
-Test that built packages can be installed and imported.
+"""Test that built packages can be installed and imported.
 
 Inspired by kimi-cli's smoke test for binaries.
 """
+
+from __future__ import annotations
 
 import subprocess
 import sys
@@ -59,27 +58,32 @@ def test_wheel_install() -> bool:
     print(f"Testing wheel: {wheel.name}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create virtual environment
-        venv_path = Path(tmpdir) / "venv"
-        result = subprocess.run(
-            [sys.executable, "-m", "venv", str(venv_path)], capture_output=True, text=True
-        )
+        # Use uv to create venv and install
+        result = subprocess.run(["uv", "venv", str(tmpdir)], capture_output=True, text=True)
         if result.returncode != 0:
-            print(f"❌ Failed to create venv: {result.stderr}")
+            print(f"❌ Failed to create venv with uv: {result.stderr}")
             return False
 
-        pip = venv_path / "bin" / "pip"
-        python = venv_path / "bin" / "python"
-
-        # Install wheel
-        result = subprocess.run([str(pip), "install", str(wheel)], capture_output=True, text=True)
+        # Install wheel using uv
+        result = subprocess.run(
+            ["uv", "pip", "install", "--python", str(tmpdir), str(wheel)],
+            capture_output=True,
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to install wheel: {result.stderr}")
             return False
 
-        # Test import
+        # Test import using uv run
         result = subprocess.run(
-            [str(python), "-c", "import kimi_tachi; print(f'kimi-tachi {kimi_tachi.__version__}')"],
+            [
+                "uv",
+                "run",
+                "--python",
+                str(tmpdir),
+                "-c",
+                "import kimi_tachi; print(f'kimi-tachi {kimi_tachi.__version__}')",
+            ],
             capture_output=True,
             text=True,
         )
@@ -97,7 +101,9 @@ def test_wheel_install() -> bool:
 
         # Test CLI
         result = subprocess.run(
-            [str(python), "-m", "kimi_tachi", "--version"], capture_output=True, text=True
+            ["uv", "run", "--python", str(tmpdir), "-m", "kimi_tachi", "--version"],
+            capture_output=True,
+            text=True,
         )
         if result.returncode != 0:
             print(f"  ⚠️  CLI --version failed: {result.stderr}")
@@ -117,21 +123,24 @@ def test_sdist_install() -> bool:
     print(f"Testing sdist: {sdist.name}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        venv_path = Path(tmpdir) / "venv"
-        subprocess.run([sys.executable, "-m", "venv", str(venv_path)], capture_output=True)
+        # Use uv to create venv and install
+        subprocess.run(["uv", "venv", str(tmpdir)], capture_output=True)
 
-        pip = venv_path / "bin" / "pip"
-        python = venv_path / "bin" / "python"
-
-        # Install sdist
-        result = subprocess.run([str(pip), "install", str(sdist)], capture_output=True, text=True)
+        # Install sdist using uv
+        result = subprocess.run(
+            ["uv", "pip", "install", "--python", str(tmpdir), str(sdist)],
+            capture_output=True,
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to install sdist: {result.stderr}")
             return False
 
-        # Test import
+        # Test import using uv run
         result = subprocess.run(
-            [str(python), "-c", "import kimi_tachi; print('OK')"], capture_output=True, text=True
+            ["uv", "run", "--python", str(tmpdir), "-c", "import kimi_tachi; print('OK')"],
+            capture_output=True,
+            text=True,
         )
         if result.returncode != 0:
             print(f"❌ Failed to import from sdist: {result.stderr}")
