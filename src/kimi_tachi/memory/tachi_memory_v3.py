@@ -143,9 +143,60 @@ class TachiMemory:
         await instance._initialize_storage()
         return instance
 
+    def _ensure_mnx_config(self):
+        """Ensure .mnx/ directory and config exist (uses .mnx instead of .memnexus)."""
+        mnx_path = self.project_path / ".mnx"
+        config_path = mnx_path / "config.yaml"
+        
+        # Create .mnx directory
+        mnx_path.mkdir(parents=True, exist_ok=True)
+        
+        # Create default config if not exists
+        if not config_path.exists():
+            import yaml
+            from datetime import datetime
+            
+            default_config = {
+                "version": "1.0",
+                "project": {
+                    "name": self.project_path.name,
+                    "root": str(self.project_path),
+                    "initialized_at": datetime.now().isoformat(),
+                },
+                "memory": {
+                    "backend": "lancedb",
+                    "path": ".mnx/memory.lance",
+                },
+                "embedding": {
+                    "method": "tfidf",
+                    "dim": 384,
+                },
+                "git": {
+                    "enabled": True,
+                    "max_history": 1000,
+                },
+                "code": {
+                    "languages": ["python", "javascript", "typescript", "rust", "go"],
+                    "exclude_patterns": [
+                        "*.pyc",
+                        "__pycache__/",
+                        "node_modules/",
+                        ".git/",
+                        ".venv/",
+                        ".mnx/",
+                    ],
+                },
+            }
+            
+            with open(config_path, "w") as f:
+                yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
+    
     async def _initialize_storage(self):
         """Initialize memnexus storage backends."""
         self._storage_path.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure .mnx/ config exists before memnexus init
+        self._ensure_mnx_config()
 
         # CodeMemory for project-specific memories
         try:
