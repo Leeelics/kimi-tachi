@@ -68,6 +68,17 @@ except ImportError:
     AgentPersonality = None
     PERSONALITY_TO_TYPE = None
 
+# Optional team management import
+try:
+    from ..team import AgentNotFoundError, TeamManager, TeamNotFoundError
+
+    TEAM_AVAILABLE = True
+except ImportError:
+    TEAM_AVAILABLE = False
+    TeamManager = None
+    TeamNotFoundError = Exception
+    AgentNotFoundError = Exception
+
 
 @dataclass
 class AgentResult:
@@ -375,9 +386,41 @@ class HybridOrchestrator:
 
     def _get_agent_file(self, agent: str) -> Path:
         """Get agent YAML file path"""
+        # Try TeamManager first (new multi-team mode)
+        if TEAM_AVAILABLE:
+            try:
+                manager = TeamManager()
+                resolved = manager.resolve_agent(agent)
+                return Path(resolved.agent_file)
+            except (TeamNotFoundError, AgentNotFoundError):
+                pass  # Fall back to legacy mode
+
+        # Legacy mode (single team)
         if agent not in self.AGENT_MAP:
             raise ValueError(f"Unknown agent: {agent}. Available: {list(self.AGENT_MAP.keys())}")
         return self.agents_dir / self.AGENT_MAP[agent]["file"]
+
+    def _get_agent_info(self, agent: str) -> dict:
+        """Get agent information (name, role, description)."""
+        # Try TeamManager first
+        if TEAM_AVAILABLE:
+            try:
+                manager = TeamManager()
+                resolved = manager.resolve_agent(agent)
+                team = resolved.team
+                info = team.agents.get(resolved.agent_name, {})
+                return {
+                    "name": info.get("name", resolved.agent_name),
+                    "role": info.get("role", "unknown"),
+                    "description": info.get("description", ""),
+                }
+            except (TeamNotFoundError, AgentNotFoundError):
+                pass  # Fall back to legacy mode
+
+        # Legacy mode
+        if agent not in self.AGENT_MAP:
+            raise ValueError(f"Unknown agent: {agent}")
+        return self.AGENT_MAP[agent]
 
     async def delegate(
         self,
@@ -435,7 +478,8 @@ class HybridOrchestrator:
         if self._agent_factory is None:
             raise RuntimeError("AgentFactory not initialized")
 
-        agent_info = self.AGENT_MAP[agent]
+        # Get agent info from TeamManager or fallback to AGENT_MAP
+        agent_info = self._get_agent_info(agent)
         print(f"◕‿◕ Creating dynamic subagent {agent_info['name']}: {task[:60]}...")
 
         try:
@@ -547,7 +591,8 @@ class HybridOrchestrator:
         # Build full prompt with shared context
         full_prompt = self._build_prompt(agent, task, context)
 
-        print(f"◕‿◕ Delegating to {self.AGENT_MAP[agent]['name']}: {task[:60]}...")
+        agent_info = self._get_agent_info(agent)
+        print(f"◕‿◕ Delegating to {agent_info['name']}: {task[:60]}...")
 
         # Get session ID from manager if available
         managed_session = None
@@ -627,8 +672,10 @@ class HybridOrchestrator:
             parts.append(f"\n## Additional Context\n{extra_context}")
 
         # Add agent-specific instructions
-        agent_info = self.AGENT_MAP[agent]
-        parts.append(f"\n## Your Role\nYou are {agent_info['name']} - {agent_info['description']}")
+        agent_info = self._get_agent_info(agent)
+        parts.append(
+            f"\n## Your Role\nYou are {agent_info['name']} - {agent_info.get('description', '')}"
+        )
 
         return "\n\n".join(parts)
 
@@ -646,7 +693,8 @@ class HybridOrchestrator:
                     self.shared_context.files_modified.append(file)
 
         # Store learning summary
-        learning = f"{self.AGENT_MAP[agent]['name']}: {result.task[:50]}..."
+        agent_info = self._get_agent_info(agent)
+        learning = f"{agent_info['name']}: {result.task[:50]}..."
         self.shared_context.learnings.append(learning)
 
     async def analyze_task_complexity(self, task: str) -> dict[str, Any]:
@@ -839,7 +887,10 @@ Respond in JSON format:
         print("=" * 60)
 
         for i, result in enumerate(results, 1):
-            agent_info = self.AGENT_MAP[result.agent]
+            try:
+                agent_info = self._get_agent_info(result.agent)
+            except ValueError:
+                agent_info = {"name": result.agent}
             status = "✅" if result.returncode == 0 else "❌"
             print(f"\n{i}. {status} {agent_info['name']}")
             print(f"   Task: {result.task[:60]}...")

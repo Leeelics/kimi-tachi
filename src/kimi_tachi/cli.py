@@ -26,6 +26,17 @@ except ImportError:
     TachiMemory = None
     AGENT_MEMORY_PROFILES = {}
 
+# Team management
+try:
+    from kimi_tachi.team import AgentNotFoundError, TeamManager, TeamNotFoundError
+
+    TEAM_AVAILABLE = True
+except ImportError:
+    TEAM_AVAILABLE = False
+    TeamManager = None
+    TeamNotFoundError = Exception
+    AgentNotFoundError = Exception
+
 app = typer.Typer(
     name="kimi-tachi",
     help="Multi-agent task orchestration for Kimi CLI",
@@ -64,7 +75,7 @@ KIMI_TACHI_DIR = KIMI_CONFIG_DIR / "agents" / "kimi-tachi"
 # Package data directory (for agents, skills, plugins)
 PACKAGE_DIR = Path(__file__).parent  # src/kimi_tachi when installed
 
-# Agent definitions with anime characters
+# Legacy agent definitions (for backward compatibility)
 AGENTS = {
     "kamaji": {
         "name": "釜爺 (Kamaji)",
@@ -175,6 +186,120 @@ def _get_saved_default_agent() -> str | None:
     return None
 
 
+# ========== Team Management Commands ==========
+
+
+@app.command()
+def teams(
+    action: Annotated[str, typer.Argument(help="Action: list, switch, info, current")] = "list",
+    team_id: Annotated[str | None, typer.Argument(help="Team ID (for switch/info)")] = None,
+):
+    """Manage kimi-tachi teams."""
+    if not TEAM_AVAILABLE:
+        typer.echo("❌ Team management not available.", err=True)
+        raise typer.Exit(1)
+
+    manager = TeamManager()
+
+    if action == "list":
+        _list_teams(manager)
+
+    elif action == "switch":
+        if not team_id:
+            typer.echo("Error: team_id required for switch", err=True)
+            raise typer.Exit(1)
+        _switch_team(manager, team_id)
+
+    elif action == "info":
+        if not team_id:
+            team_id = manager.current_team.id
+        _show_team_info(manager, team_id)
+
+    elif action == "current":
+        team = manager.current_team
+        typer.echo(f"Current team: {team.name} ({team.id})")
+        typer.echo(f"Coordinator: {team.coordinator}")
+
+    else:
+        typer.echo(f"Unknown action: {action}", err=True)
+        typer.echo("Available actions: list, switch, info, current", err=True)
+        raise typer.Exit(1)
+
+
+def _list_teams(manager: TeamManager):
+    """List all available teams."""
+    teams = manager.list_teams()
+    current = manager.current_team
+
+    typer.echo("\n" + "=" * 60)
+    typer.echo("Available Teams")
+    typer.echo("=" * 60)
+
+    for team in teams:
+        marker = " → " if team.id == current.id else "   "
+        typer.echo(f"{marker}{team.id:<20} {team.name}")
+        typer.echo(f"   {' ' * 20} {team.description}")
+
+    typer.echo("=" * 60)
+    typer.echo(f"\nCurrent: {current.name} ({current.id})")
+    typer.echo("Use 'kimi-tachi teams switch <team-id>' to change")
+
+
+def _switch_team(manager: TeamManager, team_id: str):
+    """Switch to a different team."""
+    try:
+        old_team = manager.current_team
+        manager.switch_team(team_id)
+        new_team = manager.current_team
+
+        typer.echo(f"\n✅ Switched from '{old_team.name}' to '{new_team.name}'")
+        typer.echo(f"   Coordinator: {new_team.coordinator}")
+        typer.echo("\nStart with: kimi-tachi start")
+
+    except TeamNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+def _show_team_info(manager: TeamManager, team_id: str):
+    """Show detailed information about a team."""
+    try:
+        team = manager.get_team(team_id)
+        is_current = team.id == manager.current_team.id
+
+        typer.echo("\n" + "=" * 60)
+        typer.echo(f"Team: {team.name}")
+        if is_current:
+            typer.echo(" [CURRENT]")
+        typer.echo("=" * 60)
+        typer.echo(f"ID: {team.id}")
+        typer.echo(f"Description: {team.description}")
+        typer.echo(f"Coordinator: {team.coordinator}")
+        typer.echo(f"Theme: {team.theme}")
+        typer.echo(f"Agents Dir: agents/{team.agents_dir}")
+
+        # List agents
+        agents = manager._list_available_agents(team)
+        typer.echo(f"\nAgents ({len(agents)}):")
+        for agent in agents:
+            info = team.agents.get(agent, {})
+            name = info.get("name", agent)
+            role = info.get("role", "unknown")
+            typer.echo(f"  - {agent:<15} {name} ({role})")
+
+        # Workflow patterns
+        if team.workflow_patterns:
+            typer.echo("\nWorkflow Patterns:")
+            for pattern, flow in team.workflow_patterns.items():
+                typer.echo(f"  {pattern}: {flow}")
+
+        typer.echo("=" * 60)
+
+    except TeamNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
 @app.command()
 def setup():
     """Interactive setup for kimi-tachi - choose your default agent."""
@@ -218,16 +343,32 @@ def install(
     KIMI_TACHI_DIR.mkdir(parents=True, exist_ok=True)
     (KIMI_CONFIG_DIR / "skills").mkdir(exist_ok=True)
 
-    # Copy agents
+    # Copy agents (including teams.yaml and all team subdirectories)
     agents_source = PACKAGE_DIR / "agents"
     if agents_source.exists():
-        for agent_file in agents_source.glob("*.yaml"):
-            dest = KIMI_TACHI_DIR / agent_file.name
+        # Copy teams.yaml
+        teams_yaml = agents_source / "teams.yaml"
+        if teams_yaml.exists():
+            dest = KIMI_TACHI_DIR / "teams.yaml"
             if dest.exists() and not force:
-                typer.echo(f"Skipping {agent_file.name} (already exists, use --force to overwrite)")
+                typer.echo("Skipping teams.yaml (already exists, use --force to overwrite)")
             else:
-                shutil.copy2(agent_file, dest)
-                typer.echo(f"Installed agent: {agent_file.name}")
+                shutil.copy2(teams_yaml, dest)
+                typer.echo("Installed: teams.yaml")
+
+        # Copy all team subdirectories
+        for item in agents_source.iterdir():
+            if item.is_dir():
+                # Copy entire team directory
+                dest = KIMI_TACHI_DIR / item.name
+                if dest.exists() and not force:
+                    typer.echo(f"Skipping team {item.name} (already exists)")
+                else:
+                    if dest.exists():
+                        shutil.rmtree(dest)
+                    shutil.copytree(item, dest)
+                    yaml_count = len(list(dest.glob("*.yaml")))
+                    typer.echo(f"Installed team: {item.name} ({yaml_count} agents)")
 
     # Copy skills
     skills_source = PACKAGE_DIR / "skills"
@@ -281,19 +422,39 @@ def install(
 @app.command()
 def run(
     agent: Annotated[str, typer.Option("--agent", "-a", help="Agent to use")] = "kamaji",
+    team: Annotated[
+        str | None, typer.Option("--team", "-t", help="Team to use (overrides current)")
+    ] = None,
     yolo: Annotated[bool, typer.Option("--yolo", "-y", help="Auto-approve all actions")] = False,
     plan: Annotated[bool, typer.Option("--plan", "-p", help="Start in plan mode")] = False,
     work_dir: Annotated[str, typer.Option("--work-dir", "-w", help="Working directory")] = ".",
 ):
     """Run Kimi CLI with kimi-tachi agent."""
 
-    agent_file = KIMI_TACHI_DIR / f"{agent}.yaml"
+    # Use TeamManager if available
+    if TEAM_AVAILABLE and team:
+        manager = TeamManager()
+        try:
+            manager.set_explicit_team(team)
+            resolved = manager.resolve_agent(f"{team}.{agent}")
+            agent_file = Path(resolved.agent_file)
+            typer.echo(f"🎭 Using team '{manager.effective_team.name}' with {agent}")
+        except (TeamNotFoundError, AgentNotFoundError) as e:
+            typer.echo(f"Error: {e}", err=True)
+            sys.exit(1)
+    else:
+        # Legacy mode
+        agent_file = KIMI_TACHI_DIR / f"{agent}.yaml"
+
     if not agent_file.exists():
         typer.echo(f"Error: Agent '{agent}' not found at {agent_file}", err=True)
-        typer.echo(
-            f"Available agents: {', '.join(a.stem for a in KIMI_TACHI_DIR.glob('*.yaml'))}",
-            err=True,
-        )
+        if TEAM_AVAILABLE:
+            typer.echo("Use 'kimi-tachi teams list' to see available teams and agents.", err=True)
+        else:
+            typer.echo(
+                f"Available agents: {', '.join(a.stem for a in KIMI_TACHI_DIR.glob('*.yaml'))}",
+                err=True,
+            )
         sys.exit(1)
 
     kimi_path = _get_kimi_path()
@@ -335,9 +496,46 @@ def do(
 
 
 @app.command()
-def list_agents():
+def list_agents(
+    team: Annotated[
+        str | None, typer.Option("--team", "-t", help="Team to list agents for")
+    ] = None,
+):
     """List available agents."""
 
+    # Use TeamManager if available
+    if TEAM_AVAILABLE:
+        manager = TeamManager()
+
+        if team:
+            try:
+                target_team = manager.get_team(team)
+            except TeamNotFoundError as e:
+                typer.echo(f"Error: {e}", err=True)
+                sys.exit(1)
+        else:
+            target_team = manager.current_team
+
+        typer.echo(f"\nAvailable agents for {target_team.name}:\n")
+
+        agents = manager._list_available_agents(target_team)
+        for agent_name in agents:
+            info = target_team.agents.get(agent_name, {})
+            display_name = info.get("name", agent_name)
+            role = info.get("role", "unknown")
+            icon = info.get("icon", "🤖")
+            desc = info.get("description", "")
+
+            marker = "→ " if agent_name == target_team.coordinator else "  "
+            typer.echo(f"{marker}{icon} {agent_name:<15} {display_name} - {role}")
+            if desc:
+                typer.echo(f"   {' ' * 20} {desc}")
+
+        typer.echo(f"\nCurrent team: {target_team.id}")
+        typer.echo("Use '--team <team-id>' to list agents from another team")
+        return
+
+    # Legacy mode
     if not KIMI_TACHI_DIR.exists():
         typer.echo("kimi-tachi not installed. Run 'kimi-tachi install' first.")
         sys.exit(1)
@@ -1043,11 +1241,38 @@ def traces(
             typer.echo()
 
 
-def _run_kimi(agent: str, yolo: bool, work_dir: str):
+def _run_kimi(agent: str | None, yolo: bool, work_dir: str):
     """Helper to run kimi with agent."""
-    agent_file = KIMI_TACHI_DIR / f"{agent}.yaml"
+
+    # Use TeamManager if available
+    if TEAM_AVAILABLE:
+        manager = TeamManager()
+
+        if agent is None:
+            # Use current team's coordinator
+            coordinator = manager.get_coordinator_agent()
+            agent_file = Path(coordinator.agent_file)
+            agent_name = coordinator.agent_name
+            team_name = manager.current_team.name
+            typer.echo(f"🎭 Starting {team_name} with {agent_name}...")
+        else:
+            # Use specified agent from current team
+            try:
+                resolved = manager.resolve_agent(agent)
+                agent_file = Path(resolved.agent_file)
+                agent_name = resolved.agent_name
+            except AgentNotFoundError as e:
+                typer.echo(f"Error: {e}", err=True)
+                sys.exit(1)
+    else:
+        # Legacy mode
+        if agent is None:
+            agent = "kamaji"
+        agent_file = KIMI_TACHI_DIR / f"{agent}.yaml"
+        agent_name = agent
+
     if not agent_file.exists():
-        typer.echo(f"Error: Agent '{agent}' not found at {agent_file}", err=True)
+        typer.echo(f"Error: Agent '{agent_name}' not found at {agent_file}", err=True)
         typer.echo("Run 'kimi-tachi install' first.", err=True)
         sys.exit(1)
 
@@ -1057,17 +1282,17 @@ def _run_kimi(agent: str, yolo: bool, work_dir: str):
     if yolo:
         cmd.append("--yolo")
 
-    typer.echo(f"◕‿◕ Starting kimi-tachi with {agent}...")
+    typer.echo(f"◕‿◕ Starting kimi-tachi with {agent_name}...")
     subprocess.run(cmd)
 
 
 def main():
-    # If no command provided, start interactive session with kamaji
+    # If no command provided, start interactive session with current team's coordinator
     if len(sys.argv) > 1 and sys.argv[1] in ["--help", "-h", "--version", "-V"]:
         app()
     elif len(sys.argv) == 1:
-        # No args - start interactive session
-        _run_kimi("kamaji", False, ".")
+        # No args - start interactive session with current team's coordinator
+        _run_kimi(None, False, ".")
     else:
         app()
 

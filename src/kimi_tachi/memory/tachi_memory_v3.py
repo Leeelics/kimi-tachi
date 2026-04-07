@@ -31,6 +31,15 @@ except ImportError as e:
     MEMNEXUS_AVAILABLE = False
     _import_error = e
 
+# Team management
+try:
+    from ..team import TeamManager
+
+    TEAM_AVAILABLE = True
+except ImportError:
+    TEAM_AVAILABLE = False
+    TeamManager = None
+
 console = Console()
 
 
@@ -46,6 +55,10 @@ class MemoryConfig:
     enable_global: bool = True
     global_project_name: str | None = None
 
+    # Team isolation settings
+    team_id: str | None = None  # Team ID for memory isolation
+    enable_shared_memory: bool = True  # Enable cross-team shared memory layer
+
     # Auto-memory settings
     auto_recall: bool = True
     auto_store: bool = True
@@ -57,7 +70,12 @@ class MemoryConfig:
 
     def __post_init__(self):
         if self.storage_path is None:
-            self.storage_path = os.path.join(self.project_path, ".kimi-tachi", "memory")
+            base_path = os.path.join(self.project_path, ".kimi-tachi", "memory")
+            # Add team subdirectory if team_id is specified
+            if self.team_id:
+                self.storage_path = os.path.join(base_path, self.team_id)
+            else:
+                self.storage_path = base_path
 
 
 class _MemoryWrapper:
@@ -474,19 +492,70 @@ class TachiMemory:
 
 # Singleton instance
 _memory_instance: TachiMemory | None = None
+_team_memory_instances: dict[str, TachiMemory] = {}  # team_id -> TachiMemory
 
 
-async def get_memory(project_path: str = ".") -> TachiMemory:
-    """Get or create singleton TachiMemory instance."""
-    global _memory_instance
+async def get_memory(project_path: str = ".", team_id: str | None = None) -> TachiMemory:
+    """
+    Get or create singleton TachiMemory instance.
+
+    Args:
+        project_path: Project path
+        team_id: Optional team ID for team-specific memory
+
+    Returns:
+        TachiMemory instance (team-specific or global)
+    """
+    global _memory_instance, _team_memory_instances
+
+    # If team_id specified, use team-specific instance
+    if team_id:
+        if team_id not in _team_memory_instances:
+            config = MemoryConfig(project_path=project_path, team_id=team_id)
+            _team_memory_instances[team_id] = await TachiMemory.init(project_path, config)
+        return _team_memory_instances[team_id]
+
+    # Otherwise use global instance
     if _memory_instance is None:
         _memory_instance = await TachiMemory.init(project_path)
     return _memory_instance
 
 
-def reset_memory():
-    """Reset singleton instance (useful for testing)."""
-    global _memory_instance
-    if _memory_instance:
-        _memory_instance.close()
-    _memory_instance = None
+async def get_memory_for_current_team(project_path: str = ".") -> TachiMemory:
+    """
+    Get TachiMemory instance for the current team.
+
+    Automatically detects the current team from TeamManager.
+    """
+    if TEAM_AVAILABLE and TeamManager:
+        manager = TeamManager()
+        team_id = manager.get_effective_team_id()
+        return await get_memory(project_path, team_id)
+
+    # Fallback to global memory
+    return await get_memory(project_path)
+
+
+def reset_memory(team_id: str | None = None):
+    """
+    Reset singleton instance (useful for testing).
+
+    Args:
+        team_id: Specific team to reset, or None to reset all
+    """
+    global _memory_instance, _team_memory_instances
+
+    if team_id:
+        # Reset specific team
+        if team_id in _team_memory_instances:
+            _team_memory_instances[team_id].close()
+            del _team_memory_instances[team_id]
+    else:
+        # Reset all
+        if _memory_instance:
+            _memory_instance.close()
+        _memory_instance = None
+
+        for tm in _team_memory_instances.values():
+            tm.close()
+        _team_memory_instances.clear()
