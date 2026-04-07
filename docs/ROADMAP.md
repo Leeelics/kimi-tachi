@@ -1,8 +1,61 @@
 # kimi-tachi Roadmap
 
-> 基于 kimi-cli 源码分析和 hello-agents 最佳实践的策略性迭代计划
+> **核心理念**：将软件工程问题转化为动漫角色分工问题
 > 
-> 最后更新: 2026-03-20
+> 最后更新: 2026-04-07
+
+---
+
+## 🎭 愿景与方向
+
+### 为什么用动漫角色？
+
+1. **性格即策略**：每个角色代表一种解决策略
+   - 釜爺(kamaji) = 协调 · 总接口
+   - 山兽神(shishigami) = 沉思 · 架构设计  
+   - 猫巴士(nekobasu) = 速度 · 代码探索
+   - 火魔(calcifer) = 实现 · 代码构建
+   - 阎魔王(enma) = 审查 · 质量保证
+   - 黄昏(tasogare) = 规划 · 任务分析
+   - 火之鸟(phoenix) = 记忆 · 知识管理
+
+2. **情感共鸣**：比冷冰冰的 "executor", "planner" 更生动
+
+3. **团队感**：就像动画里的团队冒险，各司其职
+
+```
+    宫崎骏 (4/7)          新海诚 (1/7)     手冢治虫 (1/7)     鸟山明 (1/7)
+         │                    │                │               │
+    ┌────┴────┐              │                │               │
+    ▼    ▼    ▼              ▼                ▼               ▼
+ kamaji  shishigami  nekobasu  calcifer   tasogare       phoenix      enma
+  (釜爺)   (山兽神)   (猫巴士)   (火魔)      (黄昏)        (火之鸟)    (阎魔王)
+    │        │          │         │          │             │           │
+ 协调者   架构师    侦察兵    工匠      规划师        图书管理员    审查员
+```
+
+---
+
+## ✅ 已完成
+
+### Multi-Team Support (v0.7.0) ✅
+- [x] TeamManager - 团队隔离和管理中心
+- [x] Agent 重组 - coding / content 团队
+- [x] CLI 团队管理命令 - `teams list/switch/info`
+- [x] Team-scoped memory - 团队隔离记忆
+- [x] 动态团队切换 - 运行时切换团队
+
+### Phase 2: 架构优化 ✅
+- [x] Dynamic Agent 创建 - MCP 进程 7→2
+- [x] 消息总线架构 - 延迟 <100ms
+- [x] 并行 Workflow 执行 - ≥40% 并行率
+- [x] 上下文缓存优化 - ≥80% 命中率
+
+### Memory System ✅
+- [x] TachiMemory v3 - 智能 Session 探查
+- [x] DecisionDeduplicator - 决策去重
+- [x] MemNexus 集成 - 存储后端
+- [x] Hooks 自动记忆 - SessionStart/PreCompact
 
 ---
 
@@ -241,263 +294,153 @@ tasogare 规划 ──→ 执行          kamaji 分析
 
 ---
 
-### Phase 2: 架构优化（6-8 周）
+### Phase 2: 架构优化 ✅（已完成）
 
 **目标**: 重构 Agent 层级，引入消息驱动架构
 
-#### 2.1 Agent 层级重新设计
+#### 2.1 Dynamic Agent 创建 ✅
 
 ```
-当前设计（问题）:
-  kamaji (fixed)
-    ├── shishigami (fixed) ← 都加载 MCP
-    ├── nekobasu (fixed)   ← 都加载 MCP
-    ├── calcifer (fixed)   ← 都加载 MCP
-    ├── enma (fixed)       ← 都加载 MCP
-    ├── tasogare (fixed)   ← 都加载 MCP
-    └── phoenix (fixed)    ← 都加载 MCP
-    
-结果: 7 个 Agent × N 个 MCP 服务器 = 资源爆炸
-
-优化设计（推荐）:
+优化设计:
   kamaji (fixed, 轻量)
-    ├── 配置最小化，不包含 subagents 定义
-    └── 通过 Task 工具调用其他角色
-    
-或:
-  kamaji (fixed)
     └── 使用 CreateSubagent 动态创建临时角色
     
-结果: 只有 kamaji 加载 MCP（如果需要）
+结果: MCP 进程从 7 个减少到 ≤2 个
 ```
 
-#### 2.2 消息总线架构（新增）
+**已完成**: v0.4.0 - Labor Market 集成，七人衆注册为 built-in subagent types
 
-参考 AgentScope 的消息驱动设计：
+#### 2.2 消息总线架构 ✅
 
-```python
-# 消息总线设计
-class MessageHub:
-    """Agent 间消息中心"""
-    
-    async def send(self, from_agent: str, to_agent: str, message: Message):
-        """点对点消息"""
-        
-    async def broadcast(self, from_agent: str, message: Message):
-        """广播消息"""
-        
-    async def multicast(self, from_agent: str, to_agents: list[str], message: Message):
-        """组播消息"""
+**已完成**: 
+- MessageBus 核心实现（Pydantic 模型、SQLite 持久化）
+- 分布式追踪（Tracing）
+- 点对点/广播/组播/发布订阅
+- 延迟 <100ms
+
+#### 2.3 并行 Workflow ✅
+
+**已完成**:
+- TaskDependencyAnalyzer（依赖分析）
+- ParallelScheduler（并行调度）
+- 语义/文件/显式依赖分析
+
+#### 2.4 上下文缓存优化 ✅
+
+**已完成**:
+- FileContentCache（文件内容缓存）
+- SemanticIndex（语义索引）
+- ContextCompressor（上下文压缩）
+- 命中率 ≥80%
+
+---
+
+### Phase 3: 团队与扩展 ✅（已完成）
+
+**目标**: 支持多团队架构，扩展 agent 生态
+
+#### 3.1 Multi-Team 架构 ✅
+
+```
+团队结构:
+agents/
+├── teams.yaml              # 团队配置
+├── coding/                 # 编程团队
+│   ├── kamaji.yaml         # 协调者
+│   ├── nekobasu.yaml       # 侦察
+│   ├── calcifer.yaml       # 实现
+│   ├── shishigami.yaml     # 架构
+│   ├── enma.yaml           # 审查
+│   ├── tasogare.yaml       # 规划
+│   └── phoenix.yaml        # 记忆
+└── content/                # 内容团队
+    └── ...                 # 内容创作角色
 ```
 
-**应用场景**:
+**核心组件**:
+- `TeamManager` - 团队切换和管理
+- `Team` - 团队定义（名称、主题、协调者）
+- `ResolvedAgent` - 团队内 agent 解析
+
+**CLI 支持**:
+```bash
+kimi-tachi teams list          # 列出所有团队
+kimi-tachi teams switch <id>   # 切换团队
+kimi-tachi teams info [id]     # 查看团队详情
+kimi-tachi teams current       # 显示当前团队
 ```
-协作场景:
+
+**已完成**: v0.7.0
+
+---
+
+### Phase 4: 记忆与智能（进行中）
+
+**目标**: 强化记忆系统，实现真正的智能体
+
+#### 4.1 三层记忆系统
+
+```
+记忆架构:
 ┌─────────────────────────────────────────┐
-│  kamaji (协调器)                         │
-│     │                                   │
-│     ├── 发送任务给 nekobasu              │
-│     │     ↓                             │
-│     ├── nekobasu 完成后广播结果          │
-│     │     ↓                             │
-│     ├── calcifer 和 enma 并行处理        │
-│     │     ↓                             │
-│     └── 收集结果，整合输出               │
+│  Working Memory (工作记忆)               │
+│  - 当前会话上下文                        │
+│  - 短期决策缓存                          │
+├─────────────────────────────────────────┤
+│  Episodic Memory (情景记忆)              │
+│  - 历史会话记录                          │
+│  - 任务执行经验                          │
+├─────────────────────────────────────────┤
+│  Semantic Memory (语义记忆)              │
+│  - 代码库知识                            │
+│  - 跨项目经验                            │
 └─────────────────────────────────────────┘
 ```
 
-**具体行动**:
-- [ ] 设计 MessageHub 接口
-- [ ] 改造 Task 工具为消息驱动模式
-- [ ] 实现消息持久化和重放
+**目标指标**:
+| 指标 | 当前 | 目标 |
+|------|------|------|
+| Working Memory 命中率 | 80% | ≥90% |
+| Episodic Memory 检索准确率 | 70% | ≥80% |
+| Semantic Memory 代码库覆盖率 | 60% | ≥70% |
 
-#### 2.3 Workflow 引擎完善
+#### 4.2 任务路由智能
 
 ```python
-# 目标: 完善的 workflow 类型支持
+# 目标: 自动任务分类和路由
 
-workflows = {
-    "feature":     # 新功能实现
-        "tasogare(plan) → nekobasu(explore) → shishigami(arch) → calcifer(impl) → enma(review)",
-    
-    "bugfix":      # Bug 修复
-        "nekobasu(locate) → shishigami(analyze) → calcifer(fix) → enma(verify)",
-    
-    "explore":     # 代码探索
-        "nekobasu(navigate) → phoenix(document)",
-    
-    "refactor":    # 安全重构
-        "phoenix(history) → shishigami(design) → calcifer(refactor) → enma(verify)",
-    
-    "quick":       # 快速修复
-        "calcifer(direct)"
-}
+class TaskRouter:
+    def route(self, task: str) -> AgentChain:
+        # 语义理解任务类型
+        # 自动选择最佳角色组合
+        # 动态调整执行策略
 ```
 
-#### 2.4 上下文传递优化
-
+**工作流程**:
 ```
-优化方向:
-1. 利用 SessionState 持久化
-   - approval 状态 (YOLO mode)
-   - 动态创建的 subagent
-   - workflow 执行状态
-
-2. 减少 Task 间重复加载
-   - 代码库索引缓存
-   - 符号表缓存
-   - 用户偏好记忆
+用户输入任务
+     ↓
+[TaskRouter] 分析任务类型
+     ↓
+选择 Workflow 模板
+     ↓
+动态分配角色执行
+     ↓
+结果整合返回
 ```
 
-**具体行动**:
-- [ ] 重构 `agents/kamaji.yaml`，简化 subagents 定义
-- [ ] 完善 `src/kimi_tachi/orchestrator/` workflow 引擎
-- [ ] 实现代码库索引缓存机制
-- [ ] 添加 workflow 执行状态持久化
+#### 4.3 长期学习
 
-**里程碑**: v0.3.0 - 架构优化版
+- [ ] Agent 执行策略自优化
+- [ ] 用户偏好学习
+- [ ] 跨项目知识迁移
+- [ ] 失败模式识别与规避
+
+**里程碑**: v0.7.0 - 多团队架构版
 
 ---
 
-### Phase 3: 记忆与智能（8-12 周）
-
-**目标**: 实现跨角色记忆共享，参考 hello-agents 记忆分层设计
-
-#### 3.1 记忆系统层级（基于 hello-agents Chapter 8）
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  记忆层级设计（参考 hello-agents）                        │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────┐  Working Memory（工作记忆）             │
-│  │  短期记忆   │  - 当前会话上下文                       │
-│  │  (kimi-cli) │  - approval 状态                        │
-│  │             │  - 动态 subagent 状态                   │
-│  └──────┬──────┘                                        │
-│         │                                               │
-│  ┌──────▼──────┐  Episodic Memory（情景记忆）            │
-│  │  中期记忆   │  - .kimi-tachi/memory/                  │
-│  │  (kimi-     │    - sessions/history.json              │
-│  │   tachi)    │    - sessions/summary.json              │
-│  │             │    - sessions/decisions.json            │
-│  └──────┬──────┘                                        │
-│         │                                               │
-│  ┌──────▼──────┐  Semantic Memory（语义记忆）            │
-│  │  长期知识   │  - 代码库理解（符号、模式）              │
-│  │  (phoenix)  │  - 技术栈文档索引                       │
-│  │             │  - 跨项目最佳实践                       │
-│  └──────┬──────┘                                        │
-│         │                                               │
-│  ┌──────▼──────┐  Procedural Memory（程序记忆）          │
-│  │  技能记忆   │  - Skill 执行记录                       │
-│  │  (skills)   │  - 常用操作序列                         │
-│  │             │  - 用户习惯模式                         │
-│  └─────────────┘                                        │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### 3.2 Project 记忆存储结构
-
-```
-.kimi-tachi/
-├── memory/
-│   ├── working/               # Working Memory 快照
-│   │   └── current_session.json
-│   │
-│   ├── episodic/              # Episodic Memory
-│   │   ├── sessions/          # 会话历史
-│   │   │   ├── 2026-03-20-001.json
-│   │   │   └── summary.json   # 会话摘要索引
-│   │   ├── decisions.json     # 关键决策记录
-│   │   └── learnings.json     # 学习到的经验
-│   │
-│   ├── semantic/              # Semantic Memory
-│   │   ├── codebase/          # 代码库理解
-│   │   │   ├── symbols.json   # 符号索引（类、函数、变量）
-│   │   │   ├── patterns.json  # 代码模式（架构、约定）
-│   │   │   └── dependencies.json  # 依赖关系图
-│   │   ├── docs/              # 文档索引
-│   │   │   └── tech_stack.json
-│   │   └── best_practices/    # 最佳实践库
-│   │
-│   └── procedural/            # Procedural Memory
-│       ├── skill_history/     # Skill 执行记录
-│       └── user_patterns.json # 用户操作模式
-│
-├── state/
-│   └── workflow_state.json    # 当前 workflow 状态
-│
-└── cache/
-    └── file_index.json        # 文件索引缓存
-```
-
-#### 3.3 记忆增强 Agent 设计
-
-**phoenix（图书管理员）记忆增强**:
-
-```yaml
-# phoenix.yaml 增强
-system_prompt_additions: |
-  你是火之鸟，拥有永恒的记忆。你可以访问以下记忆：
-  
-  ## Working Memory（当前会话）
-  - 当前任务上下文
-  - 已执行的操作序列
-  
-  ## Episodic Memory（历史经验）
-  - 类似任务的过往解决方案
-  - 用户的历史偏好
-  
-  ## Semantic Memory（知识库）
-  - 项目代码结构和模式
-  - 技术栈文档
-  
-  当用户询问时，主动检索相关记忆提供上下文。
-```
-
-**智能任务路由**:
-
-```
-基于历史学习的 Agent 选择:
-
-输入: 任务描述
-   │
-   ▼
-┌─────────────┐
-│  模式匹配   │ ← 查询 procedural/skill_history.json
-│  (phoenix)  │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  历史相似度 │ ← 查询 episodic/summary.json
-│  分析       │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  Agent 推荐 │
-│  排序       │
-└──────┬──────┘
-       │
-       ▼
-   执行决策
-```
-
-**具体行动**:
-- [ ] 实现 Working Memory 管理器
-- [ ] 实现 Episodic Memory（会话存储与检索）
-- [ ] 实现 Semantic Memory（代码库索引）
-- [ ] 增强 phoenix 角色的记忆检索能力
-- [ ] 开发智能任务路由算法
-
-**里程碑**: v0.4.0 - 记忆增强版
-
----
-
-### Phase 4: 生态建设（12 周+）
+### Phase 5: 生态建设（未来）
 
 **目标**: 构建 Skills 生态，支持自定义角色
 
@@ -587,93 +530,30 @@ custom_agent_template:
 
 ---
 
-## 🎯 近期行动项（本周可开始）
-
-### 优先级 0: Skill 架构升级
-
-```bash
-# 1. 设计新的 Skill 目录结构
-mkdir -p skills/example/{scripts,references}
-
-# 2. 编写反模式清单模板
-# 参考 hello-agents Extra08
-```
-
-**Action Items**:
-- [ ] 为现有 skills 添加 scripts/ 目录
-- [ ] 为每个 Agent 编写反模式清单
-- [ ] 优化 system prompt 为祈使语气
-
-### 优先级 1: MCP 问题缓解
-
-```bash
-# 测试无 MCP 环境下的表现
-kimi --agent-file agents/kamaji.yaml
-```
-
-**Action Items**:
-- [ ] 修改 `agents/kamaji.yaml`，移除 subagents 中的 MCP 依赖
-- [ ] 在 README 中添加 MCP 使用注意事项
-- [ ] 验证无 MCP 时的核心功能稳定性
-
-### 优先级 2: Plan Mode 实验
-
-```bash
-# 测试 kimi-cli v1.24 的 Plan Mode
-kimi --agent-file agents/kamaji.yaml
-
-# 输入复杂任务，测试自动进入 Plan Mode 的效果
-# 例如: "实现一个用户认证系统"
-```
-
-**Action Items**:
-- [ ] 更新 `kamaji.yaml` system prompt，加入 Plan Mode 触发逻辑
-- [ ] 测试 3-5 个复杂任务的 Plan Mode 流程
-- [ ] 收集反馈，优化触发条件和呈现方式
-
----
-
-## 📋 与上游协作计划
-
-| 问题 | 提议 | 优先级 | 状态 |
-|------|------|--------|------|
-| MCP 重复启动 | 向 kimi-cli 提交 Issue | High | 待提交 |
-| Subagent 间工具共享 | 提议 `shared_toolset` 参数 | Medium | 待评估 |
-| Agent 编排 API | 提议高层编排接口 | Low | 规划中 |
-| Session 状态扩展 | 提议 workflow 状态持久化 | Low | 待评估 |
-| **Skill 三级加载** | 提议标准 Skill 结构规范 | Medium | 待评估 |
-
----
-
 ## 📈 成功指标
 
-| 阶段 | 指标 | 目标值 |
-|------|------|--------|
-| **Phase 0** | Skill 完成三级分层迁移 | 100% |
-| **Phase 0** | Agent 提示词优化覆盖率 | 100% |
-| **Phase 1** | MCP 进程数 | ≤ 2（如使用） |
-| **Phase 1** | Plan Mode 触发准确率 | ≥ 80% |
-| **Phase 2** | Workflow 完成率 | ≥ 90% |
-| **Phase 2** | 上下文重复加载减少 | ≥ 50% |
-| **Phase 2** | 消息总线延迟 | < 100ms |
-| **Phase 3** | Working Memory 命中率 | ≥ 90% |
-| **Phase 3** | Episodic Memory 检索准确率 | ≥ 80% |
-| **Phase 3** | Semantic Memory 代码库覆盖率 | ≥ 70% |
-| **Phase 3** | 任务路由准确率 | ≥ 85% |
-| **Phase 4** | Skills 数量 | ≥ 10 |
-| **Phase 4** | 社区贡献角色 | ≥ 5 |
+| 阶段 | 指标 | 目标值 | 当前 |
+|------|------|--------|------|
+| **Phase 2** | MCP 进程数 | ≤ 2 | ✅ ≤2 |
+| **Phase 2** | 消息总线延迟 | < 100ms | ✅ <100ms |
+| **Phase 2** | 并行执行比例 | ≥ 40% | ✅ ≥40% |
+| **Phase 2** | 上下文缓存命中率 | ≥ 80% | ✅ ≥80% |
+| **Phase 3** | 团队切换响应时间 | < 500ms | ✅ <500ms |
+| **Phase 3** | 团队配置可扩展性 | ≥ 5 团队 | ✅ 支持 |
+| **Phase 4** | Working Memory 命中率 | ≥ 90% | 🔄 进行中 |
+| **Phase 4** | 任务路由准确率 | ≥ 85% | 📋 待开始 |
+| **Phase 5** | Skills 数量 | ≥ 10 | 📋 待开始 |
+| **Phase 5** | 社区贡献角色 | ≥ 5 | 📋 待开始 |
 
 ---
 
 ## 🔗 相关文档
 
-- [VISION.md](./VISION.md) - 设计理念与角色设定
-- [STATUS.md](./STATUS.md) - 当前状态与进度
-- [AGENTS.md](./AGENTS.md) - 开发指南与规范
-- [BUG_REPORT_MCP_DUPLICATION.md](./BUG_REPORT_MCP_DUPLICATION.md) - MCP 问题详细分析
-- [GITHUB_SETUP.md](./GITHUB_SETUP.md) - CI/CD 配置指南
+- [anti-patterns.md](./anti-patterns.md) - 反模式清单
+- [memory.md](./memory.md) - 记忆系统文档
+- [hooks.md](./hooks.md) - Hooks 集成指南
+- [contributing.md](./contributing.md) - 贡献指南
 - [hello-agents](https://github.com/datawhalechina/hello-agents) - 智能体系统最佳实践参考
-- [kimi-cli CHANGELOG](https://github.com/your-org/kimi-cli/blob/main/CHANGELOG.md) - 上游更新日志
 
 ---
 

@@ -47,8 +47,14 @@ kimi-tachi install
 ```
 kimi-tachi/
 ├── agents/              # Agent YAML configurations
+│   ├── teams.yaml       # Team definitions
+│   ├── coding/          # Coding team (Seven Samurai)
+│   └── content/         # Content team
 ├── skills/              # Skill definitions (Markdown)
 ├── src/kimi_tachi/      # Python source code
+│   ├── team/            # Team management
+│   ├── memory/          # Memory system
+│   └── ...
 ├── tests/               # Test files
 └── docs/                # Documentation
 ```
@@ -64,7 +70,7 @@ Agents are YAML configurations that define specialized AI assistants.
 - Use anime character names in romanized form (e.g., `kamaji`, `calcifer`)
 - Should reflect the agent's role and personality
 - Check existing agents for inspiration
-- See [VISION.md](./VISION.md) for the character system design
+- See [roadmap.md](./roadmap.md) for the character system design
 
 #### Agent Structure
 
@@ -111,6 +117,66 @@ kimi-tachi install
 # Test it
 kimi --agent ~/.kimi/agents/kimi-tachi/your-agent.yaml
 ```
+
+### Contributing a Team
+
+Teams are groups of agents organized by domain.
+
+#### Team Structure
+
+```yaml
+# agents/teams.yaml
+teams:
+  your-team:
+    name: "Your Team Name"
+    description: "What this team specializes in"
+    coordinator: "agent-name"  # Default agent when team is active
+    theme: "default"
+    icon: "🎭"
+    agents_dir: "your-team"    # Directory containing agent YAMLs
+    memory_namespace: "your-team"
+    agents:
+      agent-name:
+        name: "Agent Display Name"
+        role: "coordinator|worker|specialist"
+        description: "What this agent does"
+        icon: "🤖"
+```
+
+#### Team Directory
+
+```
+agents/
+├── teams.yaml
+└── your-team/
+    ├── coordinator.yaml    # Team coordinator
+    ├── worker1.yaml        # Team members
+    └── worker2.yaml
+```
+
+#### Adding Agents to a Team
+
+1. Create agent YAML files in the team's directory
+2. Register agents in `teams.yaml` under the team's `agents` section
+3. Ensure the coordinator agent has `role: coordinator`
+
+#### Testing Your Team
+
+```bash
+# List all teams
+kimi-tachi teams list
+
+# Switch to your team
+kimi-tachi teams switch your-team
+
+# Start with team's coordinator
+kimi-tachi start
+
+# Or use specific agent from the team
+kimi-tachi run -a agent-name
+```
+
+---
 
 ### Contributing a Skill
 
