@@ -263,3 +263,6 @@ docs/PHASE*_GUIDE.md
 docs/phase*_design.md
 docs/phase*_metrics_design.md
 examples/
+
+# Runtime data
+data/
