@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-04-09
+
+### Changed
+- **Content Team Refactoring**:
+  - Added `COORDINATOR_PROTOCOL` to `xunyu.yaml` enforcing foreground execution mode
+  - Simplified content team workers (`guojia`, `chenlin`, `zhugeliang`, `zhugejin`)
+  - Removed redundant rules from workers, centralizing control in coordinator
+  - Workers now focus on execution only, coordinator controls workflow
+  - Net reduction of ~150 lines across 5 agent files
+
+### Added
+- `data/` directory added to `.gitignore` for runtime data exclusion
+
 ## [0.6.0] - 2026-04-02
 
 ### Added

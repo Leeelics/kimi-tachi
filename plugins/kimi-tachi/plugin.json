@@ -1,6 +1,6 @@
 {
   "name": "kimi-tachi",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Kimi-tachi multi-agent orchestration plugin - run workflows and manage sessions",
   "tools": [
     {
