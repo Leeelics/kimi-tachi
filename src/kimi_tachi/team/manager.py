@@ -204,12 +204,12 @@ class TeamManager:
 
     def _get_agent_file(self, team: Team, agent_name: str) -> Path:
         """Get the file path for an agent."""
-        agents_dir = Path(__file__).parent.parent.parent.parent / "agents" / team.agents_dir
+        agents_dir = self._TEAMS_CONFIG_PATH.parent / team.agents_dir
         return agents_dir / f"{agent_name}.yaml"
 
     def _list_available_agents(self, team: Team) -> list[str]:
         """List all available agent names in a team."""
-        agents_dir = Path(__file__).parent.parent.parent.parent / "agents" / team.agents_dir
+        agents_dir = self._TEAMS_CONFIG_PATH.parent / team.agents_dir
         if not agents_dir.exists():
             return []
         return sorted([f.stem for f in agents_dir.glob("*.yaml")])
