@@ -158,36 +158,11 @@ for subagent_name, subagent_spec in agent_spec.subagents.items():
 
 ## 🗺️ 迭代路线图
 
-### v0.7.x: 稳定性加固（当前重点，1-2 周）
+### v0.8.0: 智能编排与稳定性（当前重点，4-6 周）
 
-**目标**: 修复发布流程中的脆弱环节，建立 wheel install 测试护城河
+**目标**: 让 kimi-tachi 从 "团队启动器" 进化为 "任务编排器"，同时加固发布稳定性
 
-#### 7.1 安装与分发硬化
-
-- [ ] **wheel install E2E 测试**
-  - 在 CI 中构建 wheel，用 `pip install wheel` 安装后运行完整 CLI 测试
-  - 验证 `kimi-tachi status`、`kimi-tachi teams info` 在 wheel 安装下正常
-- [ ] **路径解析统一审计**
-  - 检查所有 `Path(__file__)` 硬编码路径，统一使用 `_resolve_data_dir` 或 `_TEAMS_CONFIG_PATH.parent`
-  - 确保 `content` 团队 agent 路径同样正确
-- [ ] **安装前健康检查**
-  - `kimi-tachi install` 增加 `--dry-run` 选项
-  - 检查 kimi-cli 版本兼容性，低版本时给出警告
-
-#### 7.2 CI/CD 健壮性
-
-- [ ] **Release 前自动 smoke test**
-  - 在 `build-check` 之后增加 "install from wheel and run status" 步骤
-- [ ] **Changelog 校验增强**
-  - `scripts/check_changelog.py` 增加格式检查（是否有日期、是否有分类）
-- [ ] **版本预检**
-  - 打 tag 前检查 PyPI 是否已存在该版本（避免 v0.7.0 式的重复推送失败）
-
-**里程碑**: v0.7.2 - 稳定安装版
-
----
-
-### v0.8.0: 智能编排（下一阶段，4-6 周）
+v0.7.0/0.7.1 的发布教训：架构代码再漂亮，"最后一公里" 不稳，用户就用不上。因此 v0.8.0 将智能编排与稳定性硬化合并推进。
 
 **目标**: 让 kimi-tachi 从 "团队启动器" 进化为 "任务编排器"
 
@@ -196,7 +171,21 @@ for subagent_name, subagent_spec in agent_spec.subagents.items():
 2. **复杂任务进入 Plan Mode**
 3. **后台任务自动异步化**
 
-#### 8.1 TaskRouter - 任务路由智能
+#### 8.1 稳定性加固（并行推进）
+
+基于 v0.7.x 发布教训，必须完成的保底工作：
+
+- [ ] **wheel install E2E 测试**
+  - CI 中构建 wheel → `pip install` → 运行完整 CLI 测试
+  - 覆盖 `status`、`teams info`、`install --dry-run`
+- [ ] **路径解析统一审计**
+  - 扫描所有 `Path(__file__)` 硬编码，统一使用 `_resolve_data_dir` / `_TEAMS_CONFIG_PATH.parent`
+- [ ] **Release 前 smoke test**
+  - `build-check` 后增加 "install wheel and run status" 步骤
+- [ ] **版本预检脚本**
+  - 打 tag 前自动检查 PyPI 是否已存在该版本
+
+#### 8.2 TaskRouter - 任务路由智能
 
 ```python
 # 目标: 自动任务分类和路由
@@ -229,7 +218,7 @@ class TaskRouter:
 结果整合返回
 ```
 
-#### 8.2 Plan Mode 集成
+#### 8.3 Plan Mode 集成
 
 利用 kimi-cli 原生的 Plan Mode 优化编排流程：
 
@@ -265,7 +254,7 @@ kimi-tachi 启动 kamaji          kimi-tachi 启动 kamaji
 - [ ] CLI 增加 `--plan` / `--no-plan` 选项覆盖自动判断
 - [ ] 测试不同任务类型的路由准确率
 
-#### 8.3 Background Bash 集成
+#### 8.4 Background Bash 集成
 
 ```
 使用场景:
@@ -288,7 +277,7 @@ kimi-tachi 启动 kamaji          kimi-tachi 启动 kamaji
 - [ ] 在 `workflow_patterns` 中标记哪些步骤可后台化
 - [ ] 测试长构建任务的异步执行
 
-#### 8.4 Agent 提示词优化
+#### 8.5 Agent 提示词优化
 
 应用 **自由度光谱** 优化现有 agent prompts：
 
