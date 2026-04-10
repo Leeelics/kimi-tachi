@@ -1,6 +1,6 @@
 [project]
 name = "kimi-tachi"
-version = "0.7.1"
+version = "0.8.0"
 description = "Multi-agent task orchestration for Kimi CLI (君たち)"
 readme = "README.md"
 requires-python = ">=3.12"

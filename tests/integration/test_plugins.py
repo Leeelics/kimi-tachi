@@ -84,12 +84,47 @@ class TestKimiTachiPlugin:
             assert "description" in phase
             assert "prompt" in phase
             assert "subagent_type" in phase
+            assert "resume" in phase
+            assert isinstance(phase["resume"], bool)
+            # model is optional; when present it should be a string
+            if "model" in phase:
+                assert isinstance(phase["model"], str)
 
         # Verify recommendations
         rec = result["recommendations"]
         assert "use_plan_mode" in rec
+        assert "plan_mode_reason" in rec
         assert "use_todo_list" in rec
         assert "parallel_steps" in rec
+
+    def test_workflow_plan_simple_task(self):
+        """Test workflow plan for simple tasks skips plan mode."""
+        result = self.run_tool(
+            "workflow",
+            {"task": "fix typo in readme", "workflow_type": "auto"},
+        )
+
+        assert result["success"] is True
+        assert result["workflow_type"] == "quick"
+        rec = result["recommendations"]
+        assert rec["use_plan_mode"] is False
+        assert (
+            "simple" in rec["plan_mode_reason"].lower()
+            or "directly" in rec["plan_mode_reason"].lower()
+        )
+
+    def test_workflow_plan_model_override(self):
+        """Test that shishigami phase recommends a stronger model."""
+        result = self.run_tool(
+            "workflow",
+            {"task": "design microservices architecture", "workflow_type": "feature"},
+        )
+
+        assert result["success"] is True
+        shishigami_phases = [p for p in result["phases"] if p["agent"] == "shishigami"]
+        assert len(shishigami_phases) >= 1
+        for phase in shishigami_phases:
+            assert phase.get("model") == "kimi-k2.5"
 
 
 class TestTodoEnforcerPlugin:

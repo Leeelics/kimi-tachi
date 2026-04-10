@@ -140,6 +140,35 @@ def _parse_pattern(pattern_str: str, team_agents: dict) -> list[dict]:
     return steps
 
 
+def _map_agent_to_subagent_type(agent: str) -> str:
+    """Map anime agent names to kimi-cli native subagent types."""
+    mapping = {
+        "nekobasu": "explore",
+        "tasogare": "plan",
+        "shishigami": "plan",
+        "calcifer": "coder",
+        "enma": "coder",
+        "phoenix": "coder",
+        "kamaji": "coder",
+    }
+    return mapping.get(agent, "coder")
+
+
+def _recommend_model(agent: str) -> str | None:
+    """Recommend a model override for specific agents."""
+    # Design and architecture benefit from stronger reasoning models
+    if agent == "shishigami":
+        return "kimi-k2.5"
+    return None
+
+
+def _should_resume(pattern: list[dict], idx: int) -> bool:
+    """Recommend resume when the same agent appears consecutively."""
+    if idx == 0:
+        return False
+    return pattern[idx]["agent"] == pattern[idx - 1]["agent"]
+
+
 def _get_agent_category(agent: str, team_id: str | None = None) -> str:
     """Get the category of an agent."""
     team = _get_team(team_id)
@@ -294,21 +323,33 @@ def generate_workflow_plan(
     # Build phases
     phases = []
     for idx, step in enumerate(pattern):
-        phases.append(
-            {
-                "agent": step["agent"],
-                "description": step["description"],
-                "prompt": _build_phase_prompt(step["agent"], task, idx, len(pattern), team_id),
-                "subagent_type": step["agent"],
-                "can_background": _can_background(step["agent"], team_id),
-                "recommended_timeout": _recommend_timeout(step["agent"], task, team_id),
-            }
-        )
+        phase = {
+            "agent": step["agent"],
+            "description": step["description"],
+            "prompt": _build_phase_prompt(step["agent"], task, idx, len(pattern), team_id),
+            "subagent_type": _map_agent_to_subagent_type(step["agent"]),
+            "can_background": _can_background(step["agent"], team_id),
+            "recommended_timeout": _recommend_timeout(step["agent"], task, team_id),
+            "resume": _should_resume(pattern, idx),
+        }
+        model = _recommend_model(step["agent"])
+        if model is not None:
+            phase["model"] = model
+        phases.append(phase)
 
     # Determine if plan mode should be used
-    use_plan_mode = (
-        workflow_type in ("feature", "refactor", "series", "deep_dive") and len(phases) > 2
-    )
+    if workflow_type in ("feature", "refactor", "series", "deep_dive") and len(phases) > 2:
+        use_plan_mode = True
+        plan_mode_reason = (
+            f"This is a {complexity} {workflow_type} task with {len(phases)} phases. "
+            "Using plan mode helps ensure a clear roadmap before execution."
+        )
+    elif complexity == "simple" and len(phases) <= 2:
+        use_plan_mode = False
+        plan_mode_reason = "Task is simple and can be executed directly without plan mode."
+    else:
+        use_plan_mode = False
+        plan_mode_reason = "Plan mode is optional for this task; disable for faster execution."
 
     output_lines = [
         f"Workflow plan generated: {workflow_type}",
@@ -336,6 +377,7 @@ def generate_workflow_plan(
         "phases": phases,
         "recommendations": {
             "use_plan_mode": use_plan_mode,
+            "plan_mode_reason": plan_mode_reason,
             "use_todo_list": len(phases) > 1,
             "parallel_steps": parallel_steps,
             "estimated_duration": f"{len(phases) * 1}-{len(phases) * 4} min",

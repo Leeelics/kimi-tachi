@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-10
+
+### Added
+- **Workflow Plan Enhancements**: `workflow.py` now outputs additional kimi-cli 1.30.0+ capabilities:
+  - `model` override per phase (`shishigami` automatically recommends `kimi-k2.5`)
+  - `resume` flag for consecutive identical-agent phases
+  - `plan_mode_reason` in recommendations with human-readable justification
+- **Efficiency Benchmark**: Added `BENCHMARK.md` and `scripts/evaluate_cleanup.py` for tracking project health, test density, and capability gaps
+
+### Changed
+- **Massive Dead-Code Removal**: Removed legacy orchestrator, context, tracing, vis, session, and background modules (~15,000 lines deleted)
+- Project is now a focused **Plan Generator** thin layer rather than an execution engine
+
+### Fixed
+- **Subagent Type Mapping**: `workflow.py` now emits native `coder`/`explore`/`plan` types instead of anime character names
+
 ## [0.7.1] - 2026-04-10
 
 ### Fixed

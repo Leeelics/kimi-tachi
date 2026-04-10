@@ -2,7 +2,7 @@
 
 > Multi-agent task orchestration for Kimi CLI
 
-[![Version](https://img.shields.io/badge/version-0.6.2-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
@@ -78,6 +78,16 @@ kamaji 会根据任务复杂度自动调度合适的角色：
 - **简单任务** → kamaji 直接处理
 - **中等任务** → 🚌 探索后执行
 - **复杂任务** → 🌆 规划 → 🚌 探索 → 🦌 架构 → 🔥 实现 → 👹 审查
+
+### Workflow Plan 能力（v0.8.0+）
+
+`workflow.py` 作为 Plan Generator，生成的计划已对齐 kimi-cli 原生 `Agent()` 参数：
+
+- `subagent_type` — 自动映射为 `coder` / `explore` / `plan`
+- `model` — 架构设计阶段自动推荐更强模型（如 `shishigami` → `kimi-k2.5`）
+- `resume` — 连续同 agent 阶段建议复用实例上下文
+- `plan_mode_reason` — 智能推荐是否进入 plan mode，并给出理由
+- `parallel_steps` — `research` / `plan` 类别可安全并行执行
 
 ### 示例效果（coding 团队）
 

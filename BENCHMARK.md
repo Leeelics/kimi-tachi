@@ -43,8 +43,9 @@
 | **Map-Create（多文件并行创建）** | ❌ | 不支持多个 `coder` 同时写不同文件 |
 | **Reduce（多结果聚合后分发）** | ❌ | 没有 explore 结果 → 多个 create 的分发机制 |
 | `background` 执行 | ⚠️ 部分 | 仅 `research`/`plan` 可标记 `can_background=true` |
-| `model` override | ❌ | workflow plan 未输出 `model` 字段 |
-| `resume` 续跑 | ❌ | workflow plan 未输出 `resume` 字段 |
+| `model` override | ✅ | `shishigami` 自动推荐 `kimi-k2.5`，其余 agent 不强制覆盖 |
+| `resume` 续跑 | ✅ | 同一 agent 连续出现时自动建议 `resume: true` |
+| `plan_mode_reason` | ✅ |  human-readable 推荐理由，帮助 Kamaji 决策 |
 
 > **评估结论**：当前 kimi-tachi 是一个**轻量 Plan Generator**，能够生成标准的线性/轻度并行 workflow。但尚不具备 "Map-Reduce" 式的多分身能力。
 
@@ -74,10 +75,8 @@ KT-Score = (有效测试数 / 代码行数 × 1000) × (1 + 构建成功率)
    - 支持任务拆分（Split）→ 多 `explore` 并行 → 结果聚合 → 多 `coder` 并行
    - 这对 "重构 10 个文件"、"给整个项目补文档" 类任务至关重要
 
-2. **补齐 kimi-cli v1.30.0  capability gap**
-   - 在 workflow plan 中支持 `model` override
-   - 支持 `resume` 续跑已有 agent 实例
-   - 支持 `include_ignored` 等 grep 高级参数透传
+2. **补齐 kimi-cli v1.30.0 剩余 capability gap**
+   - 支持 `include_ignored` 等 grep 高级参数透传到 explore 阶段的 prompt 中
 
 3. **引入真实性能基准**
    - 测量 "生成一个 feature workflow plan" 的耗时（目标 < 50ms）

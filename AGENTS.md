@@ -29,18 +29,17 @@ Use `uv run ...` for one-off commands.
 
 - `src/kimi_tachi/cli.py` — CLI entry (install, uninstall, teams, status)
 - `src/kimi_tachi/team/` — Team management (`TeamManager`, `teams.yaml` parsing)
-- `src/kimi_tachi/config.py` — Configuration and environment handling
 - `src/kimi_tachi/compatibility.py` — kimi-cli version compatibility checks
 - `src/kimi_tachi/memory/` — Optional MemNexus-based code memory (TachiMemory, agent profiles)
-- `src/kimi_tachi/orchestrator/` — Workflow orchestration and native agent delegation (HybridOrchestrator, WorkflowEngine, NativeAgentOrchestrator)
-- `src/kimi_tachi/message_bus/` — Inter-agent message bus
-- `src/kimi_tachi/tracing/` — Workflow tracing (AgentTracer, metrics collection)
-- `src/kimi_tachi/vis/` — Trace visualization (workflow rendering, export)
+- `src/kimi_tachi/team/` — Team management (`TeamManager`, `teams.yaml` parsing)
 - `agents/` — Agent YAML specs and team definitions
 - `plugins/` — CLI plugins for kimi-cli 1.25.0+
 - `skills/` — Documentation and guidance skills
+- `scripts/evaluate_cleanup.py` — Health and efficiency evaluation harness
+- `BENCHMARK.md` — Efficiency baseline and capability map
 - `tests/unit/` — Unit tests (mocked, no subprocess)
 - `tests/integration/` — Integration tests (subprocess, external systems)
+- `tests_e2e/` — End-to-end CLI tests
 
 ## Conventions and quality
 
