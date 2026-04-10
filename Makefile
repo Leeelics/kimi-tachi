@@ -35,16 +35,25 @@ format: ## Auto-format code with ruff.
 	@uv run ruff format
 
 .PHONY: check
-check: ## Run linting and format checks.
+check: ## Run linting, format, and type checks.
 	@echo "==> Running ruff check"
 	@uv run ruff check
 	@echo "==> Running ruff format check"
 	@uv run ruff format --check
+	@echo "==> Running pyright (non-blocking)"
+	@uv run pyright || true
+	@echo "==> Running typos"
+	@typos || true
 
 .PHONY: test
 test: ## Run all tests.
 	@echo "==> Running tests"
 	@uv run pytest tests/ -v --tb=short
+
+.PHONY: test-e2e
+test-e2e: ## Run end-to-end tests.
+	@echo "==> Running e2e tests"
+	@uv run pytest tests_e2e/ -v --tb=short
 
 .PHONY: test-cov
 test-cov: ## Run tests with coverage.
@@ -61,7 +70,7 @@ test-memory: ## Run memory-specific tests.
 .PHONY: version-check
 version-check: ## Check version consistency across files.
 	@echo "==> Checking version consistency"
-	@python3 scripts/check_version.py
+	@uv run python scripts/check_version.py
 
 .PHONY: build
 build: ## Build package distribution.
@@ -71,7 +80,7 @@ build: ## Build package distribution.
 .PHONY: build-check
 build-check: build ## Build and verify package can be installed.
 	@echo "==> Testing package installation"
-	@python3 scripts/test_build.py
+	@uv run python scripts/test_build.py
 
 .PHONY: clean
 clean: ## Clean build artifacts.
@@ -104,7 +113,7 @@ docs-serve: ## Serve documentation locally (if docs exist).
 
 .PHONY: changelog-check
 changelog-check: ## Check if CHANGELOG.md has entry for current version.
-	@python3 scripts/check_version.py
+	@uv run python scripts/check_version.py
 
 # ========== Utility ==========
 

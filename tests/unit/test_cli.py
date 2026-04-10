@@ -8,6 +8,7 @@ import sys
 from unittest.mock import MagicMock
 
 import pytest
+from inline_snapshot import snapshot
 from typer.testing import CliRunner
 
 from kimi_tachi import __version__
@@ -22,7 +23,7 @@ class TestVersionAndHelp:
     def test_version_flag(self):
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
-        assert __version__ in result.stdout
+        assert result.stdout == snapshot(f"kimi-tachi version {__version__}\n")
 
     def test_help_flag(self):
         result = runner.invoke(app, ["--help"])
@@ -33,12 +34,15 @@ class TestVersionAndHelp:
 class TestStatus:
     """Test status command."""
 
-    def test_status_output(self, monkeypatch):
+    def test_status_output(self, monkeypatch, tmp_path):
         monkeypatch.setattr("kimi_tachi.cli.shutil.which", lambda x: None)
+        monkeypatch.setattr("kimi_tachi.cli.KIMI_TACHI_DIR", tmp_path / "no_agents")
         result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert __version__ in result.stdout
         assert "Agent Mode" in result.stdout
+        # Snapshot the tail to catch unexpected drift
+        assert "Run: kimi-tachi install" in result.stdout
 
 
 class TestInstall:
@@ -49,7 +53,9 @@ class TestInstall:
         monkeypatch.setattr("kimi_tachi.cli.KIMI_CONFIG_DIR", tmp_path / "no_such_dir")
         result = runner.invoke(app, ["install"])
         assert result.exit_code == 1
-        assert "not found" in result.stderr
+        assert result.stderr == snapshot(
+            f"Error: Kimi CLI config directory not found at {tmp_path / 'no_such_dir'}\n"
+        )
 
     def test_install_success(self, monkeypatch, tmp_path):
         """Install should copy agents/skills/plugins when config dir exists."""
@@ -62,6 +68,7 @@ class TestInstall:
         result = runner.invoke(app, ["install"])
         assert result.exit_code == 0
         assert "installed successfully" in result.stdout
+        assert "Usage:" in result.stdout
 
 
 class TestUninstall:
@@ -94,6 +101,7 @@ class TestUninstall:
         assert result.exit_code == 0
         assert "uninstalled successfully" in result.stdout
         assert not fake_tachi.exists()
+        assert "Removed config" in result.stdout
 
 
 class TestTeams:
@@ -104,7 +112,7 @@ class TestTeams:
         monkeypatch.setattr("kimi_tachi.cli.TEAM_AVAILABLE", False)
         result = runner.invoke(app, ["teams"])
         assert result.exit_code == 1
-        assert "not available" in result.stderr
+        assert result.stderr == snapshot("❌ Team management not available.\n")
 
     def test_teams_list(self, monkeypatch):
         """Teams list should output available teams."""
@@ -127,6 +135,7 @@ class TestTeams:
         result = runner.invoke(app, ["teams", "list"])
         assert result.exit_code == 0
         assert "Default Team" in result.stdout
+        assert "kamaji" in result.stdout
 
     def test_teams_switch_success(self, monkeypatch):
         """Teams switch should change current team."""
@@ -136,17 +145,30 @@ class TestTeams:
         new_team.name = "New"
         new_team.coordinator = "calcifer"
 
-        mock_manager = MagicMock()
-        mock_manager.current_team = old_team
-        mock_manager.switch_team = MagicMock()
-        type(mock_manager).current_team = MagicMock(side_effect=[old_team, new_team])
+        class MockMgr:
+            _current = old_team
+
+            @property
+            def current_team(self):
+                return self._current
+
+            @current_team.setter
+            def current_team(self, value):
+                self._current = value
+
+            def switch_team(self, team_id):
+                self._current = new_team
+
+            def list_teams(self):
+                return [old_team]
 
         monkeypatch.setattr("kimi_tachi.cli.TEAM_AVAILABLE", True)
-        monkeypatch.setattr("kimi_tachi.cli.TeamManager", lambda: mock_manager)
+        monkeypatch.setattr("kimi_tachi.cli.TeamManager", MockMgr)
 
         result = runner.invoke(app, ["teams", "switch", "new-team"])
         assert result.exit_code == 0
         assert "Switched" in result.stdout
+        assert "Coordinator: calcifer" in result.stdout
 
     def test_teams_switch_missing_id(self, monkeypatch):
         """Teams switch without team_id should error."""
@@ -157,7 +179,7 @@ class TestTeams:
         )
         result = runner.invoke(app, ["teams", "switch"])
         assert result.exit_code == 1
-        assert "required" in result.stderr
+        assert result.stderr == snapshot("Error: team_id required for switch\n")
 
     def test_teams_current(self, monkeypatch):
         """Teams current should show active team."""
@@ -174,7 +196,7 @@ class TestTeams:
 
         result = runner.invoke(app, ["teams", "current"])
         assert result.exit_code == 0
-        assert "Active" in result.stdout
+        assert result.stdout == snapshot("Current team: Active (active)\nCoordinator: kamaji\n")
 
     def test_teams_info(self, monkeypatch):
         """Teams info should show team details."""
@@ -196,6 +218,7 @@ class TestTeams:
         result = runner.invoke(app, ["teams", "info", "info-team"])
         assert result.exit_code == 0
         assert "Info Team" in result.stdout
+        assert "nekobasu" in result.stdout
 
 
 class TestMainEntrypoint:

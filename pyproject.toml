@@ -93,8 +93,15 @@ dev = [
     "ruff>=0.15.0",
     "pytest>=9.0.0",
     "pytest-asyncio>=0.24.0",
+    "pyright>=1.1.407",
+    "inline-snapshot[black]>=0.31.1",
 ]
 
-# Note: Using `ty` (https://github.com/astral-sh/ty) for type checking
-# Install: uv tool install ty
-# Usage: ty check src/
+[tool.pyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.13"
+include = [
+    "src/**/*.py",
+    "tests/**/*.py",
+]
+strict = ["src/kimi_tachi/**/*.py"]
