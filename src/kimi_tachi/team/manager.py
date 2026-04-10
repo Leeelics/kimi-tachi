@@ -56,7 +56,7 @@ class TeamManager:
     _instance: TeamManager | None = None
 
     # Configuration paths
-    _TEAMS_CONFIG_PATH: Path = Path(__file__).parent.parent.parent.parent / "agents" / "teams.yaml"
+    _TEAMS_CONFIG_PATH: Path = Path(__file__).parent.parent / "agents" / "teams.yaml"
 
     # User state storage
     _USER_STATE_DIR: Path = Path.home() / ".kimi-tachi"
