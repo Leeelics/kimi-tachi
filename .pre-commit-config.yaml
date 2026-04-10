@@ -1,7 +1,5 @@
 # Pre-commit hooks for kimi-tachi
-# Inspired by kimi-cli's prek tool
 # Install: pre-commit install
-# Update: pre-commit autoupdate
 
 repos:
   # General file checks
@@ -21,22 +19,28 @@ repos:
       - id: detect-private-key
       - id: mixed-line-ending
 
-  # Python linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.0
-    hooks:
-      # Run the linter
-      - id: ruff
-        args: [--fix]
-      # Run the formatter
-      - id: ruff-format
-
-  # Local hooks using project tools
+  # Format and lint via project Makefile (uses pyproject.toml versions)
   - repo: local
     hooks:
+      - id: make-format
+        name: make format
+        entry: make format
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: make-check
+        name: make check
+        entry: make check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
       - id: version-check
         name: Check version consistency
-        entry: python3 scripts/check_version.py
+        entry: uv run python scripts/check_version.py
         language: system
         pass_filenames: false
         always_run: true
@@ -44,7 +48,7 @@ repos:
 
       - id: changelog-check
         name: Check CHANGELOG
-        entry: python3 -c "
+        entry: uv run python -c "
 import re
 import tomllib
 import sys
