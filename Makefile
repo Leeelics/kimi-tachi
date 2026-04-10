@@ -54,7 +54,7 @@ test-cov: ## Run tests with coverage.
 .PHONY: test-memory
 test-memory: ## Run memory-specific tests.
 	@echo "==> Running memory tests"
-	@uv run pytest tests/test_memory.py -v --tb=short
+	@uv run pytest tests/unit/test_memory.py -v --tb=short
 
 # ========== Build & Release ==========
 

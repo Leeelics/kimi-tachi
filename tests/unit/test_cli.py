@@ -33,7 +33,8 @@ class TestVersionAndHelp:
 class TestStatus:
     """Test status command."""
 
-    def test_status_output(self):
+    def test_status_output(self, monkeypatch):
+        monkeypatch.setattr("kimi_tachi.cli.shutil.which", lambda x: None)
         result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert __version__ in result.stdout

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-PLUGINS_DIR = Path(__file__).parent.parent / "plugins"
+PLUGINS_DIR = Path(__file__).parent.parent.parent / "plugins"
 
 
 class TestKimiTachiPlugin:
