@@ -33,10 +33,14 @@
 
 ## 怎么用
 
-### 安装
+### 安装与升级
 
 ```bash
+# 首次安装
 pip install kimi-tachi
+kimi-tachi install
+
+# 升级到新版本后，重新 install 即可更新 agents/skills/plugins
 kimi-tachi install
 ```
 

@@ -70,6 +70,42 @@ class TestInstall:
         assert "installed successfully" in result.stdout
         assert "Usage:" in result.stdout
 
+    def test_install_upgrades_existing(self, monkeypatch, tmp_path):
+        """Install should overwrite existing files by default (upgrade behavior)."""
+        fake_config = tmp_path / ".kimi"
+        fake_config.mkdir()
+        fake_tachi = fake_config / "agents" / "kimi-tachi"
+        monkeypatch.setattr("kimi_tachi.cli.KIMI_CONFIG_DIR", fake_config)
+        monkeypatch.setattr("kimi_tachi.cli.KIMI_TACHI_DIR", fake_tachi)
+
+        # First install
+        result = runner.invoke(app, ["install"])
+        assert result.exit_code == 0
+        assert "Installed:" in result.stdout or "Installed team:" in result.stdout
+
+        # Second install should report "Updated"
+        result = runner.invoke(app, ["install"])
+        assert result.exit_code == 0
+        assert "Updated" in result.stdout
+        assert "Skipping" not in result.stdout
+
+    def test_install_skip_existing(self, monkeypatch, tmp_path):
+        """Install --skip-existing should preserve old files."""
+        fake_config = tmp_path / ".kimi"
+        fake_config.mkdir()
+        fake_tachi = fake_config / "agents" / "kimi-tachi"
+        monkeypatch.setattr("kimi_tachi.cli.KIMI_CONFIG_DIR", fake_config)
+        monkeypatch.setattr("kimi_tachi.cli.KIMI_TACHI_DIR", fake_tachi)
+
+        # First install
+        result = runner.invoke(app, ["install"])
+        assert result.exit_code == 0
+
+        # Second install with --skip-existing should skip
+        result = runner.invoke(app, ["install", "--skip-existing"])
+        assert result.exit_code == 0
+        assert "Skipping" in result.stdout
+
 
 class TestUninstall:
     """Test uninstall command."""

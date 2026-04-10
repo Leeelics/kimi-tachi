@@ -2,7 +2,6 @@
 """Check that CHANGELOG.md has an entry for the current project version."""
 
 import tomllib
-import sys
 
 
 def main() -> int:

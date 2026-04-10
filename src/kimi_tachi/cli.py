@@ -124,9 +124,11 @@ def common(
 
 @app.command()
 def install(
-    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files")] = False,
+    skip_existing: Annotated[
+        bool, typer.Option("--skip-existing", help="Skip files that already exist")
+    ] = False,
 ):
-    """Install kimi-tachi agents and skills to Kimi CLI."""
+    """Install or upgrade kimi-tachi agents and skills to Kimi CLI."""
     if not KIMI_CONFIG_DIR.exists():
         typer.echo(f"Error: Kimi CLI config directory not found at {KIMI_CONFIG_DIR}", err=True)
         raise typer.Exit(1)
@@ -140,23 +142,26 @@ def install(
         teams_yaml = agents_source / "teams.yaml"
         if teams_yaml.exists():
             dest = KIMI_TACHI_DIR / "teams.yaml"
-            if dest.exists() and not force:
-                typer.echo("Skipping teams.yaml (already exists, use --force to overwrite)")
+            if dest.exists() and skip_existing:
+                typer.echo("Skipping teams.yaml (already exists)")
             else:
                 shutil.copy2(teams_yaml, dest)
-                typer.echo("Installed: teams.yaml")
+                action = "Updated" if dest.exists() else "Installed"
+                typer.echo(f"{action}: teams.yaml")
 
         for item in agents_source.iterdir():
             if item.is_dir():
                 dest = KIMI_TACHI_DIR / item.name
-                if dest.exists() and not force:
+                existed = dest.exists()
+                if existed and skip_existing:
                     typer.echo(f"Skipping team {item.name} (already exists)")
                 else:
-                    if dest.exists():
+                    if existed:
                         shutil.rmtree(dest)
                     shutil.copytree(item, dest)
                     yaml_count = len(list(dest.glob("*.yaml")))
-                    typer.echo(f"Installed team: {item.name} ({yaml_count} agents)")
+                    action = "Updated" if existed else "Installed"
+                    typer.echo(f"{action} team: {item.name} ({yaml_count} agents)")
 
     # Copy skills
     skills_source = _resolve_data_dir("skills")
@@ -164,13 +169,15 @@ def install(
         for skill_dir in skills_source.iterdir():
             if skill_dir.is_dir():
                 dest = KIMI_CONFIG_DIR / "skills" / skill_dir.name
-                if dest.exists() and not force:
+                existed = dest.exists()
+                if existed and skip_existing:
                     typer.echo(f"Skipping skill {skill_dir.name} (already exists)")
                 else:
-                    if dest.exists():
+                    if existed:
                         shutil.rmtree(dest)
                     shutil.copytree(skill_dir, dest)
-                    typer.echo(f"Installed skill: {skill_dir.name}")
+                    action = "Updated" if existed else "Installed"
+                    typer.echo(f"{action} skill: {skill_dir.name}")
 
     # Copy plugins
     plugins_source = _resolve_data_dir("plugins")
@@ -179,13 +186,15 @@ def install(
         for plugin_dir in plugins_source.iterdir():
             if plugin_dir.is_dir():
                 dest = KIMI_CONFIG_DIR / "plugins" / plugin_dir.name
-                if dest.exists() and not force:
+                existed = dest.exists()
+                if existed and skip_existing:
                     typer.echo(f"Skipping plugin {plugin_dir.name} (already exists)")
                 else:
-                    if dest.exists():
+                    if existed:
                         shutil.rmtree(dest)
                     shutil.copytree(plugin_dir, dest)
-                    typer.echo(f"Installed plugin: {plugin_dir.name}")
+                    action = "Updated" if existed else "Installed"
+                    typer.echo(f"{action} plugin: {plugin_dir.name}")
 
     typer.echo("\n✨ kimi-tachi installed successfully!")
     typer.echo("\nUsage:")
