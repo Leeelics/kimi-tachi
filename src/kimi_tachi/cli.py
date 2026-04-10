@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -12,16 +13,6 @@ from typing import Annotated
 import typer
 
 from kimi_tachi import __version__
-
-# Optional memory support (import guard for backward compatibility)
-try:
-    from kimi_tachi.memory import AGENT_MEMORY_PROFILES, TachiMemory
-
-    MEMORY_AVAILABLE = True
-except ImportError:
-    MEMORY_AVAILABLE = False
-    TachiMemory = None
-    AGENT_MEMORY_PROFILES = {}
 
 # Team management
 try:
@@ -335,7 +326,6 @@ def _list_teams(manager: TeamManager) -> None:
 def status():
     """Check kimi-tachi installation status."""
     from .compatibility import check_compatibility
-    from .config import KimiTachiConfig
 
     typer.echo("kimi-tachi Status:\n")
     typer.echo(f"  kimi-tachi version: {__version__}")
@@ -349,9 +339,9 @@ def status():
         typer.echo(f"    → {report.recommendation}")
     typer.echo()
 
-    config = KimiTachiConfig.from_env()
-    typer.echo(f"  Agent Mode: {config.effective_agent_mode}")
-    typer.echo(f"    (set via KIMI_TACHI_AGENT_MODE={config.agent_mode})")
+    agent_mode = os.environ.get("KIMI_TACHI_AGENT_MODE", "auto")
+    typer.echo(f"  Agent Mode: {agent_mode}")
+    typer.echo(f"    (set via KIMI_TACHI_AGENT_MODE={agent_mode})")
     typer.echo()
 
     kimi_path = shutil.which("kimi")

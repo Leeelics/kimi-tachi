@@ -9,8 +9,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
-from ..message_bus import MessageBus
-from ..metrics import MetricsCollector
 from .context_manager import ContextManager
 from .dependency_analyzer import TaskDependencyAnalyzer
 from .hybrid_orchestrator import AgentResult, HybridOrchestrator
@@ -63,15 +61,11 @@ class WorkflowEngine:
         self,
         orchestrator: HybridOrchestrator,
         context_manager: ContextManager | None = None,
-        message_bus: MessageBus | None = None,
-        metrics_collector: MetricsCollector | None = None,
         use_parallel: bool = True,
         max_parallel: int = 2,
     ):
         self.orch = orchestrator
         self.ctx = context_manager
-        self.bus = message_bus
-        self.metrics = metrics_collector
         self.use_parallel = use_parallel
         self.max_parallel = max_parallel
 
@@ -80,8 +74,6 @@ class WorkflowEngine:
         self.parallel_scheduler = (
             ParallelScheduler(
                 orchestrator=orchestrator,
-                message_bus=message_bus,
-                metrics_collector=metrics_collector,
                 max_parallel=max_parallel,
             )
             if use_parallel
@@ -165,7 +157,8 @@ class WorkflowEngine:
                 # Multiple phases - parallel execution
                 print(f"\n🏃 Batch {batch_idx}: Parallel execution of {len(batch)} phases")
                 for phase in batch:
-                    print(f"   • {phase.name} ({self.orch.AGENT_MAP[phase.agent]['name']})")
+                    agent_info = self.orch._get_agent_info(phase.agent)
+                    print(f"   • {phase.name} ({agent_info['name']})")
 
                 # Execute in parallel
                 batch_results = await self._execute_batch_parallel(batch, task, completed_phases)
@@ -239,7 +232,8 @@ class WorkflowEngine:
         # Format task
         formatted_task = phase.task_template.format(original_task=task, context=context)
 
-        print(f"\n▶️ Phase: {phase.name} ({self.orch.AGENT_MAP[phase.agent]['name']})")
+        agent_info = self.orch._get_agent_info(phase.agent)
+        print(f"\n▶️ Phase: {phase.name} ({agent_info['name']})")
 
         # Execute
         result = await self.orch.delegate(phase.agent, formatted_task)

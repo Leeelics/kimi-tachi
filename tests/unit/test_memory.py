@@ -116,14 +116,3 @@ class TestTachiMemory:
 
         # Should return None when no store available
         assert result is None
-
-
-class TestMemoryCLI:
-    """Test memory CLI commands."""
-
-    def test_memory_import_in_cli(self):
-        """Test that memory can be imported from CLI."""
-        # This tests the import guard in cli.py
-        from kimi_tachi import cli
-
-        assert hasattr(cli, "MEMORY_AVAILABLE")

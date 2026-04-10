@@ -15,15 +15,12 @@ from .agent_tracer import (
     get_tracer,
     reset_tracer,
 )
-from .metrics import AgentMetrics, WorkflowMetrics
 
 __all__ = [
     "AgentEvent",
     "AgentEventType",
     "AgentTracer",
     "WorkflowTrace",
-    "AgentMetrics",
-    "WorkflowMetrics",
     "get_tracer",
     "reset_tracer",
 ]

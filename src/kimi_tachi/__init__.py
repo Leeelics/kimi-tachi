@@ -24,10 +24,7 @@ __compatible_cli_versions__ = ">=1.25.0, tested up to 1.28.0"
 
 __all__ = [
     "cli",
-    "message_bus",
     "orchestrator",
-    "metrics",
-    "config",
     "compatibility",
     "team",
 ]

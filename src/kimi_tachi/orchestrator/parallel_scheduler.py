@@ -3,9 +3,8 @@ Parallel Scheduler
 
 并行任务调度器，支持：
 1. 基于 DependencyGraph 的并行执行
-2. 通过 MessageBus 协调中间结果
-3. 部分失败处理
-4. 资源限制管理（MCP 进程数）
+2. 部分失败处理
+3. 资源限制管理
 """
 
 from __future__ import annotations
@@ -14,8 +13,6 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..message_bus import Message, MessageBus, MessageType
-from ..metrics import MetricsCollector
 from .dependency_analyzer import DependencyGraph
 from .hybrid_orchestrator import AgentResult, HybridOrchestrator
 
@@ -66,14 +63,10 @@ class ParallelScheduler:
     def __init__(
         self,
         orchestrator: HybridOrchestrator,
-        message_bus: MessageBus | None = None,
-        metrics_collector: MetricsCollector | None = None,
-        max_parallel: int = 2,  # 限制并行数，配合 MCP 进程限制
+        max_parallel: int = 2,
         continue_on_failure: bool = False,  # 是否在一个 phase 失败时继续
     ):
         self.orch = orchestrator
-        self.bus = message_bus
-        self.metrics = metrics_collector
         self.max_parallel = max_parallel
         self.continue_on_failure = continue_on_failure
 
@@ -290,79 +283,13 @@ class ParallelScheduler:
                 context_str = "\n".join(context_parts)
                 context_str = f"\n\nBased on previous results:{context_str}"
 
-        # 通过 MessageBus 通知（如果启用）
-        if self.bus:
-            await self._notify_phase_start(phase, context)
-
         # 执行 phase
         result = await self.orch.delegate(
             agent=phase.agent,
             task=task_desc + context_str,
         )
 
-        # 通过 MessageBus 通知完成
-        if self.bus:
-            await self._notify_phase_complete(phase, result, context)
-
-        # 记录指标
-        if self.metrics:
-            self.metrics.record_phase(
-                phase_name=phase.name,
-                duration_ms=0,  # 由 orchestrator 记录
-                success=result.returncode == 0,
-            )
-
         return result
-
-    async def _notify_phase_start(
-        self,
-        phase: Phase,
-        context: ExecutionContext,
-    ) -> None:
-        """通过 MessageBus 通知 phase 开始"""
-        if not self.bus:
-            return
-
-        msg = Message.create(
-            content={
-                "event": "phase.start",
-                "execution_id": self._execution_id,
-                "phase": phase.name,
-                "agent": phase.agent,
-                "task": context.task,
-            },
-            source="parallel_scheduler",
-            message_type=MessageType.PUBLISH,
-            channel="workflow.events",
-        )
-
-        await self.bus.publish("workflow.events", msg)
-
-    async def _notify_phase_complete(
-        self,
-        phase: Phase,
-        result: AgentResult,
-        context: ExecutionContext,
-    ) -> None:
-        """通过 MessageBus 通知 phase 完成"""
-        if not self.bus:
-            return
-
-        msg = Message.create(
-            content={
-                "event": "phase.complete",
-                "execution_id": self._execution_id,
-                "phase": phase.name,
-                "agent": phase.agent,
-                "success": result.returncode == 0,
-                "output_preview": result.stdout[:200] if result.stdout else "",
-            },
-            source="parallel_scheduler",
-            message_type=MessageType.PUBLISH,
-            channel="workflow.events",
-        )
-
-        await self.bus.publish("workflow.events", msg)
 
     def get_execution_summary(self) -> dict[str, Any]:
         """获取执行摘要"""

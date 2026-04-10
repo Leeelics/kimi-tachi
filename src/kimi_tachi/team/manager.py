@@ -360,9 +360,3 @@ class _TeamContext:
         if self._previous_team:
             self.manager.switch_team(self._previous_team, persist=False)
         return False
-
-
-# Convenience function for getting the singleton
-def get_team_manager() -> TeamManager:
-    """Get the singleton TeamManager instance."""
-    return TeamManager()
