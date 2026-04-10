@@ -46,7 +46,7 @@ class TestKimiTachiPlugin:
         result = self.run_tool("agent_info", {"agent": "nekobasu"})
 
         assert result["success"] is True
-        assert result["agent"]["name"] == "猫バス (Nekobasu)"
+        assert result["agent"]["name"] == "猫バス"
         assert result["agent"]["icon"] == "🚌"
         assert "abilities" in result["agent"]
 
@@ -64,6 +64,32 @@ class TestKimiTachiPlugin:
         assert result["success"] is True
         assert "cli_version" in result
         assert "compatible" in result
+
+    def test_workflow_plan(self):
+        """Test workflow tool returns a plan (not executes agents)"""
+        result = self.run_tool(
+            "workflow",
+            {"task": "implement user authentication", "workflow_type": "feature"},
+        )
+
+        assert result["success"] is True
+        assert "phases" in result
+        assert "recommendations" in result
+        assert len(result["phases"]) > 0
+        assert result["workflow_type"] == "feature"
+
+        # Verify phases have required fields
+        for phase in result["phases"]:
+            assert "agent" in phase
+            assert "description" in phase
+            assert "prompt" in phase
+            assert "subagent_type" in phase
+
+        # Verify recommendations
+        rec = result["recommendations"]
+        assert "use_plan_mode" in rec
+        assert "use_todo_list" in rec
+        assert "parallel_steps" in rec
 
 
 class TestTodoEnforcerPlugin:

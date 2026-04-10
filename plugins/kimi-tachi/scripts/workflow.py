@@ -1,141 +1,365 @@
 #!/usr/bin/env python3
 """
-Kimi-Tachi Workflow Tool
+Kimi-Tachi Workflow Planner
 
-Execute multi-agent workflows via the plugin system.
-Receives parameters from stdin, outputs results to stdout.
+Generates a structured multi-agent workflow plan for the coordinator (Kamaji)
+to execute using kimi-cli's native Agent tool.
+
+This is a plan generator, NOT an executor. The actual agent execution happens
+inside the kimi-cli runtime via native `Agent()` tool calls by Kamaji.
+
+Supports multi-team workflow patterns and category-based parallel orchestration.
 
 Usage:
     echo '{"task": "implement auth", "workflow_type": "feature"}' | python3 workflow.py
 """
 
+import contextlib
 import json
 import sys
 from pathlib import Path
 
-# Add kimi-tachi to path if available
+# Optional kimi-tachi imports for team/config lookup
 try:
-    from kimi_tachi.config import KimiTachiConfig
-    from kimi_tachi.orchestrator import ContextManager, HybridOrchestrator, WorkflowEngine
+    from kimi_tachi.team import TeamManager
 
     KIMI_TACHI_AVAILABLE = True
 except ImportError:
     KIMI_TACHI_AVAILABLE = False
 
+# Default heuristic keywords
+_SIMPLE_KEYWORDS = ["fix typo", "rename", "update comment", "change color", "add log"]
+_COMPLEX_KEYWORDS = ["implement", "design", "architecture", "refactor", "new feature"]
 
-def run_workflow(task: str, workflow_type: str = "auto", work_dir: str = ".") -> dict:
+# Category-based orchestration rules
+# Categories that can safely run in parallel with each other
+_PARALLEL_CATEGORIES = {"research", "plan"}
+# Categories that should run in background when independent
+_BACKGROUND_CATEGORIES = {"research", "plan"}
+# Timeout recommendations by category (seconds)
+_CATEGORY_TIMEOUTS = {
+    "coordinator": 120,
+    "research": 300,
+    "plan": 300,
+    "design": 300,
+    "create": 600,
+    "review": 300,
+}
+
+
+def _heuristic_analysis(task: str) -> dict:
+    """Simple heuristic-based task analysis."""
+    task_lower = task.lower()
+    simple_score = sum(1 for k in _SIMPLE_KEYWORDS if k in task_lower)
+    complex_score = sum(1 for k in _COMPLEX_KEYWORDS if k in task_lower)
+    is_short = len(task.split()) < 10
+
+    if simple_score > 0 or (is_short and complex_score == 0):
+        return {"complexity": "simple", "parallelizable": False}
+    elif complex_score > 0:
+        return {"complexity": "complex", "parallelizable": True}
+    else:
+        return {"complexity": "medium", "parallelizable": False}
+
+
+def _get_team(team_id: str | None = None):
+    """Get the effective team."""
+    if KIMI_TACHI_AVAILABLE:
+        try:
+            manager = TeamManager()
+            return manager.get_team(team_id) if team_id else manager.effective_team
+        except Exception:
+            pass
+    return None
+
+
+def _get_workflow_pattern(workflow_type: str, team_id: str | None = None) -> list[dict]:
+    """Load workflow pattern from TeamManager or fallback to defaults."""
+    team = _get_team(team_id)
+    if team and workflow_type in team.workflow_patterns:
+        pattern_str = team.workflow_patterns[workflow_type]
+        return _parse_pattern(pattern_str, team.agents)
+
+    # Fallback defaults (coding team)
+    defaults = {
+        "feature": [
+            {"agent": "tasogare", "description": "Analyze and plan the implementation"},
+            {"agent": "nekobasu", "description": "Explore relevant codebase"},
+            {"agent": "shishigami", "description": "Design architecture"},
+            {"agent": "calcifer", "description": "Implement the feature"},
+            {"agent": "enma", "description": "Review code quality"},
+        ],
+        "bugfix": [
+            {"agent": "nekobasu", "description": "Explore codebase to locate bug"},
+            {"agent": "shishigami", "description": "Design fix approach"},
+            {"agent": "calcifer", "description": "Implement fix"},
+            {"agent": "enma", "description": "Verify fix quality"},
+        ],
+        "explore": [
+            {"agent": "nekobasu", "description": "Fast codebase exploration"},
+            {"agent": "phoenix", "description": "Document findings and patterns"},
+        ],
+        "refactor": [
+            {"agent": "phoenix", "description": "Identify refactoring targets"},
+            {"agent": "shishigami", "description": "Design refactor plan"},
+            {"agent": "calcifer", "description": "Execute refactor"},
+            {"agent": "enma", "description": "Review changes"},
+        ],
+        "test": [
+            {"agent": "nekobasu", "description": "Explore code to test"},
+            {"agent": "calcifer", "description": "Write tests"},
+            {"agent": "enma", "description": "Review test coverage"},
+        ],
+        "docs": [
+            {"agent": "phoenix", "description": "Identify documentation gaps"},
+            {"agent": "calcifer", "description": "Update code docs and README"},
+        ],
+        "quick": [
+            {"agent": "calcifer", "description": "Quick implementation or fix"},
+        ],
+    }
+    steps = defaults.get(workflow_type, defaults["quick"])
+    return [{"agent": s["agent"], "description": s["description"]} for s in steps]
+
+
+def _parse_pattern(pattern_str: str, team_agents: dict) -> list[dict]:
+    """Parse workflow pattern string like 'tasogare → nekobasu → calcifer'."""
+    steps = []
+    seen = set()
+    for token in pattern_str.replace(",", "→").split("→"):
+        agent = token.strip()
+        if agent and agent not in seen:
+            seen.add(agent)
+            info = team_agents.get(agent, {})
+            steps.append(
+                {
+                    "agent": agent,
+                    "description": info.get("description", f"Delegate to {agent}"),
+                }
+            )
+    return steps
+
+
+def _get_agent_category(agent: str, team_id: str | None = None) -> str:
+    """Get the category of an agent."""
+    team = _get_team(team_id)
+    if team:
+        return team.agents.get(agent, {}).get("category", "unknown")
+    # Fallback hardcoded mappings
+    fallbacks = {
+        "kamaji": "coordinator",
+        "nekobasu": "research",
+        "calcifer": "create",
+        "enma": "review",
+        "tasogare": "plan",
+        "shishigami": "design",
+        "phoenix": "research",
+    }
+    return fallbacks.get(agent, "unknown")
+
+
+def _compute_parallel_steps(pattern: list[dict], team_id: str | None = None) -> list[list[int]]:
     """
-    Run a kimi-tachi workflow.
+    Compute parallel execution batches based on agent categories.
 
-    Args:
-        task: Task description
-        workflow_type: Type of workflow (auto, feature, bugfix, explore, refactor, quick)
-        work_dir: Working directory
-
-    Returns:
-        Result dictionary with status, output, and metadata
+    Agents in parallel-friendly categories (research, plan) can run together.
+    Create/review/design agents are generally sequential.
     """
-    if not KIMI_TACHI_AVAILABLE:
+    if not pattern:
+        return []
+
+    categories = [_get_agent_category(step["agent"], team_id) for step in pattern]
+    batches: list[list[int]] = []
+    current_batch: list[int] = []
+    current_categories: set[str] = set()
+
+    for idx, cat in enumerate(categories):
+        if cat in _PARALLEL_CATEGORIES:
+            if current_batch and current_categories - _PARALLEL_CATEGORIES:
+                # Previous batch had non-parallel work, flush it
+                batches.append(current_batch)
+                current_batch = [idx]
+                current_categories = {cat}
+            else:
+                current_batch.append(idx)
+                current_categories.add(cat)
+        else:
+            if current_batch:
+                batches.append(current_batch)
+                current_batch = []
+                current_categories = set()
+            batches.append([idx])
+
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
+def _build_phase_prompt(
+    agent: str, task: str, phase_idx: int, total_phases: int, team_id: str | None = None
+) -> str:
+    """Build a prompt for a specific workflow phase."""
+    cat = _get_agent_category(agent, team_id)
+    instructions = {
+        "research": "Explore, gather information, and report clear findings. Use appropriate thoroughness level.",
+        "plan": "Analyze the task, break it down, identify risks and dependencies. Present a clear plan.",
+        "design": "Review the context and design the approach. Consider trade-offs and long-term impact.",
+        "create": "Implement the work based on the plan and previous findings. Write tests if applicable. Use tools to modify files.",
+        "review": "Review the quality, catch bugs, check for completeness. Report severity levels.",
+        "coordinator": "Coordinate the team and synthesize results.",
+    }
+    return (
+        f"You are phase {phase_idx + 1} of {total_phases} in a workflow.\n\n"
+        f"Overall task: {task}\n\n"
+        f"Your job: {instructions.get(cat, 'Execute your specialty on the task.')}\n\n"
+        f"Important: Use kimi-cli tools directly. Do not ask clarifying questions unless critical information is missing."
+    )
+
+
+def _recommend_timeout(agent: str, task: str, team_id: str | None = None) -> int:
+    """Recommend timeout based on agent category and task length."""
+    cat = _get_agent_category(agent, team_id)
+    base = _CATEGORY_TIMEOUTS.get(cat, 300)
+    # Heuristic: very long tasks may need more time
+    words = len(task.split())
+    if words > 50:
+        base += 300
+    return min(base, 3600)
+
+
+def _can_background(agent: str, team_id: str | None = None) -> bool:
+    """Determine if this agent's phase can run in background."""
+    cat = _get_agent_category(agent, team_id)
+    return cat in _BACKGROUND_CATEGORIES
+
+
+def generate_workflow_plan(
+    task: str,
+    workflow_type: str = "auto",
+    work_dir: str = ".",
+    team_id: str | None = None,
+) -> dict:
+    """
+    Generate a workflow plan for Kamaji to execute.
+
+    Returns a JSON dict with phases and execution recommendations.
+    """
+    if not task:
+        return {"success": False, "error": "Missing required parameter: task"}
+
+    team = _get_team(team_id)
+    effective_team = team.id if team else (team_id or "coding")
+
+    # Analyze task
+    if workflow_type == "auto":
+        analysis = _heuristic_analysis(task)
+        complexity = analysis["complexity"]
+        # Map complexity to a workflow type
+        if team:
+            patterns = list(team.workflow_patterns.keys())
+            if complexity == "simple":
+                workflow_type = "quick" if "quick" in patterns else patterns[0]
+            elif complexity == "complex":
+                workflow_type = "feature" if "feature" in patterns else patterns[0]
+            else:
+                workflow_type = "bugfix" if "bugfix" in patterns else patterns[0]
+        else:
+            workflow_type = (
+                "quick"
+                if complexity == "simple"
+                else ("feature" if complexity == "complex" else "bugfix")
+            )
+    else:
+        analysis = _heuristic_analysis(task)
+        complexity = "unknown"
+
+    # Validate workflow_type exists for this team
+    if team and workflow_type not in team.workflow_patterns:
+        available = list(team.workflow_patterns.keys())
         return {
             "success": False,
-            "error": "kimi-tachi not installed. Install with: pip install kimi-tachi",
-            "output": "",
+            "error": (
+                f"Unknown workflow_type '{workflow_type}' for team '{effective_team}'. "
+                f"Available: {available}"
+            ),
         }
 
-    import asyncio
+    # Get workflow pattern
+    pattern = _get_workflow_pattern(workflow_type, team_id)
 
-    async def async_run():
-        work_path = Path(work_dir).resolve()
+    # Compute parallel batches
+    parallel_steps = _compute_parallel_steps(pattern, team_id)
 
-        # Initialize orchestrator
-        _ = KimiTachiConfig.from_env()  # Ensure config is loaded
-        orch = HybridOrchestrator(work_dir=work_path)
-        ctx_manager = ContextManager(work_path)
-        engine = WorkflowEngine(orch, ctx_manager)
+    # Build phases
+    phases = []
+    for idx, step in enumerate(pattern):
+        phases.append(
+            {
+                "agent": step["agent"],
+                "description": step["description"],
+                "prompt": _build_phase_prompt(step["agent"], task, idx, len(pattern), team_id),
+                "subagent_type": step["agent"],
+                "can_background": _can_background(step["agent"], team_id),
+                "recommended_timeout": _recommend_timeout(step["agent"], task, team_id),
+            }
+        )
 
-        # Analyze task if auto
-        if workflow_type == "auto":
-            analysis = await orch.analyze_task_complexity(task)
-            complexity = analysis.get("complexity", "medium")
-            if complexity == "simple":
-                workflow = engine.quick_fix
-            elif complexity == "complex":
-                workflow = engine.feature_implementation
-            else:
-                workflow = engine.bug_fix
+    # Determine if plan mode should be used
+    use_plan_mode = (
+        workflow_type in ("feature", "refactor", "series", "deep_dive") and len(phases) > 2
+    )
+
+    output_lines = [
+        f"Workflow plan generated: {workflow_type}",
+        f"Team: {effective_team}",
+        f"Complexity: {complexity}",
+        f"Phases: {len(phases)}",
+        f"Parallel batches: {len(parallel_steps)}",
+        "",
+    ]
+    for batch_idx, batch in enumerate(parallel_steps, 1):
+        if len(batch) == 1:
+            phase = phases[batch[0]]
+            output_lines.append(f"{batch_idx}. {phase['agent']} → {phase['description']}")
         else:
-            workflow = engine.get_workflow(workflow_type)
-            if not workflow:
-                return {
-                    "success": False,
-                    "error": f"Unknown workflow type: {workflow_type}",
-                    "output": "",
-                }
+            agents = " + ".join(phases[i]["agent"] for i in batch)
+            output_lines.append(f"{batch_idx}. [{agents}] (parallel)")
 
-        # Execute workflow
-        results = await engine.execute(workflow, task)
-
-        # Build output
-        output_lines = []
-        output_lines.append(f"✨ Workflow completed: {workflow_type}")
-        output_lines.append(f"📁 Working directory: {work_path}")
-        output_lines.append("")
-
-        for i, result in enumerate(results, 1):
-            status = "✅" if result.returncode == 0 else "❌"
-            output_lines.append(f"{i}. {status} {result.agent}: {result.task[:50]}...")
-
-        output_lines.append("")
-        output_lines.append(f"📊 Total steps: {len(results)}")
-
-        # Save session
-        ctx_manager.save()
-        output_lines.append(f"💾 Session saved: {ctx_manager.session_id}")
-
-        return {
-            "success": True,
-            "output": "\n".join(output_lines),
-            "results": [
-                {
-                    "agent": r.agent,
-                    "task": r.task,
-                    "returncode": r.returncode,
-                    "stdout": r.stdout[:500],  # Truncate for JSON
-                }
-                for r in results
-            ],
-        }
-
-    return asyncio.run(async_run())
+    return {
+        "success": True,
+        "workflow_type": workflow_type,
+        "team": effective_team,
+        "task": task,
+        "work_dir": str(Path(work_dir).resolve()),
+        "complexity": complexity,
+        "phases": phases,
+        "recommendations": {
+            "use_plan_mode": use_plan_mode,
+            "use_todo_list": len(phases) > 1,
+            "parallel_steps": parallel_steps,
+            "estimated_duration": f"{len(phases) * 1}-{len(phases) * 4} min",
+        },
+        "output": "\n".join(output_lines),
+    }
 
 
 def main():
-    """Main entry point - reads JSON from stdin, outputs JSON to stdout"""
-    try:
-        # Read parameters from stdin
-        params = json.load(sys.stdin)
+    """Main entry point - reads JSON from stdin, outputs JSON to stdout."""
+    params = {}
+    if not sys.stdin.isatty():
+        with contextlib.suppress(json.JSONDecodeError):
+            params = json.load(sys.stdin)
 
-        task = params.get("task", "")
-        workflow_type = params.get("workflow_type", "auto")
-        work_dir = params.get("work_dir", ".")
+    task = params.get("task", "")
+    workflow_type = params.get("workflow_type", "auto")
+    work_dir = params.get("work_dir", ".")
+    team_id = params.get("team")
 
-        if not task:
-            result = {"success": False, "error": "Missing required parameter: task", "output": ""}
-        else:
-            result = run_workflow(task, workflow_type, work_dir)
+    result = generate_workflow_plan(task, workflow_type, work_dir, team_id)
 
-        # Output result as JSON
-        print(json.dumps(result, indent=2))
-
-        # Exit with appropriate code
-        sys.exit(0 if result.get("success") else 1)
-
-    except json.JSONDecodeError as e:
-        print(json.dumps({"success": False, "error": f"Invalid JSON input: {e}", "output": ""}))
-        sys.exit(1)
-    except Exception as e:
-        print(json.dumps({"success": False, "error": f"Unexpected error: {e}", "output": ""}))
-        sys.exit(1)
+    print(json.dumps(result, indent=2, default=str))
+    sys.exit(0 if result.get("success") else 1)
 
 
 if __name__ == "__main__":

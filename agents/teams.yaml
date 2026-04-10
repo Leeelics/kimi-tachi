@@ -1,10 +1,18 @@
 # Kimi-Tachi Teams Configuration
-# Version: 1
+# Version: 2
 #
 # This file defines all available teams for kimi-tachi.
 # Each team has its own coordinator and set of agents.
+#
+# Agent categories (shared across teams for orchestration):
+#   - coordinator: Team leader, synthesizes outputs
+#   - research: Explores, gathers information, discovers patterns
+#   - plan: Analyzes, creates plans, identifies risks
+#   - create: Builds, implements, writes code/content
+#   - review: Checks quality, audits, fact-checks
+#   - design: Handles visual/UI/architecture design
 
-version: 1
+version: 2
 
 # Default team to use when no team is specified
 default_team: "coding"
@@ -20,7 +28,7 @@ teams:
     agent_count: 7
     agents_dir: "coding"
     memory_namespace: "coding"
-    
+
     # Workflow patterns for this team
     workflow_patterns:
       feature: "tasogare → nekobasu → shishigami → calcifer → enma"
@@ -28,43 +36,52 @@ teams:
       explore: "nekobasu → phoenix"
       refactor: "phoenix → shishigami → calcifer → enma"
       quick: "calcifer"
-      
+      test: "nekobasu → calcifer → enma"
+      docs: "phoenix → calcifer"
+
     # Agent mapping for orchestrator
     agents:
       kamaji:
         name: "釜爺"
         icon: "◕‿◕"
         role: "coordinator"
+        category: "coordinator"
         description: "Boiler Room Chief - Task coordinator"
       nekobasu:
         name: "猫バス"
         icon: "🚌"
         role: "explorer"
+        category: "research"
         description: "Cat Bus - Fast code exploration"
       calcifer:
         name: "カルシファー"
         icon: "🔥"
         role: "builder"
+        category: "create"
         description: "Fire Demon - Implementation & building"
       enma:
         name: "閻魔大王"
         icon: "👹"
         role: "reviewer"
+        category: "review"
         description: "King of Afterlife - Code review & quality"
       tasogare:
         name: "黄昏時"
         icon: "🌆"
         role: "planner"
+        category: "plan"
         description: "Twilight Hour - Planning & research"
       shishigami:
         name: "シシ神"
         icon: "🦌"
         role: "architect"
+        category: "design"
         description: "Forest Deity - Architecture & wisdom"
       phoenix:
         name: "火の鳥"
         icon: "🐦"
         role: "librarian"
+        category: "research"
         description: "Eternal Observer - Documentation & knowledge"
 
   content:
@@ -76,7 +93,7 @@ teams:
     agent_count: 5
     agents_dir: "content"
     memory_namespace: "content"
-    
+
     # Workflow patterns for this team
     workflow_patterns:
       article: "guojia → chenlin → zhugeliang → zhugejin"
@@ -84,40 +101,45 @@ teams:
       series: "guojia → xunyu → chenlin → zhugeliang → zhugejin"
       deep_dive: "guojia → xunyu → chenlin → zhugeliang → zhugejin"
       quick: "chenlin"
-      
+
     # Agent mapping for orchestrator
     agents:
       xunyu:
         name: "文若"
         icon: "📜"
         role: "coordinator"
+        category: "coordinator"
         description: "Chief Editor - Steady leadership, risk-averse"
       guojia:
         name: "奉孝"
         icon: "🎯"
         role: "topic_hunter"
+        category: "research"
         description: "Topic Hunter - Insightful trend prediction"
       chenlin:
         name: "孔璋"
         icon: "✍️"
         role: "writer"
+        category: "create"
         description: "Writer - Powerful prose, Jian'an style"
       zhugeliang:
         name: "孔明"
         icon: "🔍"
         role: "proofreader"
+        category: "review"
         description: "Proofreader - Meticulous fact-checking"
       zhugejin:
         name: "子瑜"
         icon: "🎨"
         role: "designer"
+        category: "design"
         description: "Designer - Warm, harmonious aesthetics"
 
 # Team-specific settings
 settings:
   # Whether to allow cross-team collaboration (future feature)
   enable_cross_team: false
-  
+
   # Session isolation settings
   session:
     isolate_by_team: true

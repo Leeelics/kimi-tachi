@@ -5,7 +5,7 @@
   "tools": [
     {
       "name": "workflow",
-      "description": "Run a multi-agent workflow for a task (feature, bugfix, explore, refactor, quick)",
+      "description": "Run a multi-agent workflow for a task. Auto-detects team and supports category-based parallel orchestration.",
       "command": ["python3", "scripts/workflow.py"],
       "parameters": {
         "type": "object",
@@ -16,14 +16,17 @@
           },
           "workflow_type": {
             "type": "string",
-            "enum": ["auto", "feature", "bugfix", "explore", "refactor", "quick"],
             "default": "auto",
-            "description": "Type of workflow to run"
+            "description": "Type of workflow to run (auto, or a pattern defined by the current team)"
           },
           "work_dir": {
             "type": "string",
             "default": ".",
             "description": "Working directory for the task"
+          },
+          "team": {
+            "type": "string",
+            "description": "Team ID to use (defaults to current team)"
           }
         },
         "required": ["task"]
@@ -31,11 +34,16 @@
     },
     {
       "name": "list_agents",
-      "description": "List all available kimi-tachi agents (七人衆) with their roles and icons",
+      "description": "List all available agents for the current (or specified) team with their roles and icons",
       "command": ["python3", "scripts/list_agents.py"],
       "parameters": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "team": {
+            "type": "string",
+            "description": "Team ID to list agents for (defaults to current team)"
+          }
+        },
         "required": []
       }
     },
@@ -48,8 +56,11 @@
         "properties": {
           "agent": {
             "type": "string",
-            "enum": ["kamaji", "shishigami", "nekobasu", "calcifer", "enma", "tasogare", "phoenix"],
             "description": "Agent name to get info for"
+          },
+          "team": {
+            "type": "string",
+            "description": "Team ID the agent belongs to (defaults to current team)"
           }
         },
         "required": ["agent"]
@@ -146,7 +157,6 @@
         "properties": {
           "agent": {
             "type": "string",
-            "enum": ["kamaji", "nekobasu", "calcifer", "enma", "tasogare", "shishigami", "phoenix"],
             "description": "Agent to recall context for"
           },
           "task": {

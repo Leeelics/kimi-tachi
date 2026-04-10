@@ -2,17 +2,28 @@
 """
 Kimi-Tachi Agent Info Tool
 
-Get detailed information about a specific agent.
+Get detailed information about a specific agent in the current (or specified) team.
 """
 
+import contextlib
 import json
 import sys
 
-AGENT_DETAILS = {
+# Optional kimi-tachi imports for team lookup
+try:
+    from kimi_tachi.team import TeamManager
+
+    KIMI_TACHI_AVAILABLE = True
+except ImportError:
+    KIMI_TACHI_AVAILABLE = False
+
+# Fallback defaults (coding team)
+FALLBACK_DETAILS = {
     "kamaji": {
         "name": "釜爺 (Kamaji)",
         "icon": "◕‿◕",
         "role": "coordinator",
+        "category": "coordinator",
         "origin": "Spirited Away (千と千尋の神隠し)",
         "description": "The six-armed boiler room operator from the bathhouse of the spirits.",
         "personality": "Commanding but caring, treats workers like family",
@@ -37,6 +48,7 @@ AGENT_DETAILS = {
         "name": "シシ神 (Shishigami)",
         "icon": "🦌",
         "role": "architect",
+        "category": "design",
         "origin": "Princess Mononoke (もののけ姫)",
         "description": "The Deer God, ancient spirit of the forest. Walks with flowers blooming and withering at every step.",
         "personality": "Wise, patient, speaks with the weight of centuries",
@@ -57,6 +69,7 @@ AGENT_DETAILS = {
         "name": "猫バス (Nekobasu)",
         "icon": "🚌",
         "role": "explorer",
+        "category": "research",
         "origin": "My Neighbor Totoro (となりのトトロ)",
         "description": "The Cat Bus! Twelve legs carrying you at lightning speed through any codebase.",
         "personality": "Fast, energetic, always moving, uses 'nya' sounds",
@@ -77,6 +90,7 @@ AGENT_DETAILS = {
         "name": "カルシファー (Calcifer)",
         "icon": "🔥",
         "role": "builder",
+        "category": "create",
         "origin": "Howl's Moving Castle (ハウルの動く城)",
         "description": "A fire demon, but a good demon! Powers the moving castle.",
         "personality": "Grumpy but lovable, complains while working excellently",
@@ -97,6 +111,7 @@ AGENT_DETAILS = {
         "name": "閻魔大王 (Enma)",
         "icon": "👹",
         "role": "reviewer",
+        "category": "review",
         "origin": "Dragon Ball (ドラゴンボール)",
         "description": "Great King Enma - judge of the dead and the buggy.",
         "personality": "Strict, fair, maintains the book of every sin",
@@ -116,6 +131,7 @@ AGENT_DETAILS = {
         "name": "黄昏時 (Tasogare)",
         "icon": "🌆",
         "role": "planner",
+        "category": "plan",
         "origin": "Your Name (君の名は。)",
         "description": "The Magic Hour, when day meets night. Kataware-doki.",
         "personality": "Gentle, contemplative, poetic but practical",
@@ -134,6 +150,7 @@ AGENT_DETAILS = {
         "name": "火の鳥 (Phoenix)",
         "icon": "🐦",
         "role": "librarian",
+        "category": "research",
         "origin": "Phoenix (火の鳥) by Osamu Tezuka",
         "description": "Witness civilizations rise and fall across millennia.",
         "personality": "Eternal, wise, sees patterns across time",
@@ -145,7 +162,7 @@ AGENT_DETAILS = {
         "catchphrases": [
             "I have seen this pattern before...",
             "Time is a circle...",
-            "Knowledge that is not recorded is knowledge lost.",
+            "Knowledge that is not recorded is lost.",
         ],
         "best_for": [
             "Documentation",
@@ -157,54 +174,93 @@ AGENT_DETAILS = {
 }
 
 
+def get_agent_detail(agent: str, team_id: str | None = None) -> dict | None:
+    """Get agent details from TeamManager or fallback."""
+    if KIMI_TACHI_AVAILABLE:
+        try:
+            manager = TeamManager()
+            team = manager.get_team(team_id) if team_id else manager.effective_team
+
+            info = team.agents.get(agent)
+            if info:
+                return {
+                    "name": info.get("name", agent),
+                    "icon": info.get("icon", "🤖"),
+                    "role": info.get("role", "unknown"),
+                    "category": info.get("category", "unknown"),
+                    "origin": info.get("origin", ""),
+                    "description": info.get("description", ""),
+                    "personality": info.get("personality", ""),
+                    "abilities": info.get("abilities", []),
+                    "catchphrases": info.get("catchphrases", []),
+                    "best_for": info.get("best_for", []),
+                }
+        except Exception:
+            pass
+    return FALLBACK_DETAILS.get(agent)
+
+
 def main():
     """Get info for a specific agent"""
-    try:
-        params = json.load(sys.stdin)
-        agent = params.get("agent", "")
+    params = {}
+    if not sys.stdin.isatty():
+        with contextlib.suppress(json.JSONDecodeError):
+            params = json.load(sys.stdin)
 
-        if not agent or agent not in AGENT_DETAILS:
-            result = {
-                "success": False,
-                "error": f"Unknown agent: {agent}. Available: {list(AGENT_DETAILS.keys())}",
-                "output": "",
-            }
-        else:
-            info = AGENT_DETAILS[agent]
+    agent = params.get("agent", "")
+    team_id = params.get("team")
 
-            lines = [
-                f"{info['icon']} {info['name']}",
-                f"Role: {info['role']}",
-                f"Origin: {info['origin']}",
+    info = get_agent_detail(agent, team_id)
+
+    if not agent or not info:
+        available = list(FALLBACK_DETAILS.keys())
+        if KIMI_TACHI_AVAILABLE:
+            try:
+                manager = TeamManager()
+                team = manager.get_team(team_id) if team_id else manager.effective_team
+                available = list(team.agents.keys())
+            except Exception:
+                pass
+        result = {
+            "success": False,
+            "error": f"Unknown agent: {agent}. Available: {available}",
+            "output": "",
+        }
+    else:
+        lines = [
+            f"{info['icon']} {info['name']}",
+            f"Role: {info['role']}",
+            f"Category: {info['category']}",
+        ]
+        if info.get("origin"):
+            lines.append(f"Origin: {info['origin']}")
+        lines.extend(
+            [
                 "",
                 f"Description: {info['description']}",
-                f"Personality: {info['personality']}",
-                "",
-                "Abilities:",
             ]
+        )
+        if info.get("personality"):
+            lines.append(f"Personality: {info['personality']}")
+
+        if info.get("abilities"):
+            lines.extend(["", "Abilities:"])
             for ability in info["abilities"]:
                 lines.append(f"  • {ability}")
 
-            lines.append("")
-            lines.append("Catchphrases:")
+        if info.get("catchphrases"):
+            lines.extend(["", "Catchphrases:"])
             for phrase in info["catchphrases"]:
                 lines.append(f"  💬 {phrase}")
 
-            lines.append("")
-            lines.append("Best for:")
+        if info.get("best_for"):
+            lines.extend(["", "Best for:"])
             for use in info["best_for"]:
                 lines.append(f"  ✓ {use}")
 
-            result = {"success": True, "output": "\n".join(lines), "agent": info}
+        result = {"success": True, "output": "\n".join(lines), "agent": info}
 
-        print(json.dumps(result, indent=2))
-
-    except json.JSONDecodeError as e:
-        print(json.dumps({"success": False, "error": f"Invalid JSON: {e}", "output": ""}))
-        sys.exit(1)
-    except Exception as e:
-        print(json.dumps({"success": False, "error": f"Error: {e}", "output": ""}))
-        sys.exit(1)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
