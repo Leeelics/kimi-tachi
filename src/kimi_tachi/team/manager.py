@@ -56,7 +56,11 @@ class TeamManager:
     _instance: TeamManager | None = None
 
     # Configuration paths
+    # For wheel installs (agents packaged under kimi_tachi/agents)
     _TEAMS_CONFIG_PATH: Path = Path(__file__).parent.parent / "agents" / "teams.yaml"
+    if not _TEAMS_CONFIG_PATH.exists():
+        # Fallback for editable installs (agents at repo root)
+        _TEAMS_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "agents" / "teams.yaml"
 
     # User state storage
     _USER_STATE_DIR: Path = Path.home() / ".kimi-tachi"
