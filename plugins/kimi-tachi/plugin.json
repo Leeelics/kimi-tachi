@@ -76,38 +76,7 @@
         "required": []
       }
     },
-    {
-      "name": "get_session_status",
-      "description": "Get current kimi-tachi session status including active agents and tasks",
-      "command": ["python3", "scripts/session_status.py"],
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "session_id": {
-            "type": "string",
-            "description": "Optional session ID to check"
-          }
-        },
-        "required": []
-      }
-    },
-    {
-      "name": "list_background_tasks",
-      "description": "List active and recent background tasks",
-      "command": ["python3", "scripts/list_tasks.py"],
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["all", "active", "completed", "failed"],
-            "default": "all",
-            "description": "Filter tasks by status"
-          }
-        },
-        "required": []
-      }
-    },
+
     {
       "name": "memory_search",
       "description": "Search code memory for relevant information (project-level search)",

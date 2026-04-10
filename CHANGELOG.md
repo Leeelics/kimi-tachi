@@ -12,11 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `model` override per phase (`shishigami` automatically recommends `kimi-k2.5`)
   - `resume` flag for consecutive identical-agent phases
   - `plan_mode_reason` in recommendations with human-readable justification
+- **Native Tool Orchestration Protocol**: Rewrote `kamaji.yaml` to teach root agent direct use of `Agent()`, `SetTodoList`, `TaskList`, `TaskOutput`, and `ExitPlanMode`
 - **Efficiency Benchmark**: Added `BENCHMARK.md` and `scripts/evaluate_cleanup.py` for tracking project health, test density, and capability gaps
 
 ### Changed
 - **Massive Dead-Code Removal**: Removed legacy orchestrator, context, tracing, vis, session, and background modules (~15,000 lines deleted)
-- Project is now a focused **Plan Generator** thin layer rather than an execution engine
+- **Project Repositioning**: From "execution engine" to **thin Plan Generator + Team Manager** that orchestrates via kimi-cli native tools
+- **Manual Memory Protocol**: Replaced "automatic hooks" illusion in `kamaji.yaml` with explicit manual memory tool usage
+- **Native Hooks Migration Guide**: Rewrote `docs/hooks.md` to direct users to kimi-cli's native hook engine
+
+### Removed
+- **Broken Shell Hooks**: Deleted all shell hooks (`recall-on-start.sh`, `process-agent.sh`, `store-before-compact.sh`, etc.) that referenced the removed `kimi_tachi.hooks` module
+- **Simulated Plugin Tools**: Removed `get_session_status` and `list_background_tasks` from `plugin.json` (they read fake JSON from the deleted hooks system)
 
 ### Fixed
 - **Subagent Type Mapping**: `workflow.py` now emits native `coder`/`explore`/`plan` types instead of anime character names
