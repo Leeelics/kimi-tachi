@@ -1,441 +1,330 @@
 # kimi-tachi Roadmap
 
-> **核心理念**：将软件工程问题转化为动漫角色分工问题
+> **定位**：kimi-tachi 是 kimi-cli 原生能力的 team-based 放大器。
 > 
+> **核心原则**：不造新轮子，把 kimi-cli 已有的 subagent、hooks、skills、plugins、background tasks、todo、plan mode、DMail 等原子能力，通过主题化 team 编排成用户一句话就能调用的完整工作流。
+>
 > 最后更新: 2026-04-10
 
 ---
 
-## 🎭 愿景与方向
+## 一、现状与核心问题
 
-### 为什么用动漫角色？
+### 1.1 已有的底子
+- **Plugin 体系**：kimi-tachi 以 kimi-cli 1.25.0+ plugin 形式分发，提供 workflow、memory、agent info 等工具
+- **Multi-team 架构**：`agents/teams.yaml` 已支持多团队（coding / content），TeamManager 负责团队切换和隔离
+- **编排器骨架**：`HybridOrchestrator`、`WorkflowEngine`、`ContextManager`、`SessionManager` 已就位
+- **消息总线 + Tracing**：`MessageBus`、agent tracer、workflow visualization 已具备基础能力
+- **Hooks 接入**：`hooks/` 下有 `recall-on-start.sh`、`store-before-compact.sh` 等生命周期脚本
 
-1. **性格即策略**：每个角色代表一种解决策略
-   - 釜爺(kamaji) = 协调 · 总接口
-   - 山兽神(shishigami) = 沉思 · 架构设计  
-   - 猫巴士(nekobasu) = 速度 · 代码探索
-   - 火魔(calcifer) = 实现 · 代码构建
-   - 阎魔王(enma) = 审查 · 质量保证
-   - 黄昏(tasogare) = 规划 · 任务分析
-   - 火之鸟(phoenix) = 记忆 · 知识管理
+### 1.2 致命短板：我们在「壳子上雕花」
 
-2. **情感共鸣**：比冷冰冰的 "executor", "planner" 更生动
+kimi-tachi 目前最大的结构性问题是：**大量能力停留在「模拟」和「外部 shell 调用」，没有真正调用 kimi-cli 的原生工具。**
 
-3. **团队感**：就像动画里的团队冒险，各司其职
+| kimi-cli 原生能力 | kimi-tachi 当前状态 | 问题 |
+|---|---|---|
+| `Agent` tool (subagent spawn + resume + background + timeout) | ❌ **未真正使用** | `workflow.py` 靠 `python3 scripts/workflow.py` shell 执行，而不是调用 `Agent()` |
+| `Background` task (自动通知 + `TaskOutput` 轮询) | ❌ **模拟中** | `background/task_manager.py` 明确标注 "For now, we simulate the behavior" |
+| `ExitPlanMode` (原生 Plan Mode 多选项提交) | ❌ **未接入** | tasogare 输出文本计划，没走 kimi-cli 的原生计划提交流程 |
+| `SetTodoList` + `TodoDisplayBlock` | ⚠️ **只检查了格式** | `todo-enforcer` 是外部校验器，没有在 workflow 中主动调用原生 Todo 工具 |
+| `SendDMail` (checkpointed 跨 agent 通信) | ❌ **完全没碰** | 自研 `MessageBus` 做异步通信，但 kimi-cli 已有 DMail |
+| `SubagentStore` (session 级 subagent 持久化与恢复) | ❌ **未利用** | 自己存 `~/.kimi-tachi/memory/hooks/session_*.json`，而 kimi-cli 已自动存 `session/subagents/<agent_id>/` |
+| Wire hooks (client-side real-time 注入) | ⚠️ **只到 shell 级别** | 当前 hooks 是 shell 脚本，没做 deeper wire subscription |
 
-```
-    宫崎骏 (4/7)          新海诚 (1/7)     手冢治虫 (1/7)     鸟山明 (1/7)
-         │                    │                │               │
-    ┌────┴────┐              │                │               │
-    ▼    ▼    ▼              ▼                ▼               ▼
- kamaji  shishigami  nekobasu  calcifer   tasogare       phoenix      enma
-  (釜爺)   (山兽神)   (猫巴士)   (火魔)      (黄昏)        (火之鸟)    (阎魔王)
-    │        │          │         │          │             │           │
- 协调者   架构师    侦察兵    工匠      规划师        图书管理员    审查员
-```
+**结论**：kimi-tachi 在 kimi-cli 外面盖了一座自己的城堡，但这座城堡的很多砖块 kimi-cli 已经免费提供，而且做得更稳。
 
 ---
 
-## ✅ 已完成
+## 二、从竞品学到的关键洞察
 
-### Multi-Team Support (v0.7.0-v0.7.1) ✅
-- [x] TeamManager - 团队隔离和管理中心
-- [x] Agent 重组 - coding / content 团队
-- [x] CLI 团队管理命令 - `teams list/switch/info/current`
-- [x] Team-scoped memory - 团队隔离记忆
-- [x] 动态团队切换 - 运行时切换团队
-- [x] `install` 默认覆盖升级，`--skip-existing` 保留旧文件
+### 2.1 superpowers — 自动化触发的工作流
+- **核心启示**：skill 不是被用户手动调用的，而是**被意图自动触发**的
+- ** kimi-tachi 应用**：用 kimi-cli 的 `UserPromptSubmit` hook 做意图识别，自动推荐/激活 flow skills；用 `ExitPlanMode` 在关键节点让用户做结构化选择
 
-### Phase 2: 架构优化 ✅
-- [x] Dynamic Agent 创建 - MCP 进程 7→2
-- [x] 消息总线架构 - 延迟 <100ms
-- [x] 并行 Workflow 执行 - ≥40% 并行率
-- [x] 上下文缓存优化 - ≥80% 命中率
+### 2.2 oh-my-opencode — 分类路由 + 并行 background agent
+- **核心启示**：`IntentGate` + 按任务类别路由 + `Agent(run_in_background=True)` 并行执行
+- **kimi-tachi 应用**：在 `category-router` 基础上，真正调用 `Agent(..., run_in_background=True)` 并行 spawn 多个子代理，用 `TaskOutput` 轮询结果
 
-### Memory System (基础版) ✅
-- [x] TachiMemory v3 - 智能 Session 探查
-- [x] DecisionDeduplicator - 决策去重
-- [x] MemNexus 集成（接口层）- 存储后端
-- [x] Hooks 自动记忆 - SessionStart/PreCompact
+### 2.3 everything-claude-code — AGENTS.md 自动生成 + 持续学习
+- **核心启示**：`/init-deep` 和 continuous learning 是最深的壁垒
+- **kimi-tachi 应用**：用 `Agent` tool spawn nekobasu 扫描项目结构，生成层级 `AGENTS.md`；用 `SessionEnd` / `PostCompact` hooks 自动提取决策并存入 memory/skills
 
 ---
 
-## 📊 现状分析
+## 三、重构后的战略方向
 
-### v0.7.x 发布经验与教训
+### 3.1 反定位（绝对不做）
+- ❌ 不造自己的 edit protocol（没有 Hashline）
+- ❌ 不做跨平台兼容（不追 Cursor / Codex / OpenCode）
+- ❌ 不堆 47 个 agent / 181 个 skill
+- ❌ 不做 Web UI / 复杂配置面板
+- ❌ 不直接暴露子代理给用户（ Coordinator-as-Face 不变）
 
-v0.7.0/0.7.1 的发布暴露了当前最紧迫的问题：
+### 3.2 核心行动纲领
+> **把所有「shell 调用」和「模拟实现」替换成 kimi-cli 的原生工具调用。**
 
+kimi-tachi 不应该有自己的并行执行系统、自己的 subagent 持久化系统、自己的后台任务系统。它应该是：**基于 kimi-cli 原生能力之上的一层智能编排胶水。**
+
+---
+
+## 四、迭代路线图
+
+### Phase 0: 止血与根基（立即，1 周内）
+
+**目标**：修复已损坏的 plugin 工具，补齐测试，让现有功能不再「丢人」。
+
+- [ ] **修复缺失的 plugin 脚本**
+  - `plugins/kimi-tachi/scripts/session_status.py` 缺失
+  - `plugins/kimi-tachi/scripts/list_tasks.py` 缺失
+  - 这些脚本不应该只是查本地状态，而应**直接对接 kimi-cli 的 background task API**
+
+- [ ] **补齐 E2E 测试**
+  - CI 中增加 wheel build → `pip install` → 运行 `kimi-tachi status/teams info` 的 smoke test
+  - 确保 release 前能提前发现路径解析、依赖缺失等问题
+
+- [ ] **统一路径解析**
+  - 扫描所有 `Path(__file__)` 硬编码，统一使用 `_resolve_data_dir()`
+  - 修复 wheel install 后的路径漂移问题
+
+- [ ] **更新文档漂移**
+  - `AGENTS.md` 中引用的 `team.py`、`orchestrator.py` 等单文件已拆包，需同步更新为 `team/`、`orchestrator/` 目录结构
+
+---
+
+### Phase 1: 从 Shell 到 Native（2-4 周）
+
+**目标**：把 kimi-tachi 的核心执行路径从「shell 脚本」迁移到「kimi-cli 原生工具调用」。
+
+#### 1.1 Workflow: 用 `Agent` tool 替换 `python3 scripts/workflow.py`
+
+**当前问题**：
+```json
+// plugin.json
+{
+  "name": "workflow",
+  "command": ["python3", "scripts/workflow.py"]
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  问题                         影响          优先级          │
-├─────────────────────────────────────────────────────────────┤
-│  wheel install 路径解析       无法运行      🔴 高           │
-│  CI validate job 缺少 uv      Release 失败  🔴 高           │
-│  无 wheel 安装 E2E 测试       无法提前发现  🟡 中           │
-│  PyPI 不可覆盖                发版即定版    🟡 中           │
-│  TaskRouter 缺失              无自动编排    🔴 高           │
-└─────────────────────────────────────────────────────────────┘
-```
+这启动了一个外部 Python 进程，完全在 kimi-cli 的 runtime 之外运行。
 
-**关键结论**：架构代码已经就位，但 "最后一公里" 的稳定性、测试覆盖、以及真正的用户价值（智能任务路由）还没有完成。
+**目标状态**：
+- Kamaji 收到任务后，直接调用 kimi-cli 原生的 `Agent` tool
+- 根据 workflow type 决定 `subagent_type`：`explore` → nekobasu, `plan` → tasogare, `coder` → calcifer
+- 复杂任务通过多步 `Agent()` 调用编排，而不是外部进程
 
-### kimi-cli 关键发现
+**具体改动**：
+- [ ] 重写 `orchestrator/native_agent_orchestrator.py`，使其**实际产出 `Agent` tool 调用参数**
+- [ ] 废弃或降级 `scripts/workflow.py`，改为由 Kamaji 直接调用 `Agent()`
+- [ ] 在 `kamaji.yaml` system prompt 中明确教导："当需要执行 workflow 时，使用 `Agent` tool，而不是 shell"
 
-通过深入分析 kimi-cli 源码，我们识别出以下关键信息：
+#### 1.2 Background Tasks: 从模拟到真用
 
-#### 1. MCP 问题根源
-
+**当前问题**：
 ```python
-# agent.py:301-307 - 问题的根本原因
-for subagent_name, subagent_spec in agent_spec.subagents.items():
-    subagent = await load_agent(
-        subagent_spec.path,
-        runtime.copy_for_fixed_subagent(),
-        mcp_configs=mcp_configs,  # ← 同样的配置传递给每个 subagent
-        start_mcp_loading=start_mcp_loading,
-        _restore_dynamic_subagents=False,
-    )
+# background/task_manager.py
+"In a real implementation, this would use the Agent tool with
+run_in_background=True. For now, we simulate the behavior."
 ```
 
-**结论**: 每个 fixed subagent 都会独立启动 MCP 进程。这是 kimi-cli 的当前行为，短期内难以改变。
+**目标状态**：
+- `BackgroundTaskManager.start_task()` 直接封装 `Agent(..., run_in_background=True)`
+- 用 `TaskOutput` 做状态轮询，用 kimi-cli 的自动通知机制替代手工模拟
+- `list_tasks.py` 调用 kimi-cli 原生的 task listing API
 
-#### 2. kimi-cli 最新能力（v1.24.0+）
+**具体改动**：
+- [ ] 重构 `background/task_manager.py`，删除模拟逻辑
+- [ ] 对接 `Agent` tool 的 `run_in_background` + `timeout` 参数
+- [ ] 修复 `list_tasks.py` 和 `session_status.py`，使其能正确查询 background task 状态
 
-| 功能 | 版本 | kimi-tachi 可利用性 | 说明 |
-|------|------|---------------------|------|
-| **Plan Mode** | 1.19+ | ⭐⭐⭐ 高 | 可替代 tasogare 的规划阶段，支持多选项方案 |
-| **Background Bash** | 1.23+ | ⭐⭐⭐ 高 | 长任务不阻塞，自动通知完成 |
-| **MCP 延迟加载** | 1.24+ | ⭐⭐ 中 | 缓解启动慢问题，异步初始化 |
-| **AskUserQuestion** | 1.14+ | ⭐⭐⭐ 高 | 结构化用户交互 |
-| **Session 持久化** | 1.14+ | ⭐⭐⭐ 高 | 动态 subagent 可恢复 |
-| **Context Compaction** | - | ⭐⭐⭐ 高 | 自动上下文压缩 |
+#### 1.3 Todo 工具：从「外部检查器」到「主动管理者」
 
-### hello-agents 关键洞察
+**当前问题**：`todo-enforcer` 只是在 task 完成后检查格式，没有在 workflow 中主动使用 `SetTodoList`。
 
-通过分析 [hello-agents](https://github.com/datawhalechina/hello-agents) 项目，我们获得以下核心启示：
+**目标状态**：
+- workflow 开始时，Kamaji 自动 `SetTodoList` 创建任务
+- 每个 subagent 完成阶段后，自动更新对应 todo 状态
+- 利用 kimi-cli 原生的 `TodoDisplayBlock` 给用户可视化的进度条
 
-#### 1. Skill 三级分层架构（核心抽象）
+**具体改动**：
+- [ ] 在 `kamaji.yaml` 中加入 "workflow 启动时必须调用 `SetTodoList`"
+- [ ] 在 `workflow_patterns` 的每个阶段节点定义对应的 todo item
+- [ ] 在 `native_agent_orchestrator.py` 中增加 "post-agent todo update" 逻辑
 
-```
-┌─────────────────────────────────────────┐
-│ L1: Metadata                            │
-│     始终加载 (~100 词)                   │
-│     → AI 判断是否激活该技能              │
-├─────────────────────────────────────────┤
-│ L2: SKILL.md body                       │
-│     触发后加载 (< 5k 词)                 │
-│     → 具体操作指令                       │
-├─────────────────────────────────────────┤
-│ L3: Bundled resources                   │
-│     按需加载 (无上限)                     │
-│     - scripts/: 确定性脚本               │
-│     - references/: 参考资料              │
-│     - assets/: 产出物模板                │
-└─────────────────────────────────────────┘
-```
+#### 1.4 Plan Mode: 接入 `ExitPlanMode`
 
-**关键原则**: Scripts 执行而不读入，零 token 成本
+**当前问题**：tasogare 输出文本计划，用户需要在聊天记录里回复选择。
 
-#### 2. 自由度光谱设计
+**目标状态**：
+- tasogare / shishigami 做完规划后，调用 `ExitPlanMode` 提交 2-3 个选项
+- 用户在 UI 中做结构化选择（Approve / Revise / Reject）
+- 选择结果自动路由到下一个执行 agent
 
-| 自由度 | 实现方式 | 适用场景 | kimi-tachi 应用 |
-|--------|----------|----------|-----------------|
-| **高** | 文字指令 | 创造性任务 | tasogare（规划） |
-| **中** | 伪代码/带参数脚本 | 有最佳实践但允许变通 | shishigami（架构） |
-| **低** | 具体脚本、少量参数 | 脆弱操作 | calcifer（代码生成） |
-
-#### 3. 多 Agent 协作模式
-
-| 模式 | 特点 | kimi-tachi 适用性 |
-|------|------|-------------------|
-| **对话驱动** (AutoGen) | 自然语言协商 | ⭐⭐⭐ 当前设计 |
-| **消息驱动** (AgentScope) | MsgHub 解耦通信 | ⭐⭐⭐ 优化方向 |
-| **角色扮演** (CAMEL) | Inception Prompting | ⭐⭐ 人设增强 |
-| **状态机驱动** (LangGraph) | 图结构控制 | ⭐⭐ workflow 模式 |
+**具体改动**：
+- [ ] 在 `tasogare.yaml` 和 `shishigami.yaml` 中加入 `ExitPlanMode` 的使用指引
+- [ ] 在 `orchestrator/workflow_engine.py` 中增加 "plan mode checkpoint" 节点类型
+- [ ] 测试 feature / refactor 类型任务的 Plan Mode 触发
 
 ---
 
-## 🗺️ 迭代路线图
+### Phase 2: 记忆与状态 Native 化（4-6 周）
 
-### v0.8.0: 智能编排与稳定性（当前重点，4-6 周）
+**目标**：停止自己造持久化轮子，全面利用 kimi-cli 的 `SubagentStore`、`DMail`、Hooks 和 Context Compaction。
 
-**目标**: 让 kimi-tachi 从 "团队启动器" 进化为 "任务编排器"，同时加固发布稳定性
+#### 2.1 利用 `SubagentStore` 做跨会话恢复
 
-v0.7.0/0.7.1 的发布教训：架构代码再漂亮，"最后一公里" 不稳，用户就用不上。因此 v0.8.0 将智能编排与稳定性硬化合并推进。
+**当前问题**：自己存 `~/.kimi-tachi/memory/hooks/session_*.json`。
 
-**目标**: 让 kimi-tachi 从 "团队启动器" 进化为 "任务编排器"
+**目标状态**：
+- kimi-cli 已经自动将 subagent 实例元数据、prompts、wire logs 存到 `session/subagents/<agent_id>/`
+- kimi-tachi 利用这个目录实现 "Resume previous team session"
+- 用户下次进入同项目会话时，可以 `Agent(resume="...")` 继续之前的子代理
 
-当前 `kimi-tachi` 只是启动 kamaji 并把任务交给它。v0.8.0 要让它能：
-1. **理解任务类型** → 自动选择 team + workflow
-2. **复杂任务进入 Plan Mode**
-3. **后台任务自动异步化**
+**具体改动**：
+- [ ] 研究 `SubagentStore` 的存储格式和恢复机制
+- [ ] 在 `session_manager.py` 中增加 "resume last team session" 功能
+- [ ] 在 `hooks/recall-on-start.sh` 中读取 `SubagentStore` 的残留状态而非自定义 JSON
 
-#### 8.1 稳定性加固（并行推进）
+#### 2.2 DMail: 替换部分 MessageBus 功能
 
-基于 v0.7.x 发布教训，必须完成的保底工作：
+**当前问题**：`MessageBus` 是自研的异步消息总线，但在 kimi-cli runtime 内，很多 checkpoint 通信可以用 `SendDMail` 完成。
 
-- [ ] **wheel install E2E 测试**
-  - CI 中构建 wheel → `pip install` → 运行完整 CLI 测试
-  - 覆盖 `status`、`teams info`、`install --dry-run`
-- [ ] **路径解析统一审计**
-  - 扫描所有 `Path(__file__)` 硬编码，统一使用 `_resolve_data_dir` / `_TEAMS_CONFIG_PATH.parent`
-- [ ] **Release 前 smoke test**
-  - `build-check` 后增加 "install wheel and run status" 步骤
-- [ ] **版本预检脚本**
-  - 打 tag 前自动检查 PyPI 是否已存在该版本
+**目标状态**：
+- 需要「持久化消息」的场景（如 compaction 前保存关键上下文）使用 `SendDMail`
+- `MessageBus` 保留用于实时广播、tracing、vis 等纯观测类场景
+- 减少自研通信系统的维护负担
 
-#### 8.2 TaskRouter - 任务路由智能
+**具体改动**：
+- [ ] 在 `context/manager.py` 中增加 `DMailCheckpoint` 封装
+- [ ] 将 `hooks/store-before-compact.sh` 的核心逻辑改为发送 DMail
+- [ ] 评估 `MessageBus` 中哪些 pub/sub 可以迁移到 DMail
 
-```python
-# 目标: 自动任务分类和路由
+#### 2.3 Hooks: 从 Shell 升级到 Wire Subscription
 
-class TaskRouter:
-    def route(self, task: str) -> AgentChain:
-        # 语义理解任务类型
-        # 自动选择最佳 team 和 workflow pattern
-        # 动态调整执行策略
-```
+**当前问题**：所有 hooks 都是 shell 脚本，能力有限（只能执行外部命令）。
 
-**实现方案**:
-- 使用轻量级规则 + LLM 分类的混合策略
-- 在 `kimi_tachi/orchestrator.py` 中实现 `TaskRouter`
-- 本地快速分类（无需 LLM）：基于关键词匹配 + 文件扩展名分析
-- 复杂/模糊任务：用 `calcifer` 做一次性 LLM 分类（< 1s）
+**目标状态**：
+- 把关键的 `PreToolUse`、`PostToolUse`、`UserPromptSubmit`、`PreCompact` hooks 升级为 kimi-cli 的 client-side wire subscriptions
+- 实现更实时的 context injection、tool guard、todo enforcement
 
-**工作流程**:
-```
-用户输入任务
-     ↓
-[TaskRouter] 分析任务类型
-     ↓
-选择 Team + Workflow 模板
-     ↓
-如果是复杂任务 → 触发 Plan Mode
-     ↓
-动态分配角色执行
-     ↓
-结果整合返回
-```
+**具体改动**：
+- [ ] 研究 `src/kimi_cli/hooks/engine.py` 的 wire hook 注册机制
+- [ ] 在 `src/kimi_tachi/hooks/` 中增加 Python 版的 wire hook handler
+- [ ] 逐步将 `recall-on-start.sh`、`trace-agent.sh`、`store-before-compact.sh` 的逻辑 Python 化
 
-#### 8.3 Plan Mode 集成
+#### 2.4 自动记忆：利用 compaction hooks 做零配置知识沉淀
 
-利用 kimi-cli 原生的 Plan Mode 优化编排流程：
+**目标状态**：
+- `PreCompact`：用 DMail / 自定义逻辑保存当前会话的关键决策
+- `PostCompact`：自动将提取的决策存入 `memory_store_decision`
+- `SessionEnd`：自动总结本次会话，存入 episodic memory
+- 用户完全无感知
 
-```
-当前流程:                        优化后流程:
-                                
-kimi-tachi 启动 kamaji          kimi-tachi 启动 kamaji
-         │                              │
-         ▼                              ▼
-   kamaji 处理所有               [TaskRouter] 分析任务
-         │                        /              \
-         ▼                       /                \
-   子 agent 协作              简单任务            复杂任务
-                              (直接运行)         EnterPlanMode
-                                                      │
-                                                      ▼
-                                               tasogare 生成计划
-                                                      │
-                                                      ▼
-                                               ExitPlanMode
-                                               (多选项呈现)
-                                                      │
-                                                      ▼
-                                               用户选择方案
-                                                      │
-                                                      ▼
-                                               calcifer/enma 执行
-```
-
-**具体行动**:
-- [ ] 在 `kamaji.yaml` system prompt 中加入 Plan Mode 触发逻辑
-- [ ] 新增 `orchestrator/router.py` 实现 `TaskRouter`
-- [ ] CLI 增加 `--plan` / `--no-plan` 选项覆盖自动判断
-- [ ] 测试不同任务类型的路由准确率
-
-#### 8.4 Background Bash 集成
-
-```
-使用场景:
-┌────────────────────────────────────────┐
-│ calcifer 实现代码                      │
-│         │                              │
-│         ▼                              │
-│  启动后台构建/测试 (run_in_background)  │
-│         │                              │
-│         ▼                              │
-│  kamaji 继续其他工作                   │
-│         │                              │
-│         ▼                              │
-│  自动通知任务完成                      │
-└────────────────────────────────────────┘
-```
-
-**具体行动**:
-- [ ] 更新 `calcifer.yaml`，加入后台任务指导
-- [ ] 在 `workflow_patterns` 中标记哪些步骤可后台化
-- [ ] 测试长构建任务的异步执行
-
-#### 8.5 Agent 提示词优化
-
-应用 **自由度光谱** 优化现有 agent prompts：
-
-| Agent | 自由度 | 优化方向 |
-|-------|--------|----------|
-| **tasogare** | 高 | 增加创造性指令，减少约束 |
-| **shishigami** | 中 | 提供架构模式选项，允许变通 |
-| **calcifer** | 低 | 提供代码生成脚本参考，锁定风格 |
-| **enma** | 中 | 提供检查清单，标准化审查 |
-
-**具体行动**:
-- [ ] 为每个 Agent 编写反模式清单
-- [ ] 优化 system prompt 为祈使语气
-- [ ] 测试优化后的 Agent 表现
-
-**里程碑**: v0.8.0 - 智能编排版
+**具体改动**：
+- [ ] 打通 `hooks/tools.py` 中标记的 `# TODO: 实际存储到 memnexus`
+- [ ] 完成 `tachi_memory_v3.py` 的 MemNexus 后端对接
+- [ ] 实现自动决策提取 + 去重 + 存储的完整 pipeline
 
 ---
 
-### v0.9.0: 记忆系统完善（后续，4-6 周）
+### Phase 3: 智能编排与生态（6-10 周）
 
-**目标**: 完成真正的三层记忆系统，实现长期学习
+**目标**：在原生能力扎实的基础上，做 kimi-tachi 的差异化护城河。
 
-#### 9.1 三层记忆系统
+#### 3.1 TaskRouter: 意图识别 + 自动 team/workflow 选择
 
-```
-记忆架构:
-┌─────────────────────────────────────────┐
-│  Working Memory (工作记忆)               │
-│  - 当前会话上下文                        │
-│  - 短期决策缓存                          │
-├─────────────────────────────────────────┤
-│  Episodic Memory (情景记忆)              │
-│  - 历史会话记录                          │
-│  - 任务执行经验                          │
-├─────────────────────────────────────────┤
-│  Semantic Memory (语义记忆)              │
-│  - 代码库知识                            │
-│  - 跨项目经验                            │
-└─────────────────────────────────────────┘
-```
+**目标状态**：
+- 用户输入任务后，系统自动判断该用哪个 team、哪种 workflow pattern
+- 简单任务直接走 fast path（关键词匹配 + 文件扩展名分析）
+- 复杂/模糊任务用一次性的轻量 LLM 调用做分类
 
-**目标指标**:
-| 指标 | 当前 | 目标 |
-|------|------|------|
-| Working Memory 命中率 | 80% | ≥90% |
-| Episodic Memory 检索准确率 | 70% | ≥80% |
-| Semantic Memory 代码库覆盖率 | 60% | ≥70% |
+**具体改动**：
+- [ ] 实现 `orchestrator/router.py`
+- [ ] 定义任务分类规则（feature / bugfix / explore / refactor / content / etc.）
+- [ ] 在 `kamaji.yaml` 中加入 TaskRouter 的使用指引
+- [ ] 测试不同任务类型的路由准确率 ≥ 85%
 
-#### 9.2 MemNexus 后端真正落地
+#### 3.2 `/init-deep` 等价能力：自动 AGENTS.md 生成
 
-- [ ] 将 `hooks/tools.py` 中标记的 `# TODO: 实际存储到 memnexus` 完成
-- [ ] 实现基于 MemNexus 的跨项目知识检索
-- [ ] Agent 决策时自动检索相关历史经验
+**目标状态**：
+- 用户在新项目使用 kimi-tachi 时，可以自动扫描项目结构
+- nekobasu 做快速探查 → calcifer 生成层级 `AGENTS.md`
+- 生成的文档自动存入项目根目录和关键子目录
 
-#### 9.3 用户偏好学习
+**具体改动**：
+- [ ] 在 skills 中新增 `project-onboarding` skill
+- [ ] 实现 "scan → generate → write AGENTS.md" 的 workflow
+- [ ] 与 MemNexus 集成：将项目结构知识存入 semantic memory
 
-- [ ] 学习用户偏好的代码风格
-- [ ] 学习用户偏好的团队选择
-- [ ] 自动调整 TaskRouter 权重
+#### 3.3 Team 扩展：新增主题团队
 
-**里程碑**: v0.9.0 - 记忆智能版
+**目标状态**：
+- 在现有 `coding`（七人衆）和 `content`（三国天团）基础上，新增实用 team
+- 候选：
+  - `review` team：专门做 security review、performance review、style review
+  - `devops` team：CI/CD、部署、监控配置
+  - `data` team：数据科学、ML pipeline
 
----
+**具体改动**：
+- [ ] 设计新 team 的 YAML 结构（coordinator + agents + workflow_patterns）
+- [ ] 建立 "add new team" 的标准模板和测试清单
+- [ ] 让 `TeamManager` 支持动态加载用户自定义 team
 
-### v1.0.0: 生态建设（未来）
+#### 3.4 Skills 生态：从示例到实用
 
-**目标**: 构建 Skills 生态，支持自定义角色
+**目标状态**：
+- 把现有的 `category-router`、`todo-enforcer`、`kimi-tachi` skills 做深
+- 新增 3-5 个与 workflow 紧密集成的实用 skills
+- 建立 skill 开发模板和贡献指南
 
-#### 1.0.1 Skills 扩展
-
-```
-skills/
-├── dev/                          # 开发相关
-│   ├── code-generator/           # 代码生成
-│   ├── test-writer/              # 测试编写
-│   ├── doc-generator/            # 文档生成
-│   └── api-client/               # API 客户端生成
-│
-├── review/                       # 代码审查
-│   ├── security-check/           # 安全检查
-│   ├── performance/              # 性能分析
-│   └── style-check/              # 代码风格
-│
-├── project/                      # 项目管理
-│   ├── onboarding/               # 新成员引导
-│   ├── release/                  # 发布助手
-│   └── changelog/                # 变更日志
-│
-└── anime/                        # 动漫角色（示例）
-    ├── ghibli-style/             # 吉卜力风格建议
-    └── character-voice/          # 角色语气转换
-```
-
-#### 1.0.2 自定义角色系统
-
-```yaml
-# 示例: 用户自定义角色模板
-custom_agent_template:
-  name: "my-agent"
-  base_role: "calcifer"        # 继承火魔的基础能力
-  
-  customization:
-    system_prompt_additions: |
-      你专注于前端开发，擅长 React 和 TypeScript。
-      你重视组件的可复用性和可访问性。
-    
-    skills:                      # 关联的 skills
-      - "dev/code-generator"
-      - "review/style-check"
-    
-    tools_priority:              # 工具使用偏好
-      high: ["Glob", "Grep", "StrReplaceFile"]
-      low: ["Shell"]
-    
-    freedom_level: "medium"      # high/medium/low
-```
-
-#### 1.0.3 社区与分享
-
-- [ ] 开发 5+ 实用 Skills
-- [ ] 设计自定义角色模板系统
-- [ ] 建立社区分享机制
-- [ ] 编写角色开发指南
-
-**里程碑**: v1.0.0 - 生态完整版
+**候选 skills**：
+- `project-onboarding`：新项目初始化 + AGENTS.md 生成
+- `build-troubleshooter`：构建失败自动诊断和修复
+- `refactor-planner`：大规模重构的拆分和风险评估
+- `test-strategist`：测试策略设计和覆盖率分析
 
 ---
 
-## 📈 成功指标
+## 五、成功指标
 
-| 阶段 | 指标 | 目标值 | 当前 |
-|------|------|--------|------|
-| **Phase 2** | MCP 进程数 | ≤ 2 | ✅ ≤2 |
-| **Phase 2** | 消息总线延迟 | < 100ms | ✅ <100ms |
-| **Phase 2** | 并行执行比例 | ≥ 40% | ✅ ≥40% |
-| **Phase 2** | 上下文缓存命中率 | ≥ 80% | ✅ ≥80% |
-| **Phase 3** | 团队切换响应时间 | < 500ms | ✅ <500ms |
-| **Phase 3** | 团队配置可扩展性 | ≥ 5 团队 | ✅ 支持 |
-| **v0.7.x** | wheel install 成功率 | 100% | 🔄 进行中 |
-| **v0.7.x** | CI release 成功率 | 100% | 🔄 进行中 |
-| **v0.8.0** | 任务路由准确率 | ≥ 85% | 📋 待开始 |
-| **v0.8.0** | Plan Mode 触发正确率 | ≥ 90% | 📋 待开始 |
-| **v0.9.0** | Working Memory 命中率 | ≥ 90% | 🔄 进行中 |
-| **v1.0.0** | Skills 数量 | ≥ 10 | 📋 待开始 |
-| **v1.0.0** | 社区贡献角色 | ≥ 5 | 📋 待开始 |
+| 维度 | 指标 | Phase 0 目标 | Phase 1 目标 | Phase 2 目标 | Phase 3 目标 |
+|---|---|---|---|---|---|
+| **稳定性** | wheel install smoke test 通过率 | 100% | 100% | 100% | 100% |
+| **原生集成** | shell-based workflow 占比 | 100% | 0% | 0% | 0% |
+| **原生集成** | 模拟 background task 占比 | 100% | 0% | 0% | 0% |
+| **原生集成** | Plan Mode 使用率（复杂任务） | 0% | ≥ 50% | ≥ 80% | ≥ 90% |
+| **原生集成** | Todo 工具主动使用率 | 0% | ≥ 50% | ≥ 80% | ≥ 90% |
+| **记忆** | 跨会话恢复成功率 | N/A | N/A | ≥ 70% | ≥ 85% |
+| **编排** | TaskRouter 准确率 | N/A | N/A | N/A | ≥ 85% |
+| **生态** | 实用 skills 数量 | 3 | 4 | 5 | ≥ 8 |
+| **生态** | 支持 team 数量 | 2 | 2 | 3 | ≥ 4 |
 
 ---
 
-## 🔗 相关文档
+## 六、本周立即行动清单
+
+1. [ ] 创建 `plugins/kimi-tachi/scripts/session_status.py`
+2. [ ] 创建 `plugins/kimi-tachi/scripts/list_tasks.py`
+3. [ ] 在 CI 中增加 wheel install E2E smoke test
+4. [ ] 起草 `orchestrator/router.py` 的 TaskRouter 骨架（关键词 fast path）
+5. [ ] 评估 `scripts/workflow.py` 中哪些逻辑可以迁移到 `Agent()` 原生调用
+
+---
+
+## 七、第一性原理总结
+
+> **kimi-tachi 不是要成为最好的 AI 编码团队，而是要成为 kimi-cli 最好的「能力放大器」。**
+>
+> 我们不造自己的 edit protocol、不跨平台、不堆 agent 数量。
+> 我们只做好一件事：**用户说目标，我们自动调用 kimi-cli 的原生能力（Agent、Background、Todo、Plan、DMail、Hooks、Memory）去完成它。**
+>
+> 用户感知到的不是 "我用了 subagent + hooks + skills + memory"，而是 "我的 team 把这事办了"。
+
+---
+
+## 相关文档
 
 - [anti-patterns.md](./anti-patterns.md) - 反模式清单
 - [memory.md](./memory.md) - 记忆系统文档
 - [hooks.md](./hooks.md) - Hooks 集成指南
 - [contributing.md](./contributing.md) - 贡献指南
-- [hello-agents](https://github.com/datawhalechina/hello-agents) - 智能体系统最佳实践参考
-
----
-
-*「七人の力が一つになれば、どんな敵にも負けない。」*
-*（七人的力量合为一体，任何敌人都无法战胜。）*
+- [../AGENTS.md](../AGENTS.md) - 项目架构与开发规范
