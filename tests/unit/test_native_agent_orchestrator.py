@@ -131,7 +131,7 @@ class TestNativeAgentOrchestrator:
 
         assert info["personality"] == "nekobasu"
         assert info["icon"] == "🚌"
-        assert info["name"] == "猫バス (Nekobasu)"
+        assert info["name"] == "猫バス"
         assert info["role"] == "explorer"
         assert info["native_type"] == "explore"
         assert info["cached"] is False
@@ -140,6 +140,7 @@ class TestNativeAgentOrchestrator:
         orch = NativeAgentOrchestrator()
         personalities = orch.list_personalities()
 
+        # Coding team has 6 subagent personalities
         assert len(personalities) == 6
 
         # Check nekobasu entry
@@ -180,7 +181,8 @@ class TestNativeAgentOrchestratorAsync:
         assert result.personality == AgentPersonality.NEKOBASU
         assert result.task == "Find all Python files"
         assert result.returncode == 0
-        assert "猫バス" in result.stdout
+        assert "## Your Role" in result.stdout
+        assert "Find all Python files" in result.stdout
 
     @pytest.mark.asyncio
     async def test_delegate_creates_cache(self):

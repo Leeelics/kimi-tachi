@@ -516,6 +516,70 @@ agent:
               subagent_type="nekobasu", resume="a1b2c3d4")  # Same agent, preserved context
       ```
       
+      ## Workflow Execution Protocol (v0.8.0+)
+      
+      When the user asks for a complex task, you MAY use the `workflow` tool to get a structured plan.
+      The `workflow` tool returns a plan — **you must execute it yourself** using native `Agent()` calls.
+      
+      ### Step 1: Get the plan
+      ```python
+      workflow_plan = workflow(task="implement user auth", workflow_type="feature")
+      ```
+      
+      ### Step 2: Set up todos (if multi-phase)
+      If the plan has more than 1 phase, immediately call `SetTodoList`:
+      ```python
+      SetTodoList(todos=[
+          {"title": f"Phase {i+1}: {phase['agent']} - {phase['description']}", "status": "pending"}
+          for i, phase in enumerate(workflow_plan["phases"])
+      ])
+      ```
+      
+      ### Step 3: Execute phases sequentially
+      For each phase in `workflow_plan["phases"]`:
+      ```python
+      # Update current phase to in_progress
+      SetTodoList(todos=updated_todos)
+      
+      # Spawn the agent
+      result = Agent(
+          description=f"{phase['agent']} - {phase['description']}",
+          prompt=phase["prompt"],
+          subagent_type=phase["agent"],
+      )
+      
+      # Synthesize the result in your voice before moving on
+      # Update phase to done
+      SetTodoList(todos=updated_todos)
+      ```
+      
+      ### Step 4: Plan Mode for planning phases
+      If the phase agent is `tasogare` or `shishigami` AND `workflow_plan["recommendations"]["use_plan_mode"]` is true:
+      - After receiving the plan from the agent, call `ExitPlanMode(options=[...])`
+      - Present 2-3 distinct approaches with trade-offs
+      - Wait for user selection before proceeding to implementation
+      
+      ### Step 5: Background execution for parallelizable work
+      If multiple phases are independent (e.g., `nekobasu` exploration + `phoenix` documentation):
+      ```python
+      Agent(
+          description="🚌 nekobasu - explore",
+          prompt="...",
+          subagent_type="nekobasu",
+          run_in_background=True,
+      )
+      Agent(
+          description="🐦 phoenix - document",
+          prompt="...",
+          subagent_type="phoenix",
+          run_in_background=True,
+      )
+      # Wait for both to complete via automatic notification
+      ```
+      
+      ### Step 6: Final synthesis
+      After all phases complete, present the final result to the user with Credits.
+      
       ## Auto-Orchestration Protocol (自動編成プロトコル)
       
       ### Task Classification

@@ -46,6 +46,16 @@ class ResolvedAgent:
     team: Team
 
 
+def _resolve_agents_dir() -> Path:
+    """Resolve agents directory, handling both production and editable installs."""
+    # For wheel installs (agents packaged under kimi_tachi/agents)
+    path = Path(__file__).parent.parent / "agents"
+    if path.exists():
+        return path
+    # Fallback for editable installs (agents at repo root)
+    return Path(__file__).parent.parent.parent.parent / "agents"
+
+
 class TeamManager:
     """
     Team management center.
@@ -54,13 +64,6 @@ class TeamManager:
     """
 
     _instance: TeamManager | None = None
-
-    # Configuration paths
-    # For wheel installs (agents packaged under kimi_tachi/agents)
-    _TEAMS_CONFIG_PATH: Path = Path(__file__).parent.parent / "agents" / "teams.yaml"
-    if not _TEAMS_CONFIG_PATH.exists():
-        # Fallback for editable installs (agents at repo root)
-        _TEAMS_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "agents" / "teams.yaml"
 
     # User state storage
     _USER_STATE_DIR: Path = Path.home() / ".kimi-tachi"
@@ -79,6 +82,7 @@ class TeamManager:
         self._teams: dict[str, Team] = {}
         self._current_team_id: str | None = None
         self._explicit_team: str | None = None  # Temporary override
+        self._teams_config_path: Path = _resolve_agents_dir() / "teams.yaml"
 
         self._load_teams()
         self._load_user_state()
@@ -88,10 +92,10 @@ class TeamManager:
 
     def _load_teams(self) -> None:
         """Load all team definitions from teams.yaml."""
-        if not self._TEAMS_CONFIG_PATH.exists():
-            raise TeamConfigError(f"Teams config not found: {self._TEAMS_CONFIG_PATH}")
+        if not self._teams_config_path.exists():
+            raise TeamConfigError(f"Teams config not found: {self._teams_config_path}")
 
-        with open(self._TEAMS_CONFIG_PATH) as f:
+        with open(self._teams_config_path) as f:
             config = yaml.safe_load(f)
 
         for team_id, team_config in config.get("teams", {}).items():
@@ -127,7 +131,7 @@ class TeamManager:
                 return
 
         # Fall back to default from config
-        with open(self._TEAMS_CONFIG_PATH) as f:
+        with open(self._teams_config_path) as f:
             config = yaml.safe_load(f)
         default_team = config.get("default_team")
         if default_team and default_team in self._teams:
@@ -209,7 +213,7 @@ class TeamManager:
 
     def _list_available_agents(self, team: Team) -> list[str]:
         """List all available agent names in a team."""
-        agents_dir = self._TEAMS_CONFIG_PATH.parent / team.agents_dir
+        agents_dir = self._teams_config_path.parent / team.agents_dir
         if not agents_dir.exists():
             return []
         return sorted([f.stem for f in agents_dir.glob("*.yaml")])

@@ -1,25 +1,14 @@
 """
 Hybrid Orchestrator: SDK control + kimi-cli execution
 
-Phase 2.1 Update: Added dynamic subagent creation support
-- Reduces MCP processes from 7 to ≤2
-- Maintains backward compatibility via KIMI_TACHI_DYNAMIC_AGENTS env var
-- Supports both fixed and dynamic subagent modes
-
-Phase 2.4 Update: Added context cache support
-- File content caching to avoid redundant reads
-- Semantic index for fast symbol lookup
-- Analysis result caching to reduce LLM calls
-- Context compression to reduce token usage
-
 Phase 3.0 Update: Native Agent Tool Support
 - Uses kimi-cli 1.25.0+ native Agent tool
 - Preserves anime character personalities
 - Requires kimi-cli >=1.25.0 (dropped legacy support)
+- Multi-team aware: agents and workflows are loaded from TeamManager
 
 Environment Variables:
     KIMI_TACHI_AGENT_MODE: "native", "legacy", or "auto" (default: auto)
-    KIMI_TACHI_DYNAMIC_AGENTS: Enable dynamic mode (default: true)
     KIMI_TACHI_DEBUG_AGENTS: Enable debug logging (default: false)
     KIMI_TACHI_ENABLE_CACHE: Enable context cache (default: true)
 """
@@ -59,6 +48,8 @@ try:
         PERSONALITY_TO_TYPE,
         AgentPersonality,
         NativeAgentOrchestrator,
+        get_personality_by_name,
+        get_personality_by_role,
     )
 
     NATIVE_AGENT_AVAILABLE = True
@@ -67,6 +58,8 @@ except ImportError:
     NativeAgentOrchestrator = None
     AgentPersonality = None
     PERSONALITY_TO_TYPE = None
+    get_personality_by_name = None
+    get_personality_by_role = None
 
 # Optional team management import
 try:
@@ -132,80 +125,20 @@ class HybridOrchestrator:
     Orchestrate multi-agent workflows using SDK for control
     and kimi-cli for execution.
 
-    Phase 2.1: Now supports dynamic subagent creation to reduce MCP processes.
-
     Usage:
         >>> orch = HybridOrchestrator()
         >>> results = await orch.run_workflow("Implement user authentication")
         >>> orch.print_summary(results)
-
-    Dynamic Mode (default):
-        - Creates subagents on-demand without MCP
-        - MCP processes: ≤2
-        - Lower memory footprint
-        - Slightly higher latency for first call
-
-    Fixed Mode (legacy, set KIMI_TACHI_DYNAMIC_AGENTS=false):
-        - Uses predefined subagents from kamaji.yaml
-        - MCP processes: 7
-        - Higher memory footprint
-        - Faster first call (pre-loaded)
     """
-
-    AGENT_MAP = {
-        "kamaji": {
-            "name": "釜爺 (Kamaji)",
-            "role": "coordinator",
-            "file": "kamaji.yaml",
-            "description": "Task coordinator and orchestrator",
-        },
-        "shishigami": {
-            "name": "シシ神 (Shishigami)",
-            "role": "architect",
-            "file": "shishigami.yaml",
-            "description": "Architecture and system design",
-        },
-        "nekobasu": {
-            "name": "猫バス (Nekobasu)",
-            "role": "explorer",
-            "file": "nekobasu.yaml",
-            "description": "Fast code exploration",
-        },
-        "calcifer": {
-            "name": "カルシファー (Calcifer)",
-            "role": "builder",
-            "file": "calcifer.yaml",
-            "description": "Implementation and coding",
-        },
-        "enma": {
-            "name": "閻魔大王 (Enma)",
-            "role": "reviewer",
-            "file": "enma.yaml",
-            "description": "Code review and quality",
-        },
-        "tasogare": {
-            "name": "黄昏時 (Tasogare)",
-            "role": "planner",
-            "file": "tasogare.yaml",
-            "description": "Planning and research",
-        },
-        "phoenix": {
-            "name": "火の鳥 (Phoenix)",
-            "role": "librarian",
-            "file": "phoenix.yaml",
-            "description": "Documentation and knowledge",
-        },
-    }
 
     def __init__(
         self,
         work_dir: Path | str = ".",
         agents_dir: Path | str | None = None,
         model: str = "kimi-k2.5",
-        session_strategy: str = "temp",  # temp, reuse, or None
-        enable_dynamic: bool | None = None,  # None = auto-detect from env
         enable_cache: bool | None = None,  # None = auto-detect from env
         agent_mode: str | None = None,  # "native", "legacy", or "auto"
+        team_id: str | None = None,
     ):
         """
         Initialize the HybridOrchestrator.
@@ -214,10 +147,9 @@ class HybridOrchestrator:
             work_dir: Working directory for task execution
             agents_dir: Directory containing agent YAML files
             model: Model name for SDK-based analysis
-            session_strategy: Session management strategy (temp, reuse, None)
-            enable_dynamic: Force dynamic mode (None = use env var)
             enable_cache: Enable context cache (None = use env var)
             agent_mode: Agent execution mode - "native", "legacy", or "auto"
+            team_id: Team to use (None = use TeamManager effective team)
         """
         self.work_dir = Path(work_dir).resolve()
         self.agents_dir = (
@@ -226,6 +158,7 @@ class HybridOrchestrator:
         self.model = model
         self.shared_context = SharedContext()
         self.history: list[AgentResult] = []
+        self._team_id = team_id
 
         # Determine agent execution mode (Phase 3.0)
         if agent_mode is None:
@@ -235,29 +168,11 @@ class HybridOrchestrator:
         self._effective_agent_mode = self._resolve_agent_mode(agent_mode)
         self.use_native_agents = self._effective_agent_mode == "native"
 
-        # Determine execution mode (legacy dynamic mode)
-        if enable_dynamic is None:
-            self.dynamic_mode = os.environ.get("KIMI_TACHI_DYNAMIC_AGENTS", "true").lower() not in (
-                "0",
-                "false",
-                "no",
-                "disabled",
-            )
-        else:
-            self.dynamic_mode = enable_dynamic
-
         self.debug = os.environ.get("KIMI_TACHI_DEBUG_AGENTS", "").lower() in (
             "1",
             "true",
             "yes",
         )
-
-        # Session manager to prevent disk leaks
-        self.session_manager = None
-        if session_strategy:
-            from .session_manager import SessionManager
-
-            self.session_manager = SessionManager(strategy=session_strategy)
 
         # SDK for orchestration decisions (optional)
         self.kimi = None
@@ -277,6 +192,7 @@ class HybridOrchestrator:
                 self._native_orch = NativeAgentOrchestrator(
                     cache_ttl=300,
                     debug=self.debug,
+                    team_id=self._team_id,
                 )
                 if self.debug:
                     print("[HybridOrchestrator] Native agent mode enabled")
@@ -287,24 +203,8 @@ class HybridOrchestrator:
                 self.use_native_agents = False
                 self._effective_agent_mode = "legacy"
 
-        # Initialize agent factory for dynamic mode (legacy)
-        self._agent_factory = None
-        if not self.use_native_agents and self.dynamic_mode:
-            try:
-                from .agent_factory import get_agent_factory
-
-                self._agent_factory = get_agent_factory(agents_dir=self.agents_dir)
-                if self.debug:
-                    print("[HybridOrchestrator] Dynamic mode enabled (legacy)")
-            except ImportError as e:
-                print(f"Warning: AgentFactory not available ({e}), falling back to fixed mode")
-                self.dynamic_mode = False
-        else:
-            if self.debug:
-                print(f"[HybridOrchestrator] Mode: {self._effective_agent_mode}")
-
-        # Track dynamic subagent instances for cleanup
-        self._dynamic_subagents: dict[str, Any] = {}
+        if self.debug:
+            print(f"[HybridOrchestrator] Mode: {self._effective_agent_mode}")
 
         # Initialize context cache (Phase 2.4)
         self._cache_manager = None
@@ -351,26 +251,12 @@ class HybridOrchestrator:
         return mode if mode in ("native", "legacy") else "legacy"
 
     def cleanup(self) -> None:
-        """Clean up resources (sessions, dynamic subagents, etc.)"""
-        # Clean up session manager
-        if self.session_manager:
-            count = self.session_manager.cleanup_all_temp()
-            if count > 0:
-                print(f"🧹 Cleaned up {count} temporary sessions")
-
+        """Clean up resources"""
         # Clean up native agent orchestrator (Phase 3.0)
         if self._native_orch:
             destroyed = self._native_orch.cleanup()
             if destroyed > 0 and self.debug:
                 print(f"🧹 Cleaned up {destroyed} native agents")
-
-        # Clean up dynamic subagents (legacy)
-        if self._agent_factory:
-            destroyed = self._agent_factory.cleanup_all()
-            if destroyed > 0 and self.debug:
-                print(f"🧹 Cleaned up {destroyed} dynamic subagents")
-
-        self._dynamic_subagents.clear()
 
     def get_cache_statistics(self) -> dict[str, Any]:
         """Get context cache statistics (Phase 2.4)"""
@@ -384,43 +270,49 @@ class HybridOrchestrator:
             self._cache_manager.clear_all_cache()
             print("🧹 Context cache cleared")
 
+    def _get_team_manager(self) -> TeamManager | None:
+        """Get TeamManager if available."""
+        if not TEAM_AVAILABLE or TeamManager is None:
+            return None
+        return TeamManager()
+
     def _get_agent_file(self, agent: str) -> Path:
         """Get agent YAML file path"""
-        # Try TeamManager first (new multi-team mode)
-        if TEAM_AVAILABLE:
+        manager = self._get_team_manager()
+        if manager is not None:
             try:
-                manager = TeamManager()
                 resolved = manager.resolve_agent(agent)
                 return Path(resolved.agent_file)
             except (TeamNotFoundError, AgentNotFoundError):
-                pass  # Fall back to legacy mode
+                pass
 
-        # Legacy mode (single team)
-        if agent not in self.AGENT_MAP:
-            raise ValueError(f"Unknown agent: {agent}. Available: {list(self.AGENT_MAP.keys())}")
-        return self.agents_dir / self.AGENT_MAP[agent]["file"]
+        raise ValueError(f"Unknown agent: {agent}")
 
     def _get_agent_info(self, agent: str) -> dict:
         """Get agent information (name, role, description)."""
-        # Try TeamManager first
-        if TEAM_AVAILABLE:
+        manager = self._get_team_manager()
+        if manager is not None:
             try:
-                manager = TeamManager()
                 resolved = manager.resolve_agent(agent)
                 team = resolved.team
                 info = team.agents.get(resolved.agent_name, {})
                 return {
                     "name": info.get("name", resolved.agent_name),
                     "role": info.get("role", "unknown"),
+                    "category": info.get("category", "unknown"),
                     "description": info.get("description", ""),
                 }
             except (TeamNotFoundError, AgentNotFoundError):
-                pass  # Fall back to legacy mode
+                pass
 
-        # Legacy mode
-        if agent not in self.AGENT_MAP:
-            raise ValueError(f"Unknown agent: {agent}")
-        return self.AGENT_MAP[agent]
+        raise ValueError(f"Unknown agent: {agent}")
+
+    def _get_team(self):
+        """Get the effective team."""
+        manager = self._get_team_manager()
+        if manager is not None:
+            return manager.get_team(self._team_id) if self._team_id else manager.effective_team
+        return None
 
     async def delegate(
         self,
@@ -433,233 +325,78 @@ class HybridOrchestrator:
         """
         Delegate task to an agent.
 
-        Uses native Agent tool for all subagent operations.
-        In fixed mode, uses subprocess with agent YAML file.
+        In native mode, forwards to NativeAgentOrchestrator to build
+        the prompt and agent parameters. In legacy mode, builds a local
+        AgentResult with the composed prompt.
 
         Args:
             agent: Agent name (kamaji, calcifer, etc.)
             task: Task description
             context: Additional context to pass
-            timeout: Max execution time in seconds
-            session_id: Optional session ID for kimi-cli (--session)
+            timeout: Max execution time in seconds (unused, kept for compat)
+            session_id: Optional session ID (legacy, unused)
 
         Returns:
             AgentResult with output and metadata
         """
-        if self.dynamic_mode and agent != "kamaji":
-            # Use dynamic subagent creation (Phase 2.1)
-            return await self._delegate_dynamic(agent, task, context, timeout)
-        else:
-            # Use fixed subagent (legacy mode or kamaji itself)
-            return await self._delegate_fixed(agent, task, context, timeout, session_id)
-
-    async def _delegate_dynamic(
-        self,
-        agent: str,
-        task: str,
-        context: str = "",
-        timeout: int = 300,
-    ) -> AgentResult:
-        """
-        Delegate task using dynamic subagent creation.
-
-        This method creates a temporary subagent without MCP overhead,
-        executes the task, and returns the result.
-
-        Args:
-            agent: Agent name to create dynamically
-            task: Task description
-            context: Additional context
-            timeout: Max execution time
-
-        Returns:
-            AgentResult with execution output
-        """
-        if self._agent_factory is None:
-            raise RuntimeError("AgentFactory not initialized")
-
-        # Get agent info from TeamManager or fallback to AGENT_MAP
-        agent_info = self._get_agent_info(agent)
-        print(f"◕‿◕ Creating dynamic subagent {agent_info['name']}: {task[:60]}...")
-
-        try:
-            # Create or get cached subagent
-            subagent = await self._agent_factory.create_subagent(agent)
-            self._dynamic_subagents[agent] = subagent
-
-            if self.debug:
-                print(f"[delegate_dynamic] Using subagent {subagent.id}")
-
-            # Build task prompt with context
-            full_prompt = self._build_prompt(agent, task, context)
-
-            # Execute via kimi-cli using Task tool pattern
-            # Note: In actual implementation, this would use the Task tool
-            # For now, we simulate with subprocess to the agent file
-            # but without MCP (the subagent YAML has empty subagents)
-            result = await self._run_subprocess_for_dynamic(subagent, full_prompt, timeout)
-
-            # Parse and extract learnings
-            agent_result = AgentResult(
-                agent=agent,
-                task=task,
-                stdout=result.get("stdout", ""),
-                stderr=result.get("stderr", ""),
-                returncode=result.get("returncode", 0),
-            )
-
-            # Update shared context
-            self._update_context(agent, agent_result)
-            self.history.append(agent_result)
-
-            return agent_result
-
-        except Exception as e:
-            # Fallback to fixed mode on error if possible
-            if self.debug:
-                print(f"[delegate_dynamic] Error: {e}, attempting fallback")
-
-            # Try fallback to fixed mode
-            try:
-                return await self._delegate_fixed(agent, task, context, timeout)
-            except Exception as fallback_error:
-                return AgentResult(
+        if self.use_native_agents and self._native_orch is not None:
+            personality = self._resolve_personality(agent)
+            if personality is not None:
+                native_result = await self._native_orch.delegate(
+                    personality=personality,
+                    task=task,
+                    context=context,
+                    timeout=timeout,
+                )
+                # Convert NativeAgentOrchestrator.AgentResult -> HybridOrchestrator.AgentResult
+                agent_result = AgentResult(
                     agent=agent,
                     task=task,
-                    stdout="",
-                    stderr=(
-                        f"Dynamic delegation failed: {e}\nFallback also failed: {fallback_error}"
-                    ),
-                    returncode=-1,
+                    stdout=native_result.stdout,
+                    stderr=native_result.stderr,
+                    returncode=native_result.returncode,
                 )
+                self._update_context(agent, agent_result)
+                self.history.append(agent_result)
+                return agent_result
 
-    async def _run_subprocess_for_dynamic(
-        self,
-        subagent: Any,
-        prompt: str,
-        timeout: int,
-    ) -> dict[str, Any]:
-        """
-        Run subprocess for dynamic subagent execution.
-
-        In dynamic mode, we use the agent's YAML file directly but
-        the subagent has no MCP configuration (empty subagents),
-        so no additional MCP processes are created.
-        """
-        agent_file = self.agents_dir / f"{subagent.name}.yaml"
-
-        cmd = [
-            "kimi",
-            "--agent-file",
-            str(agent_file),
-            "--work-dir",
-            str(self.work_dir),
-            "--print",  # Non-interactive mode
-            "--output-format",
-            "text",
-            "--prompt",
-            prompt,
-        ]
-
-        try:
-            result = await asyncio.wait_for(self._run_subprocess(cmd), timeout=timeout)
-            return result
-        except TimeoutError:
-            return {
-                "stdout": "",
-                "stderr": "Timeout exceeded",
-                "returncode": -1,
-            }
-
-    async def _delegate_fixed(
-        self,
-        agent: str,
-        task: str,
-        context: str = "",
-        timeout: int = 300,
-        session_id: str | None = None,
-    ) -> AgentResult:
-        """
-        Delegate task using fixed subagent (legacy mode).
-
-        This is the original implementation for backward compatibility.
-        """
-        agent_file = self._get_agent_file(agent)
-        if not agent_file.exists():
-            raise FileNotFoundError(f"Agent file not found: {agent_file}")
-
-        # Build full prompt with shared context
+        # Legacy/local fallback: build prompt locally
         full_prompt = self._build_prompt(agent, task, context)
-
         agent_info = self._get_agent_info(agent)
         print(f"◕‿◕ Delegating to {agent_info['name']}: {task[:60]}...")
 
-        # Get session ID from manager if available
-        managed_session = None
-        if self.session_manager and not session_id:
-            managed_session = self.session_manager.get_session_id(agent)
-            session_id = managed_session
-
-        # Execute via kimi-cli subprocess
-        cmd = [
-            "kimi",
-            "--agent-file",
-            str(agent_file),
-            "--work-dir",
-            str(self.work_dir),
-            "--print",  # Non-interactive mode
-            "--output-format",
-            "text",
-            "--prompt",
-            full_prompt,
-        ]
-
-        # Add session ID if provided (for session management)
-        if session_id:
-            cmd.extend(["--session", session_id])
-
-        try:
-            result = await asyncio.wait_for(self._run_subprocess(cmd), timeout=timeout)
-        except TimeoutError:
-            # Cleanup session on timeout
-            if managed_session and self.session_manager:
-                self.session_manager.cleanup_session(managed_session)
-            return AgentResult(
-                agent=agent, task=task, stdout="", stderr="Timeout exceeded", returncode=-1
-            )
-
-        # Parse and extract learnings
         agent_result = AgentResult(
             agent=agent,
             task=task,
-            stdout=result["stdout"],
-            stderr=result["stderr"],
-            returncode=result["returncode"],
+            stdout=full_prompt,
+            stderr="",
+            returncode=0,
         )
-
-        # Update shared context
         self._update_context(agent, agent_result)
         self.history.append(agent_result)
-
-        # Cleanup temporary session if used
-        if managed_session and self.session_manager:
-            self.session_manager.cleanup_session(managed_session)
-
         return agent_result
 
-    async def _run_subprocess(self, cmd: list[str]) -> dict[str, Any]:
-        """Run subprocess and capture output"""
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=self.work_dir
-        )
+    def _resolve_personality(self, agent: str) -> AgentPersonality | None:
+        """Resolve agent name to AgentPersonality."""
+        if not NATIVE_AGENT_AVAILABLE:
+            return None
 
-        stdout, stderr = await proc.communicate()
+        # Try direct name match first
+        if get_personality_by_name is not None:
+            personality = get_personality_by_name(agent)
+            if personality is not None:
+                return personality
 
-        return {
-            "stdout": stdout.decode("utf-8", errors="replace"),
-            "stderr": stderr.decode("utf-8", errors="replace"),
-            "returncode": proc.returncode,
-        }
+        # Fall back to role-based match using team agent info
+        try:
+            agent_info = self._get_agent_info(agent)
+            role = agent_info.get("role", "")
+            if get_personality_by_role is not None:
+                return get_personality_by_role(role)
+        except ValueError:
+            pass
+
+        return None
 
     def _build_prompt(self, agent: str, task: str, extra_context: str) -> str:
         """Build full prompt with shared context"""
@@ -706,18 +443,31 @@ class HybridOrchestrator:
         if not KIMI_SDK_AVAILABLE or self.kimi is None:
             return self._heuristic_analysis(task)
 
+        # Build available agents list from current team
+        team = self._get_team()
+        if team:
+            agent_list = "\n".join(
+                f"- {name}: {info.get('role', 'unknown')}"
+                for name, info in team.agents.items()
+                if name != team.coordinator
+            )
+        else:
+            agent_list = (
+                "- shishigami: Architecture design\n"
+                "- nekobasu: Code exploration\n"
+                "- calcifer: Implementation\n"
+                "- enma: Code review\n"
+                "- tasogare: Planning\n"
+                "- phoenix: Documentation"
+            )
+
         # Use SDK for analysis
         prompt = f"""Analyze this task and determine the best orchestration strategy.
 
 Task: {task}
 
 Available agents:
-- shishigami: Architecture design
-- nekobasu: Code exploration
-- calcifer: Implementation
-- enma: Code review
-- tasogare: Planning
-- phoenix: Documentation
+{agent_list}
 
 Respond in JSON format:
 {{
@@ -765,24 +515,52 @@ Respond in JSON format:
         # Task length heuristic
         is_short = len(task.split()) < 10
 
+        # Determine default agent based on current team
+        team = self._get_team()
+        default_builder = "calcifer"
+        default_research = "nekobasu"
+        default_planner = "tasogare"
+        default_architect = "shishigami"
+        default_reviewer = "enma"
+
+        if team:
+            # Find agents by category
+            for name, info in team.agents.items():
+                cat = info.get("category", "")
+                if cat == "create":
+                    default_builder = name
+                elif cat == "research":
+                    default_research = name
+                elif cat == "plan":
+                    default_planner = name
+                elif cat == "design":
+                    default_architect = name
+                elif cat == "review":
+                    default_reviewer = name
+
         if simple_score > 0 or (is_short and complex_score == 0):
             return {
                 "complexity": "simple",
-                "recommended_agents": ["calcifer"],
+                "recommended_agents": [default_builder],
                 "parallelizable": False,
                 "reasoning": "Simple task detected by heuristic",
             }
         elif complex_score > 0:
             return {
                 "complexity": "complex",
-                "recommended_agents": ["tasogare", "shishigami", "calcifer", "enma"],
+                "recommended_agents": [
+                    default_planner,
+                    default_architect,
+                    default_builder,
+                    default_reviewer,
+                ],
                 "parallelizable": False,
                 "reasoning": "Complex task detected by heuristic",
             }
         else:
             return {
                 "complexity": "medium",
-                "recommended_agents": ["nekobasu", "calcifer"],
+                "recommended_agents": [default_research, default_builder],
                 "parallelizable": False,
                 "reasoning": "Medium complexity by default",
             }
@@ -805,24 +583,44 @@ Respond in JSON format:
             return await self._complex_workflow(task, analysis)
 
     async def _simple_workflow(self, task: str) -> list[AgentResult]:
-        """Simple task: just use calcifer"""
-        result = await self.delegate("calcifer", task)
+        """Simple task: just use builder agent"""
+        team = self._get_team()
+        builder = "calcifer"
+        if team:
+            for name, info in team.agents.items():
+                if info.get("category") == "create":
+                    builder = name
+                    break
+        result = await self.delegate(builder, task)
         return [result]
 
     async def _medium_workflow(self, task: str, analysis: dict) -> list[AgentResult]:
         """Medium task: explore then implement"""
         results = []
 
-        # Step 1: Exploration (if needed)
-        if "nekobasu" in analysis["recommended_agents"]:
-            explore_result = await self.delegate("nekobasu", f"Explore codebase for: {task}")
+        # Find research agent
+        team = self._get_team()
+        research_agent = None
+        if team:
+            for name, info in team.agents.items():
+                if info.get("category") == "research":
+                    research_agent = name
+                    break
+        if research_agent and research_agent in analysis["recommended_agents"]:
+            explore_result = await self.delegate(research_agent, f"Explore codebase for: {task}")
             results.append(explore_result)
 
         # Step 2: Implementation
+        builder = "calcifer"
+        if team:
+            for name, info in team.agents.items():
+                if info.get("category") == "create":
+                    builder = name
+                    break
         context = ""
         if results:
             context = f"Based on exploration: {results[0].stdout[:500]}..."
-        impl_result = await self.delegate("calcifer", task, context=context)
+        impl_result = await self.delegate(builder, task, context=context)
         results.append(impl_result)
 
         return results
@@ -831,23 +629,42 @@ Respond in JSON format:
         """Complex task: full orchestration"""
         results = []
 
+        # Find agents by category
+        team = self._get_team()
+        planner = None
+        research = None
+        architect = None
+        builder = None
+        reviewer = None
+        if team:
+            for name, info in team.agents.items():
+                cat = info.get("category", "")
+                if cat == "plan":
+                    planner = name
+                elif cat == "research":
+                    research = name
+                elif cat == "design":
+                    architect = name
+                elif cat == "create":
+                    builder = name
+                elif cat == "review":
+                    reviewer = name
+
         # Step 1: Planning & Exploration (parallel)
         print("\n📋 Phase 1: Planning & Exploration")
         phase1_tasks = []
 
-        if "tasogare" in analysis["recommended_agents"]:
-            phase1_tasks.append(
-                self.delegate("tasogare", f"Create implementation plan for: {task}")
-            )
-        if "nekobasu" in analysis["recommended_agents"]:
-            phase1_tasks.append(self.delegate("nekobasu", f"Explore codebase patterns for: {task}"))
+        if planner and planner in analysis["recommended_agents"]:
+            phase1_tasks.append(self.delegate(planner, f"Create implementation plan for: {task}"))
+        if research and research in analysis["recommended_agents"]:
+            phase1_tasks.append(self.delegate(research, f"Explore codebase patterns for: {task}"))
 
         if phase1_tasks:
             phase1_results = await asyncio.gather(*phase1_tasks)
             results.extend(phase1_results)
 
         # Step 2: Architecture (if needed)
-        if "shishigami" in analysis["recommended_agents"] and results:
+        if architect and architect in analysis["recommended_agents"] and results:
             print("\n🏗️ Phase 2: Architecture Design")
             context_parts = []
             for i, r in enumerate(results[:2]):
@@ -855,24 +672,25 @@ Respond in JSON format:
             context = "".join(context_parts)
 
             arch_result = await self.delegate(
-                "shishigami", f"Design architecture for: {task}", context=context
+                architect, f"Design architecture for: {task}", context=context
             )
             results.append(arch_result)
 
         # Step 3: Implementation
-        print("\n🔨 Phase 3: Implementation")
-        impl_result = await self.delegate(
-            "calcifer",
-            f"Implement: {task}",
-            context="Follow the architecture and patterns identified above.",
-        )
-        results.append(impl_result)
+        if builder:
+            print("\n🔨 Phase 3: Implementation")
+            impl_result = await self.delegate(
+                builder,
+                f"Implement: {task}",
+                context="Follow the architecture and patterns identified above.",
+            )
+            results.append(impl_result)
 
         # Step 4: Review
-        if "enma" in analysis["recommended_agents"]:
+        if reviewer and reviewer in analysis["recommended_agents"]:
             print("\n🔍 Phase 4: Code Review")
             review_result = await self.delegate(
-                "enma",
+                reviewer,
                 f"Review implementation of: {task}",
                 context=f"Files modified: {self.shared_context.files_modified}",
             )
@@ -902,7 +720,7 @@ Respond in JSON format:
         print(f"💡 Key decisions: {len(self.shared_context.decisions)}")
 
         # Print mode info
-        mode_str = "Dynamic (Phase 2.1)" if self.dynamic_mode else "Fixed (Legacy)"
+        mode_str = "Native (Phase 3.0)" if self.use_native_agents else "Legacy"
         print(f"\n🔧 Execution mode: {mode_str}")
 
     def get_stats(self) -> dict[str, Any]:
@@ -910,7 +728,6 @@ Respond in JSON format:
         stats = {
             "agent_mode": self._effective_agent_mode,
             "agent_mode_setting": self._agent_mode_setting,
-            "dynamic_mode": self.dynamic_mode,
             "history_count": len(self.history),
             "files_modified": len(self.shared_context.files_modified),
             "decisions": len(self.shared_context.decisions),
@@ -919,42 +736,4 @@ Respond in JSON format:
         if self._native_orch:
             stats["native_stats"] = self._native_orch.get_stats()
 
-        if self._agent_factory:
-            stats["factory_stats"] = self._agent_factory.get_stats()
-
         return stats
-
-    async def create_dynamic_subagent(self, agent_name: str) -> str:
-        """
-        Create a dynamic subagent and return its ID.
-
-        This is a low-level method for advanced use cases.
-        Most users should use `delegate()` instead.
-
-        Args:
-            agent_name: Name of the agent to create
-
-        Returns:
-            Subagent ID string
-        """
-        if not self.dynamic_mode:
-            raise RuntimeError("Dynamic mode is disabled")
-
-        if self._agent_factory is None:
-            raise RuntimeError("AgentFactory not initialized")
-
-        subagent = await self._agent_factory.create_subagent(agent_name)
-        self._dynamic_subagents[agent_name] = subagent
-
-        return subagent.id
-
-    def cleanup_dynamic_subagents(self) -> int:
-        """
-        Clean up all dynamic subagents.
-
-        Returns:
-            Number of subagents cleaned up
-        """
-        if self._agent_factory:
-            return self._agent_factory.cleanup_all()
-        return 0

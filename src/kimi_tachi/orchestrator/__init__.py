@@ -18,7 +18,6 @@ from .native_agent_orchestrator import (
     get_personality_by_name,
     get_personality_by_role,
 )
-from .session_manager import SessionManager
 from .workflow_engine import Phase, Workflow, WorkflowEngine, WorkflowPhase
 
 # Optional tracing imports (Phase 4)
@@ -68,7 +67,6 @@ __all__ = (
         "Phase",
         "Workflow",
         "WorkflowPhase",
-        "SessionManager",
         # Native agent exports
         "AgentPersonality",
         "AgentType",

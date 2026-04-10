@@ -354,6 +354,8 @@ class NativeAgentOrchestrator:
     Preserves kimi-tachi anime character personalities while using
     native agent types (coder/explore/plan) for optimal performance.
 
+    Supports multi-team agent loading via TeamManager.
+
     Example:
         >>> orch = NativeAgentOrchestrator()
         >>> result = await orch.delegate(
@@ -371,6 +373,7 @@ class NativeAgentOrchestrator:
         cache_ttl: int | None = None,
         debug: bool = False,
         enable_tracing: bool = True,
+        team_id: str | None = None,
     ):
         import os
 
@@ -380,6 +383,7 @@ class NativeAgentOrchestrator:
             "true",
             "yes",
         )
+        self._team_id = team_id
 
         # Cache of native agent instances
         self._agents: dict[AgentPersonality, NativeAgentInstance] = {}
@@ -392,6 +396,9 @@ class NativeAgentOrchestrator:
             "cache_misses": 0,
         }
 
+        # Team-aware agent config cache
+        self._team_agents: dict[str, dict[str, Any]] | None = None
+
         # Tracing support (Phase 4)
         self._tracer: AgentTracer | None = None
         if enable_tracing and TRACING_AVAILABLE and get_tracer:
@@ -401,26 +408,48 @@ class NativeAgentOrchestrator:
             print("[NativeAgentOrchestrator] Initialized")
             print(f"  cache_ttl: {self.cache_ttl}s")
             print(f"  tracing: {'enabled' if self._tracer else 'disabled'}")
+            print(f"  team_id: {self._team_id or 'default'}")
+
+    def _load_team_agents(self) -> dict[str, dict[str, Any]]:
+        """Load agent configs from TeamManager if available."""
+        if self._team_agents is not None:
+            return self._team_agents
+
+        # Fallback to hardcoded defaults (coding team)
+        defaults = {
+            p.value: {
+                "icon": AGENT_PERSONALITIES[p]["icon"],
+                "name": AGENT_PERSONALITIES[p]["name"],
+                "role": AGENT_PERSONALITIES[p]["role"],
+                "system_prompt": AGENT_PERSONALITIES[p]["system_prompt"],
+            }
+            for p in AgentPersonality
+        }
+
+        try:
+            from ..team import TeamManager
+
+            manager = TeamManager()
+            team = manager.get_team(self._team_id) if self._team_id else manager.effective_team
+            agents = {}
+            for agent_name, info in team.agents.items():
+                agents[agent_name] = {
+                    "icon": info.get("icon", "🤖"),
+                    "name": info.get("name", agent_name),
+                    "role": info.get("role", "unknown"),
+                    "system_prompt": info.get("system_prompt", ""),
+                }
+            self._team_agents = agents if agents else defaults
+        except Exception:
+            self._team_agents = defaults
+
+        return self._team_agents
 
     def _get_or_create_agent(
         self,
         personality: AgentPersonality,
     ) -> NativeAgentInstance:
-        """
-        Get existing agent or create new one using native Agent tool.
-
-        This method would use the actual Agent tool in production:
-        ```python
-        agent_result = Agent(
-            description=f"{config['icon']} {personality.value}",
-            prompt=config["system_prompt"],
-            subagent_type=agent_type.value,
-        )
-        agent_id = agent_result.agent_id
-        ```
-
-        For now, we simulate the agent creation.
-        """
+        """Get existing agent from local registry or create a new metadata entry."""
         # Check cache
         if personality in self._agents:
             agent = self._agents[personality]
@@ -441,11 +470,8 @@ class NativeAgentOrchestrator:
                     print(f"[NativeAgentOrchestrator] Cache expired for {personality.value}")
                 del self._agents[personality]
 
-        # Create new agent
+        # Create new agent metadata entry
         agent_type = PERSONALITY_TO_TYPE[personality]
-
-        # In production, this would call the actual Agent tool
-        # For now, generate a simulated agent_id
         import uuid
 
         agent_id = f"{personality.value}_{uuid.uuid4().hex[:8]}"
@@ -484,25 +510,27 @@ class NativeAgentOrchestrator:
         timeout: int = 300,
     ) -> AgentResult:
         """
-        Delegate task to an anime character using native Agent tool.
+        Build delegation parameters for an anime character.
+
+        In the kimi-cli runtime, Kamaji calls Agent() directly using
+        the workflow plan. This method prepares the prompt and returns
+        a result containing the generated prompt and agent metadata.
 
         Args:
             personality: Anime character to delegate to
             task: Task description
             context: Additional context
-            timeout: Max execution time in seconds
+            timeout: Max execution time in seconds (unused, kept for API compat)
 
         Returns:
-            AgentResult with execution output
+            AgentResult with generated prompt and metadata
         """
-        import asyncio
-
-        config = AGENT_PERSONALITIES[personality]
+        config = self._get_agent_config(personality)
         print(f"◕‿◕ Delegating to {config['icon']} {config['name']}: {task[:60]}...")
 
         start_time = time.time()
 
-        # Get or create agent
+        # Get or create agent metadata entry
         agent = self._get_or_create_agent(personality)
 
         # Trace task start (Phase 4)
@@ -512,18 +540,11 @@ class NativeAgentOrchestrator:
                 task=task,
             )
 
-        # Build full prompt (stored for future use)
-        _ = self._build_prompt(personality, task, context)
+        # Build full prompt
+        full_prompt = self._build_prompt(personality, task, context)
 
-        # In production, this would use Task tool with agent_id:
-        # task_result = Task(agent_id=agent.agent_id, prompt=full_prompt)
-        #
-        # For now, simulate execution
         if self.debug:
-            print(f"[NativeAgentOrchestrator] Would call Task(agent_id={agent.agent_id})")
-
-        # Simulate async work
-        await asyncio.sleep(0.1)
+            print(f"[NativeAgentOrchestrator] Prepared prompt for {agent.agent_id}")
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -535,12 +556,11 @@ class NativeAgentOrchestrator:
                 duration_ms=duration_ms,
             )
 
-        # Return simulated result
         return AgentResult(
             agent=personality.value,
             personality=personality,
             task=task,
-            stdout=f"Simulated output from {config['name']}",
+            stdout=full_prompt,
             stderr="",
             returncode=0,
             duration_ms=duration_ms,
@@ -553,10 +573,10 @@ class NativeAgentOrchestrator:
         context: str,
     ) -> str:
         """Build full prompt with character personality"""
-        config = AGENT_PERSONALITIES[personality]
+        config = self._get_agent_config(personality)
 
         parts = [
-            f"## Your Role\n{config['system_prompt']}",
+            f"## Your Role\n{config.get('system_prompt', '')}",
             f"## Task\n{task}",
         ]
 
@@ -565,9 +585,16 @@ class NativeAgentOrchestrator:
 
         return "\n\n".join(parts)
 
+    def _get_agent_config(self, personality: AgentPersonality) -> dict[str, Any]:
+        """Get agent config, preferring TeamManager over hardcoded defaults."""
+        team_agents = self._load_team_agents()
+        if personality.value in team_agents:
+            return team_agents[personality.value]
+        return AGENT_PERSONALITIES[personality]
+
     def get_agent_info(self, personality: AgentPersonality) -> dict[str, Any]:
         """Get information about an agent personality"""
-        config = AGENT_PERSONALITIES[personality]
+        config = self._get_agent_config(personality)
         agent_type = PERSONALITY_TO_TYPE[personality]
 
         return {
@@ -580,7 +607,31 @@ class NativeAgentOrchestrator:
         }
 
     def list_personalities(self) -> list[dict[str, Any]]:
-        """List all available personalities"""
+        """List all available subagent personalities"""
+        team_agents = self._load_team_agents()
+        known = {p.value for p in AgentPersonality}
+
+        # Filter to subagents only (exclude coordinator) and known personalities
+        filtered = {
+            name: info
+            for name, info in team_agents.items()
+            if name in known and info.get("category") != "coordinator"
+        }
+
+        # If we have a complete set of team-specific agents, use team metadata
+        if filtered and set(filtered.keys()) == known:
+            return [
+                {
+                    "personality": p.value,
+                    "name": filtered[p.value]["name"],
+                    "icon": filtered[p.value]["icon"],
+                    "role": filtered[p.value]["role"],
+                    "native_type": PERSONALITY_TO_TYPE[p].value,
+                }
+                for p in AgentPersonality
+            ]
+
+        # Fallback to original hardcoded format
         return [
             {
                 "personality": p.value,

@@ -113,7 +113,18 @@ def test_wheel_install() -> bool:
         if result.returncode != 0:
             print(f"  ⚠️  CLI --version failed: {result.stderr}")
         else:
-            print(f"  ✅ CLI works: {result.stdout.strip()}")
+            print(f"  ✅ CLI --version works: {result.stdout.strip()}")
+
+        # Test CLI commands that exercise path resolution (critical for wheel installs)
+        for cmd_name, cmd_args in [
+            ("teams list", [str(python), "-m", "kimi_tachi", "teams", "list"]),
+            ("status", [str(python), "-m", "kimi_tachi", "status"]),
+        ]:
+            result = subprocess.run(cmd_args, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"  ❌ CLI '{cmd_name}' failed: {result.stderr}")
+                return False
+            print(f"  ✅ CLI '{cmd_name}' works")
 
         return True
 
