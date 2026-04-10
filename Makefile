@@ -113,7 +113,7 @@ docs-serve: ## Serve documentation locally (if docs exist).
 
 .PHONY: changelog-check
 changelog-check: ## Check if CHANGELOG.md has entry for current version.
-	@uv run python scripts/check_version.py
+	@uv run python scripts/check_changelog.py
 
 # ========== Utility ==========
 
