@@ -19,7 +19,7 @@ Phase 5.1: kimi-cli 1.28.0+ Support
 - Requires kimi-cli >=1.25.0 (tested up to 1.28.0)
 """
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __compatible_cli_versions__ = ">=1.25.0, tested up to 1.28.0"
 
 __all__ = [

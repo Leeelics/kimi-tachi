@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-10
+
+### Fixed
+- **Team Manager Path Resolution**: Fixed `_get_agent_file` and `_list_available_agents` to resolve agent YAMLs relative to the same base directory as `teams.yaml`, ensuring compatibility with both wheel installs and editable installs
+- **Release Workflow**: Fixed `validate` job missing `uv` installation and corrected `changelog-check` target in Makefile
+
 ## [0.7.0] - 2026-04-10
 
 ### Changed
