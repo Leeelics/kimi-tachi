@@ -48,23 +48,7 @@ repos:
 
       - id: changelog-check
         name: Check CHANGELOG
-        entry: uv run python -c "
-import re
-import tomllib
-import sys
-
-with open('pyproject.toml', 'rb') as f:
-    version = tomllib.load(f)['project']['version']
-
-with open('CHANGELOG.md') as f:
-    changelog = f.read()
-
-if f'## [{version}]' not in changelog:
-    print(f'⚠️  No CHANGELOG entry for {version}')
-    sys.exit(1)
-
-print(f'✅ CHANGELOG has entry for {version}')
-"
+        entry: uv run python scripts/check_changelog.py
         language: system
         pass_filenames: false
         always_run: true
