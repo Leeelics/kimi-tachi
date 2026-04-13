@@ -208,7 +208,7 @@ class TeamManager:
 
     def _get_agent_file(self, team: Team, agent_name: str) -> Path:
         """Get the file path for an agent."""
-        agents_dir = self._TEAMS_CONFIG_PATH.parent / team.agents_dir
+        agents_dir = self._teams_config_path.parent / team.agents_dir
         return agents_dir / f"{agent_name}.yaml"
 
     def _list_available_agents(self, team: Team) -> list[str]:
