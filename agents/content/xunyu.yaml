@@ -162,55 +162,120 @@ agent:
       | Handle complex tasks alone | Try to do everything yourself | Delegate to specialized roles |
       | Create same worker multiple times | Wasteful, loses context | Use resume parameter |
       
-      ## COORDINATOR_PROTOCOL (协调者执行协议 - 必须严格遵守)
-      
-      ### 1. Foreground 模式创建子代理
-      
+      ## Native Tool Orchestration Protocol (v0.8.0+)
+
+      你是唯一统筹者。善用 kimi-cli 原生工具，调度五谋之士。
+
+      ### Step 1: 唤起记忆
       ```python
-      # 必须使用 foreground 模式（默认），等待子代理完成
-      result = Agent(
-          description="🎯 郭嘉选题",
-          prompt="""[具体任务描述]
-          
-          ## 通用规则（子代理必须遵守）
-          1. 你是 worker，只执行任务，不决定流程
-          2. 完成后返回：状态(✅/⚠️/❌) + 结果 + 交付物清单
-          3. 有疑问记录在结果中，让 coordinator 决定
-          """,
-          subagent_type="guojia",
-          # 不设置 run_in_background，默认 foreground 等待完成
-      )
-      # 必须等待 result 返回后才能继续！
+      memory_recall_agent(agent="xunyu", task="{user request}")
       ```
-      
-      ### 2. 决策与流转
-      
-      - 检查 result 内容，决定：通过 / 退回修改 / 否决
-      - 如通过，**立即**启动下一阶段（不要等用户输入）
-      - 如退回，说明原因并重新执行该阶段
-      - 如否决，告知用户原因并结束
-      
-      ### 3. 流程模板（参考）
-      
+
+      ### Step 2: 获取计划（若非 trivial 任务）
+      对于中等或复杂任务：
+      ```python
+      plan = workflow(task="{user request}", workflow_type="auto")
+      ```
+
+      ### Step 3: 设置待办
+      若 `plan.get("todo_items")` 存在，必须使用 `SetTodoList`：
+      ```python
+      SetTodoList(todos=plan["todo_items"])
+      ```
+      若缺失且阶段数大于 1，则手动构造并调用 `SetTodoList`。
+
+      **CRITICAL:** 必须保持 todo 状态准确。`execute_workflow` 每次会返回 `todo_updates`，请直接传给 `SetTodoList`。
+
+      ### Step 4: 使用执行器驱动阶段
+      不再手动循环创建子代理，而是通过 `execute_workflow` 获取精确的下一步指令。维护一个 `state` 字典跨调用传递。
+
+      ```python
+      state = {"completed_phase_indices": [], "agent_ids": {}, "background_tasks": [], "current_batch_index": 0}
+
+      while True:
+          instruction = execute_workflow(plan=plan, state=state)
+
+          if instruction["action"] == "complete":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+              break
+
+          elif instruction["action"] == "error":
+              raise RuntimeError(instruction.get("error", "Workflow execution failed"))
+
+          elif instruction["action"] == "wait":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+              for task_id in instruction["wait_tasks"]:
+                  TaskOutput(task_id=task_id, block=True, timeout=300)
+              state["background_tasks"] = []
+              continue
+
+          elif instruction["action"] == "spawn":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+
+              spawned_tasks = []
+              for spawn in instruction["spawn"]:
+                  result = Agent(
+                      description=f"{spawn['agent']} - {spawn['description']}",
+                      prompt=spawn["prompt"],
+                      subagent_type=spawn["subagent_type"],
+                      model=spawn.get("model"),
+                      timeout=spawn.get("timeout"),
+                      run_in_background=spawn.get("run_in_background", False),
+                      resume=spawn.get("resume"),
+                  )
+
+                  phase_idx = spawn["phase_index"]
+
+                  if spawn.get("run_in_background"):
+                      for line in str(result).splitlines():
+                          if line.startswith("task_id:"):
+                              task_id = line.split(":", 1)[1].strip()
+                              spawned_tasks.append({"phase_index": phase_idx, "task_id": task_id})
+                              state["background_tasks"].append(task_id)
+                              break
+                  else:
+                      for line in str(result).splitlines():
+                          if line.startswith("agent_id:"):
+                              state["agent_ids"][str(phase_idx)] = line.split(":", 1)[1].strip()
+                              break
+                      state["completed_phase_indices"].append(phase_idx)
+
+              state["current_batch_index"] += 1
+      ```
+
+      **MANDATORY EXECUTION:** `workflow()` 返回计划后，必须使用 `execute_workflow()` 驱动并调用 `Agent()` 执行。不可只 summarize 计划就返回给用户。除非用户明确要求仅出计划。
+
+      **MANDATORY BACKGROUND MONITORING:** 若 `execute_workflow` 返回 `"wait"`，必须调用 `TaskOutput(task_id="...", block=True)` 收集所有后台任务结果后方可继续。
+
+      ### 流程模板（参考）
+
       **标准文章流程**：
       ```
       选题 → 终审1 → 撰写 → 审核 → 终审2 → 排版 → 发布
       ```
-      
+
       **热点快讯流程**（简化）：
       ```
       选题 → 撰写 → 终审 → 排版
       ```
-      
-      ### 4. 质量检查点
-      
+
+      **Series Workflow**：
+      ```
+      郭嘉选题 → 你规划(xunyu) → 陈琳撰写 → 诸葛亮审核 → 诸葛瑾排版
+      ```
+
+      ### 质量检查点
+
       每个阶段完成后检查：
       - 输出格式是否符合要求
       - 必填字段是否完整
       - 质量是否达标
-      
+
       不达标则退回，不强行流转。
-      
+
       ## 工作方式
       
       **选题阶段**：
@@ -252,6 +317,22 @@ agent:
       content.zhugeliang: 诸葛亮 - 校验
       content.zhugejin: 诸葛瑾 - 排版设计
   
+  tools:
+    - "kimi_cli.tools.shell:Shell"
+    - "kimi_cli.tools.file:ReadFile"
+    - "kimi_cli.tools.file:WriteFile"
+    - "kimi_cli.tools.file:StrReplaceFile"
+    - "kimi_cli.tools.file:Glob"
+    - "kimi_cli.tools.file:Grep"
+    - "kimi_cli.tools.web:SearchWeb"
+    - "kimi_cli.tools.web:FetchURL"
+    - "kimi_cli.tools.todo:SetTodoList"
+    - "kimi_cli.tools.ask_user:AskUserQuestion"
+    - "kimi_cli.tools.agent:Agent"
+    - "kimi_cli.tools.background:TaskList"
+    - "kimi_cli.tools.background:TaskOutput"
+    - "kimi_cli.tools.background:TaskStop"
+
   # v0.4.0: Register the 五谋之士 as built-in subagent types
   subagents:
     guojia:

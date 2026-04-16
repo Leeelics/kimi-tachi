@@ -138,6 +138,24 @@ class TestKimiTachiPlugin:
         for phase in shishigami_phases:
             assert phase.get("model") == "kimi-k2.5"
 
+    def test_workflow_plan_content_team(self):
+        """Test workflow for content team maps agents to their own subagent types."""
+        result = self.run_tool(
+            "workflow",
+            {
+                "task": "write an article about AI trends",
+                "workflow_type": "article",
+                "team": "content",
+            },
+        )
+
+        assert result["success"] is True
+        assert result["team"] == "content"
+        assert len(result["phases"]) >= 1
+        for phase in result["phases"]:
+            # Content team agents should map to themselves as subagent types
+            assert phase["subagent_type"] == phase["agent"]
+
     def test_list_tasks_no_data_dir(self):
         """Test list_tasks gracefully handles missing kimi data directory."""
         result = self.run_tool("list_tasks", {})

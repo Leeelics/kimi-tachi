@@ -144,7 +144,11 @@ def _parse_pattern(pattern_str: str, team_agents: dict) -> list[dict]:
 
 
 def _map_agent_to_subagent_type(agent: str) -> str:
-    """Map anime agent names to kimi-cli native subagent types."""
+    """Map agent names to kimi-cli native subagent types.
+
+    For content team agents (guojia, chenlin, etc.), the agent name
+    is already registered as a built-in subagent type.
+    """
     mapping = {
         "nekobasu": "explore",
         "tasogare": "plan",
@@ -154,7 +158,7 @@ def _map_agent_to_subagent_type(agent: str) -> str:
         "phoenix": "coder",
         "kamaji": "coder",
     }
-    return mapping.get(agent, "coder")
+    return mapping.get(agent, agent)
 
 
 def _recommend_model(agent: str) -> str | None:
