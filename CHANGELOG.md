@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Workflow Orchestrator Module**: Added `src/kimi_tachi/orchestrator/` with `WorkflowPlan` and `WorkflowPhase` dataclasses for structured native `Agent()` execution.
+
+### Changed
+- **`workflow.py` resume semantics**: Changed `resume` field from `bool` to `str | None` to match kimi-cli's `Agent()` tool schema. Consecutive identical-agent phases now emit the previous agent's identifier as the resume value instead of `true`/`false`.
+- **`kamaji.yaml` enforcement**: Added mandatory execution clause and corrected `resume=phase.get("resume")` in the Native Tool Orchestration Protocol examples.
+- **Updated tests**: `tests/integration/test_plugins.py` now asserts `resume` is `None` or `str`; added `tests/unit/test_orchestrator.py` for plan serialization coverage.
+
 ## [0.8.1] - 2026-04-10
 
 ### Fixed

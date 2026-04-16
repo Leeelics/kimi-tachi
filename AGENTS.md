@@ -31,6 +31,7 @@ Use `uv run ...` for one-off commands.
 - `src/kimi_tachi/team/` — Team management (`TeamManager`, `teams.yaml` parsing)
 - `src/kimi_tachi/compatibility.py` — kimi-cli version compatibility checks
 - `src/kimi_tachi/memory/` — Optional MemNexus-based code memory (TachiMemory, agent profiles)
+- `src/kimi_tachi/orchestrator/` — Workflow orchestration models for native Agent() execution
 - `agents/` — Agent YAML specs and team definitions
 - `plugins/` — CLI plugins for kimi-cli 1.25.0+
 - `skills/` — Documentation and guidance skills

@@ -85,7 +85,7 @@ class TestKimiTachiPlugin:
             assert "prompt" in phase
             assert "subagent_type" in phase
             assert "resume" in phase
-            assert isinstance(phase["resume"], bool)
+            assert phase["resume"] is None or isinstance(phase["resume"], str)
             # model is optional; when present it should be a string
             if "model" in phase:
                 assert isinstance(phase["model"], str)

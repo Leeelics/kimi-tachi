@@ -509,7 +509,7 @@ agent:
           model=phase.get("model"),
           timeout=phase.get("recommended_timeout"),
           run_in_background=phase.get("can_background", False),
-          resume=phase.get("resume", False),
+          resume=phase.get("resume"),
       )
       
       # Synthesize in your voice, then mark done
@@ -517,6 +517,8 @@ agent:
       ```
       
       **IMPORTANT:** Use `phase["subagent_type"]` (not `phase["agent"]`). It is already mapped to `coder`/`explore`/`plan`.
+      
+      **MANDATORY EXECUTION:** When `workflow()` returns a plan, you MUST execute the phases using `Agent()` tool calls. Do NOT summarize the plan and return it to the user without execution. The only exception is when the user explicitly asked for a plan only.
       
       ### Step 5: Background task monitoring
       If you spawned background agents, you MAY check their status:

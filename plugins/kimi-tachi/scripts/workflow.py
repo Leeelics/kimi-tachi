@@ -14,13 +14,15 @@ Usage:
     echo '{"task": "implement auth", "workflow_type": "feature"}' | python3 workflow.py
 """
 
+from __future__ import annotations
+
 import contextlib
 import json
 import sys
-from pathlib import Path
 
 # Optional kimi-tachi imports for team/config lookup
 try:
+    from kimi_tachi.orchestrator.plan import WorkflowPhase, WorkflowPlan
     from kimi_tachi.team import TeamManager
 
     KIMI_TACHI_AVAILABLE = True
@@ -162,11 +164,13 @@ def _recommend_model(agent: str) -> str | None:
     return None
 
 
-def _should_resume(pattern: list[dict], idx: int) -> bool:
+def _resolve_resume(pattern: list[dict], idx: int) -> str | None:
     """Recommend resume when the same agent appears consecutively."""
     if idx == 0:
-        return False
-    return pattern[idx]["agent"] == pattern[idx - 1]["agent"]
+        return None
+    if pattern[idx]["agent"] == pattern[idx - 1]["agent"]:
+        return pattern[idx - 1]["agent"]
+    return None
 
 
 def _get_agent_category(agent: str, team_id: str | None = None) -> str:
@@ -321,20 +325,18 @@ def generate_workflow_plan(
     parallel_steps = _compute_parallel_steps(pattern, team_id)
 
     # Build phases
-    phases = []
+    phases: list[WorkflowPhase] = []
     for idx, step in enumerate(pattern):
-        phase = {
-            "agent": step["agent"],
-            "description": step["description"],
-            "prompt": _build_phase_prompt(step["agent"], task, idx, len(pattern), team_id),
-            "subagent_type": _map_agent_to_subagent_type(step["agent"]),
-            "can_background": _can_background(step["agent"], team_id),
-            "recommended_timeout": _recommend_timeout(step["agent"], task, team_id),
-            "resume": _should_resume(pattern, idx),
-        }
-        model = _recommend_model(step["agent"])
-        if model is not None:
-            phase["model"] = model
+        phase = WorkflowPhase(
+            agent=step["agent"],
+            description=step["description"],
+            prompt=_build_phase_prompt(step["agent"], task, idx, len(pattern), team_id),
+            subagent_type=_map_agent_to_subagent_type(step["agent"]),
+            can_background=_can_background(step["agent"], team_id),
+            recommended_timeout=_recommend_timeout(step["agent"], task, team_id),
+            resume=_resolve_resume(pattern, idx),
+            model=_recommend_model(step["agent"]),
+        )
         phases.append(phase)
 
     # Determine if plan mode should be used
@@ -362,28 +364,31 @@ def generate_workflow_plan(
     for batch_idx, batch in enumerate(parallel_steps, 1):
         if len(batch) == 1:
             phase = phases[batch[0]]
-            output_lines.append(f"{batch_idx}. {phase['agent']} → {phase['description']}")
+            output_lines.append(f"{batch_idx}. {phase.agent} → {phase.description}")
         else:
-            agents = " + ".join(phases[i]["agent"] for i in batch)
+            agents = " + ".join(phases[i].agent for i in batch)
             output_lines.append(f"{batch_idx}. [{agents}] (parallel)")
 
-    return {
-        "success": True,
-        "workflow_type": workflow_type,
-        "team": effective_team,
-        "task": task,
-        "work_dir": str(Path(work_dir).resolve()),
-        "complexity": complexity,
-        "phases": phases,
-        "recommendations": {
+    plan = WorkflowPlan(
+        success=True,
+        workflow_type=workflow_type,
+        team=effective_team,
+        task=task,
+        work_dir=work_dir,
+        complexity=complexity,
+        phases=phases,
+        parallel_batches=parallel_steps,
+        recommendations={
             "use_plan_mode": use_plan_mode,
             "plan_mode_reason": plan_mode_reason,
             "use_todo_list": len(phases) > 1,
             "parallel_steps": parallel_steps,
             "estimated_duration": f"{len(phases) * 1}-{len(phases) * 4} min",
         },
-        "output": "\n".join(output_lines),
-    }
+        output="\n".join(output_lines),
+    )
+
+    return plan.to_dict()
 
 
 def main():
