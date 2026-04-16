@@ -50,11 +50,13 @@ class WorkflowPlan:
     parallel_batches: list[list[int]]
     recommendations: dict[str, Any]
     output: str
+    todo_items: list[dict[str, str]] | None = None
+    plan_file_path: str | None = None
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dict."""
-        return {
+        result: dict[str, Any] = {
             "success": self.success,
             "workflow_type": self.workflow_type,
             "team": self.team,
@@ -64,8 +66,14 @@ class WorkflowPlan:
             "phases": [p.to_dict() for p in self.phases],
             "recommendations": self.recommendations,
             "output": self.output,
-            **({"error": self.error} if self.error is not None else {}),
         }
+        if self.todo_items is not None:
+            result["todo_items"] = self.todo_items
+        if self.plan_file_path is not None:
+            result["plan_file_path"] = self.plan_file_path
+        if self.error is not None:
+            result["error"] = self.error
+        return result
 
     def execution_batches(self) -> list[list[WorkflowPhase]]:
         """Return phases grouped into execution batches.

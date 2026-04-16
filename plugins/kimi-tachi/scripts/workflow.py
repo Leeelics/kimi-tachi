@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import json
 import sys
+from pathlib import Path
 
 # Optional kimi-tachi imports for team/config lookup
 try:
@@ -164,12 +165,16 @@ def _recommend_model(agent: str) -> str | None:
     return None
 
 
-def _resolve_resume(pattern: list[dict], idx: int) -> str | None:
-    """Recommend resume when the same agent appears consecutively."""
-    if idx == 0:
-        return None
-    if pattern[idx]["agent"] == pattern[idx - 1]["agent"]:
-        return pattern[idx - 1]["agent"]
+def _resolve_resume(pattern: list[dict], idx: int) -> None:
+    """
+    Resume is determined at execution time by the orchestrator.
+
+    workflow.py only knows agent names, not the actual agent_ids generated
+    by kimi-cli's SubagentStore during execution. Therefore it cannot emit
+    a valid resume value. The executor (Kamaji) should track agent_ids
+    across phases and pass the previous phase's agent_id when the same
+    agent type appears consecutively.
+    """
     return None
 
 
@@ -369,6 +374,25 @@ def generate_workflow_plan(
             agents = " + ".join(phases[i].agent for i in batch)
             output_lines.append(f"{batch_idx}. [{agents}] (parallel)")
 
+    # Build todo items when there are multiple phases
+    todo_items: list[dict[str, str]] | None = None
+    if len(phases) > 1:
+        todo_items = [
+            {"title": f"{p.agent}: {p.description}", "status": "pending"}
+            for p in phases
+        ]
+
+    # Recommend a plan file path for plan-mode tasks
+    plan_file_path: str | None = None
+    if use_plan_mode:
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_task = "".join(c if c.isalnum() else "_" for c in task[:30]).strip("_")
+        plan_file_path = str(
+            Path.home() / ".kimi" / "plans" / f"{effective_team}_{workflow_type}_{safe_task}_{timestamp}.md"
+        )
+
     plan = WorkflowPlan(
         success=True,
         workflow_type=workflow_type,
@@ -386,6 +410,8 @@ def generate_workflow_plan(
             "estimated_duration": f"{len(phases) * 1}-{len(phases) * 4} min",
         },
         output="\n".join(output_lines),
+        todo_items=todo_items,
+        plan_file_path=plan_file_path,
     )
 
     return plan.to_dict()

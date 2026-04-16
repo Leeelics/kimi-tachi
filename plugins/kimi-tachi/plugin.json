@@ -78,6 +78,36 @@
     },
 
     {
+      "name": "list_tasks",
+      "description": "List subagents and background tasks across recent sessions (filesystem scan)",
+      "command": ["python3", "scripts/list_tasks.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Optional session ID to filter to a single session"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "session_status",
+      "description": "Get detailed status for a specific session including subagents and file sizes",
+      "command": ["python3", "scripts/session_status.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Session ID to get status for"
+          }
+        },
+        "required": ["session_id"]
+      }
+    },
+    {
       "name": "memory_search",
       "description": "Search code memory for relevant information (project-level search)",
       "command": ["python3", "scripts/memory_tool.py", "search"],

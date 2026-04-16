@@ -97,6 +97,15 @@ class TestKimiTachiPlugin:
         assert "use_todo_list" in rec
         assert "parallel_steps" in rec
 
+        # Verify todo_items and plan_file_path for multi-phase plans
+        assert "todo_items" in result
+        assert len(result["todo_items"]) == len(result["phases"])
+        for item in result["todo_items"]:
+            assert "title" in item
+            assert item["status"] == "pending"
+        assert "plan_file_path" in result
+        assert isinstance(result["plan_file_path"], str)
+
     def test_workflow_plan_simple_task(self):
         """Test workflow plan for simple tasks skips plan mode."""
         result = self.run_tool(
@@ -112,6 +121,9 @@ class TestKimiTachiPlugin:
             "simple" in rec["plan_mode_reason"].lower()
             or "directly" in rec["plan_mode_reason"].lower()
         )
+        # Single-phase plans should not emit todo_items or plan_file_path
+        assert result.get("todo_items") is None
+        assert result.get("plan_file_path") is None
 
     def test_workflow_plan_model_override(self):
         """Test that shishigami phase recommends a stronger model."""
@@ -125,6 +137,28 @@ class TestKimiTachiPlugin:
         assert len(shishigami_phases) >= 1
         for phase in shishigami_phases:
             assert phase.get("model") == "kimi-k2.5"
+
+    def test_list_tasks_no_data_dir(self):
+        """Test list_tasks gracefully handles missing kimi data directory."""
+        result = self.run_tool("list_tasks", {})
+
+        # In CI/test environments there may be no kimi data dir
+        if result["success"]:
+            assert "tasks" in result
+        else:
+            assert "error" in result
+            assert (
+                "not found" in result["error"].lower()
+                or "data directory" in result["error"].lower()
+            )
+
+    def test_session_status_missing_session(self):
+        """Test session_status returns error for unknown session."""
+        result = self.run_tool("session_status", {"session_id": "nonexistent_session_xyz"})
+
+        assert result["success"] is False
+        assert "error" in result
+        assert "not found" in result["error"].lower()
 
 
 class TestTodoEnforcerPlugin:
@@ -251,6 +285,21 @@ class TestPluginJson:
         assert plugin["name"] == "kimi-tachi"
         assert "tools" in plugin
         assert len(plugin["tools"]) >= 1
+
+        tool_names = {t["name"] for t in plugin["tools"]}
+        expected_tools = {
+            "workflow",
+            "list_agents",
+            "get_agent_info",
+            "check_compatibility",
+            "list_tasks",
+            "session_status",
+            "memory_search",
+            "memory_global_search",
+            "memory_recall_agent",
+            "memory_store_decision",
+        }
+        assert expected_tools <= tool_names, f"Missing tools: {expected_tools - tool_names}"
 
         # Check tool structure
         for tool in plugin["tools"]:
