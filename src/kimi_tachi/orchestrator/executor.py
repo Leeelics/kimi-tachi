@@ -169,9 +169,10 @@ def execute_workflow(
 
     total_batches = len(plan.parallel_batches)
 
-    # If we have pending background tasks and are at/past the end of batches,
-    # wait for them before completing.
-    if state.background_tasks and state.current_batch_index >= total_batches:
+    # If we have pending background tasks, wait for them before proceeding.
+    # Background tasks always belong to a previous batch, and subsequent batches
+    # may depend on their results, so we must block here.
+    if state.background_tasks:
         todo_updates = _compute_todo_updates(plan, state, [])
         return ExecutionResult(
             action="wait",
@@ -179,12 +180,11 @@ def execute_workflow(
             todo_updates=todo_updates,
             message=(
                 f"Waiting for {len(state.background_tasks)} background task(s) "
-                f"to complete before finishing the workflow."
+                f"to complete before proceeding."
             ),
         )
 
-    # If we've processed all batches and there are no background tasks pending,
-    # the workflow is complete.
+    # If we've processed all batches, the workflow is complete.
     if state.current_batch_index >= total_batches:
         todo_updates = _compute_todo_updates(plan, state, [])
         return ExecutionResult(
@@ -221,7 +221,7 @@ def execute_workflow(
         next_phase_indices.append(phase_index)
 
     # If every phase in this batch is already completed, advance and recurse
-    if not spawn_instructions and not state.background_tasks:
+    if not spawn_instructions:
         state.current_batch_index += 1
         return execute_workflow(plan, state)
 

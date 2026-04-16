@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Workflow Orchestrator Module**: Added `src/kimi_tachi/orchestrator/` with `WorkflowPlan` and `WorkflowPhase` dataclasses for structured native `Agent()` execution.
+- **Deterministic Workflow Executor**: Added `src/kimi_tachi/orchestrator/executor.py` and `plugins/kimi-tachi/scripts/execute_workflow.py` plugin tool. Kamaji now drives multi-phase execution through a deterministic state machine instead of ad-hoc looping.
+- **Background Task Observability**: Added `list_tasks` and `session_status` plugin scripts with real filesystem scanning of `~/.kimi-tachi/sessions/`.
 
 ### Changed
-- **`workflow.py` resume semantics**: Changed `resume` field from `bool` to `str | None` to match kimi-cli's `Agent()` tool schema. Consecutive identical-agent phases now emit the previous agent's identifier as the resume value instead of `true`/`false`.
-- **`kamaji.yaml` enforcement**: Added mandatory execution clause and corrected `resume=phase.get("resume")` in the Native Tool Orchestration Protocol examples.
-- **Updated tests**: `tests/integration/test_plugins.py` now asserts `resume` is `None` or `str`; added `tests/unit/test_orchestrator.py` for plan serialization coverage.
+- **`workflow.py` resume semantics**: `resume` is now computed at runtime by the executor based on actual `agent_id`s from prior `Agent()` tool calls, fixing the mismatch where the planner previously emitted agent names instead of valid `agent_id` strings.
+- **`kamaji.yaml` execution protocol**: Replaced manual phase-loop examples with structured `execute_workflow()` usage. Kamaji must now query the executor for each step (`spawn`, `wait`, `complete`) and follow its instructions precisely.
+- **Updated tests**: Added `tests/unit/test_executor.py` and new integration tests for `execute_workflow`, `list_tasks`, and `session_status`. Fixed misplaced tests under `TestCategoryRouterPlugin`.
+
+### Fixed
+- **Executor background-task wait logic**: Pending background tasks now correctly block subsequent batches, preventing sync phases from spawning before prior background phases have completed.
 
 ## [0.8.1] - 2026-04-10
 

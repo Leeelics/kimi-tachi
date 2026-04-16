@@ -173,6 +173,38 @@ class TestExecuteWorkflow:
         assert result.action == "wait"
         assert result.wait_tasks == ["bg_123"]
 
+    def test_wait_for_background_tasks_before_next_batch(self):
+        """Background tasks must block subsequent batches even if not at end."""
+        phases = [
+            WorkflowPhase(
+                agent="tasogare",
+                description="Plan",
+                prompt="Plan",
+                subagent_type="plan",
+                can_background=True,
+                recommended_timeout=300,
+            ),
+            WorkflowPhase(
+                agent="calcifer",
+                description="Implement",
+                prompt="Write code",
+                subagent_type="coder",
+                can_background=False,
+                recommended_timeout=300,
+            ),
+        ]
+        plan = _make_plan(phases, [[0], [1]])
+        # Batch 0 spawned in background, batch index advanced to 1
+        state = ExecutionState(
+            completed_phase_indices=[],
+            background_tasks=["bg_123"],
+            current_batch_index=1,
+        )
+        result = execute_workflow(plan, state)
+
+        assert result.action == "wait"
+        assert result.wait_tasks == ["bg_123"]
+
     def test_resume_when_same_agent_consecutive(self):
         phases = [
             WorkflowPhase(
