@@ -666,6 +666,7 @@ agent:
     - "kimi_cli.tools.file:StrReplaceFile"
     - "kimi_cli.tools.file:Glob"
     - "kimi_cli.tools.file:Grep"
+    - "kimi_cli.tools.file.read_media:ReadMediaFile"
     - "kimi_cli.tools.web:SearchWeb"
     - "kimi_cli.tools.web:FetchURL"
     - "kimi_cli.tools.todo:SetTodoList"
@@ -674,6 +675,10 @@ agent:
     - "kimi_cli.tools.background:TaskList"
     - "kimi_cli.tools.background:TaskOutput"
     - "kimi_cli.tools.background:TaskStop"
+    - "kimi_cli.tools.plan.enter:EnterPlanMode"
+    - "kimi_cli.tools.plan:ExitPlanMode"
+    - "kimi_cli.tools.think:Think"
+    - "kimi_cli.tools.dmail:SendDMail"
   
   # v0.4.0: Register the Seven Samurai (七人衆) as built-in subagent types
   # This allows kamaji to create workers using Agent(subagent_type="nekobasu", ...)
