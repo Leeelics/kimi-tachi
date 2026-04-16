@@ -160,6 +160,108 @@ class TestKimiTachiPlugin:
         assert "error" in result
         assert "not found" in result["error"].lower()
 
+    def test_execute_workflow_spawn(self):
+        """Test execute_workflow returns spawn for pending phases."""
+        plan = {
+            "success": True,
+            "workflow_type": "feature",
+            "team": "coding",
+            "task": "implement auth",
+            "work_dir": ".",
+            "complexity": "medium",
+            "phases": [
+                {
+                    "agent": "calcifer",
+                    "description": "Implement auth",
+                    "prompt": "Write the auth code",
+                    "subagent_type": "coder",
+                    "can_background": False,
+                    "recommended_timeout": 300,
+                }
+            ],
+            "parallel_batches": [[0]],
+            "recommendations": {},
+            "output": "plan output",
+            "todo_items": [{"title": "calcifer: Implement auth", "status": "pending"}],
+        }
+        result = self.run_tool("execute_workflow", {"plan": plan, "state": {}})
+
+        assert result["action"] == "spawn"
+        assert len(result["spawn"]) == 1
+        assert result["spawn"][0]["agent"] == "calcifer"
+        assert result["todo_updates"][0]["status"] == "in_progress"
+
+    def test_execute_workflow_complete(self):
+        """Test execute_workflow returns complete when all phases done."""
+        plan = {
+            "success": True,
+            "workflow_type": "quick",
+            "team": "coding",
+            "task": "fix typo",
+            "work_dir": ".",
+            "complexity": "simple",
+            "phases": [
+                {
+                    "agent": "calcifer",
+                    "description": "Fix typo",
+                    "prompt": "Fix the typo",
+                    "subagent_type": "coder",
+                    "can_background": False,
+                    "recommended_timeout": 120,
+                }
+            ],
+            "parallel_batches": [[0]],
+            "recommendations": {},
+            "output": "plan output",
+            "todo_items": [{"title": "calcifer: Fix typo", "status": "pending"}],
+        }
+        result = self.run_tool(
+            "execute_workflow",
+            {"plan": plan, "state": {"completed_phase_indices": [0], "current_batch_index": 1}},
+        )
+
+        assert result["action"] == "complete"
+        assert result["todo_updates"][0]["status"] == "done"
+
+    def test_execute_workflow_wait_for_background(self):
+        """Test execute_workflow returns wait when background tasks pending."""
+        plan = {
+            "success": True,
+            "workflow_type": "feature",
+            "team": "coding",
+            "task": "plan architecture",
+            "work_dir": ".",
+            "complexity": "complex",
+            "phases": [
+                {
+                    "agent": "tasogare",
+                    "description": "Plan",
+                    "prompt": "Plan it",
+                    "subagent_type": "plan",
+                    "can_background": True,
+                    "recommended_timeout": 300,
+                }
+            ],
+            "parallel_batches": [[0]],
+            "recommendations": {},
+            "output": "plan output",
+            "todo_items": [{"title": "tasogare: Plan", "status": "pending"}],
+        }
+        result = self.run_tool(
+            "execute_workflow",
+            {
+                "plan": plan,
+                "state": {
+                    "completed_phase_indices": [],
+                    "background_tasks": ["bg_123"],
+                    "current_batch_index": 1,
+                },
+            },
+        )
+
+        assert result["action"] == "wait"
+        assert result["wait_tasks"] == ["bg_123"]
+
 
 class TestTodoEnforcerPlugin:
     """Test todo-enforcer plugin tools."""
@@ -289,6 +391,7 @@ class TestPluginJson:
         tool_names = {t["name"] for t in plugin["tools"]}
         expected_tools = {
             "workflow",
+            "execute_workflow",
             "list_agents",
             "get_agent_info",
             "check_compatibility",

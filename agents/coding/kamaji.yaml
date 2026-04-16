@@ -493,56 +493,87 @@ agent:
       ```
       If `todo_items` is missing and the plan has more than 1 phase, construct them manually and then call `SetTodoList`.
       
-      **CRITICAL:** You MUST update the todo status to `"in_progress"` before starting each phase and `"done"` after each phase completes. Never leave todos in `"pending"` after the workflow is finished.
+      **CRITICAL:** You MUST keep todo statuses accurate. The `execute_workflow` tool will provide `todo_updates` for each step. Pass them directly to `SetTodoList`.
       
-      ### Step 4: Execute phases
-      Track agent IDs across phases so you can resume consecutive identical agents:
+      ### Step 4: Execute phases using the executor
+      Instead of manually looping through phases, use the deterministic `execute_workflow` tool to tell you exactly what to do next. Maintain an execution state dict across calls.
+      
       ```python
-      agent_id_by_phase = {}
+      state = {"completed_phase_indices": [], "agent_ids": {}, "background_tasks": [], "current_batch_index": 0}
       
-      for idx, phase in enumerate(plan["phases"]):
-          # Update todo
-          updated_todos = [
-              {"title": item["title"], "status": "done" if i < idx else ("in_progress" if i == idx else "pending")}
-              for i, item in enumerate(plan.get("todo_items", []))
-          ]
-          SetTodoList(todos=updated_todos)
+      while True:
+          instruction = execute_workflow(plan=plan, state=state)
           
-          # Determine resume: if same agent as previous phase, use its agent_id
-          resume_id = None
-          if idx > 0 and plan["phases"][idx - 1]["agent"] == phase["agent"]:
-              resume_id = agent_id_by_phase.get(idx - 1)
+          if instruction["action"] == "complete":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+              break
           
-          result = Agent(
-              description=f"{phase['agent']} - {phase['description']}",
-              prompt=phase["prompt"],
-              subagent_type=phase["subagent_type"],
-              model=phase.get("model"),
-              timeout=phase.get("recommended_timeout"),
-              run_in_background=phase.get("can_background", False),
-              resume=resume_id,
-          )
+          elif instruction["action"] == "error":
+              raise RuntimeError(instruction.get("error", "Workflow execution failed"))
           
-          # Extract agent_id from result for potential resume
-          # result contains a line like "agent_id: a1b2c3d4"
-          for line in str(result).splitlines():
-              if line.startswith("agent_id:"):
-                  agent_id_by_phase[idx] = line.split(":", 1)[1].strip()
-                  break
+          elif instruction["action"] == "wait":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+              for task_id in instruction["wait_tasks"]:
+                  TaskOutput(task_id=task_id, block=True, timeout=300)
+              # After collecting, mark those phases completed and clear background_tasks
+              # (you should track which task_id belongs to which phase_index)
+              state["background_tasks"] = []
+              continue
+          
+          elif instruction["action"] == "spawn":
+              if instruction.get("todo_updates"):
+                  SetTodoList(todos=instruction["todo_updates"])
+              
+              spawned_tasks = []
+              for spawn in instruction["spawn"]:
+                  result = Agent(
+                      description=f"{spawn['agent']} - {spawn['description']}",
+                      prompt=spawn["prompt"],
+                      subagent_type=spawn["subagent_type"],
+                      model=spawn.get("model"),
+                      timeout=spawn.get("timeout"),
+                      run_in_background=spawn.get("run_in_background", False),
+                      resume=spawn.get("resume"),
+                  )
+                  
+                  phase_idx = spawn["phase_index"]
+                  
+                  # Track background task IDs
+                  if spawn.get("run_in_background"):
+                      # result contains a line like "task_id: bg_abc123"
+                      for line in str(result).splitlines():
+                          if line.startswith("task_id:"):
+                              task_id = line.split(":", 1)[1].strip()
+                              spawned_tasks.append({"phase_index": phase_idx, "task_id": task_id})
+                              state["background_tasks"].append(task_id)
+                              break
+                  else:
+                      # Extract agent_id from result for potential resume
+                      for line in str(result).splitlines():
+                          if line.startswith("agent_id:"):
+                              state["agent_ids"][str(phase_idx)] = line.split(":", 1)[1].strip()
+                              break
+                      state["completed_phase_indices"].append(phase_idx)
+              
+              # Advance to next batch for executor
+              state["current_batch_index"] += 1
       ```
       
-      **IMPORTANT:** Use `phase["subagent_type"]` (not `phase["agent"]`). It is already mapped to `coder`/`explore`/`plan`.
+      **IMPORTANT:** Use `spawn["subagent_type"]` (not `spawn["agent"]`). It is already mapped to `coder`/`explore`/`plan`.
       
-      **MANDATORY EXECUTION:** When `workflow()` returns a plan, you MUST execute the phases using `Agent()` tool calls. Do NOT summarize the plan and return it to the user without execution. The only exception is when the user explicitly asked for a plan only.
+      **MANDATORY EXECUTION:** When `workflow()` returns a plan, you MUST use `execute_workflow()` to drive execution and then call `Agent()` as instructed. Do NOT summarize the plan and return it to the user without execution. The only exception is when the user explicitly asked for a plan only.
       
-      **MANDATORY BACKGROUND MONITORING:** If you set `run_in_background=True` for any phase, you MUST eventually call `TaskOutput(task_id="...", block=True)` to collect the result before presenting the final answer.
+      **MANDATORY BACKGROUND MONITORING:** If `execute_workflow` instructs you to wait, you MUST call `TaskOutput(task_id="...", block=True)` for every task_id before continuing.
       
       ### Step 5: Background task monitoring
-      If you spawned background agents, you MUST collect their results:
+      If you spawned background agents, the executor will eventually return `"action": "wait"`. You MUST collect their results:
       ```python
-      TaskList(active_only=True)   # see running tasks
+      TaskList(active_only=True)   # optional: see running tasks
       TaskOutput(task_id="...", block=True, timeout=300)  # wait for result
       ```
+      After collecting a background result, mark its phase_index as completed and remove its task_id from `state["background_tasks"]`.
       
       ### Step 6: Plan mode checkpoint
       If `plan["recommendations"]["use_plan_mode"]` is true:

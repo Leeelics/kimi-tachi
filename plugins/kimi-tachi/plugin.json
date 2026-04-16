@@ -108,6 +108,26 @@
       }
     },
     {
+      "name": "execute_workflow",
+      "description": "Deterministic workflow executor. Given a plan and execution state, returns the next precise step (spawn agents, wait for background tasks, or complete).",
+      "command": ["python3", "scripts/execute_workflow.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "object",
+            "description": "Workflow plan dict returned by the workflow tool"
+          },
+          "state": {
+            "type": "object",
+            "default": {},
+            "description": "Execution state tracking completed phases, agent_ids, background_tasks, and current_batch_index"
+          }
+        },
+        "required": ["plan"]
+      }
+    },
+    {
       "name": "memory_search",
       "description": "Search code memory for relevant information (project-level search)",
       "command": ["python3", "scripts/memory_tool.py", "search"],

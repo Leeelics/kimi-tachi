@@ -377,10 +377,7 @@ def generate_workflow_plan(
     # Build todo items when there are multiple phases
     todo_items: list[dict[str, str]] | None = None
     if len(phases) > 1:
-        todo_items = [
-            {"title": f"{p.agent}: {p.description}", "status": "pending"}
-            for p in phases
-        ]
+        todo_items = [{"title": f"{p.agent}: {p.description}", "status": "pending"} for p in phases]
 
     # Recommend a plan file path for plan-mode tasks
     plan_file_path: str | None = None
@@ -390,7 +387,10 @@ def generate_workflow_plan(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_task = "".join(c if c.isalnum() else "_" for c in task[:30]).strip("_")
         plan_file_path = str(
-            Path.home() / ".kimi" / "plans" / f"{effective_team}_{workflow_type}_{safe_task}_{timestamp}.md"
+            Path.home()
+            / ".kimi"
+            / "plans"
+            / f"{effective_team}_{workflow_type}_{safe_task}_{timestamp}.md"
         )
 
     plan = WorkflowPlan(

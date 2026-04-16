@@ -125,11 +125,13 @@ def list_tasks(session_id: str | None = None) -> dict:
     for session_dir in target_sessions:
         subagents = _scan_subagents(session_dir)
         sid = session_dir.name
-        sessions_summary.append({
-            "session_id": sid,
-            "subagent_count": len(subagents),
-            "subagents": [_summarize_subagent(m) for m in subagents],
-        })
+        sessions_summary.append(
+            {
+                "session_id": sid,
+                "subagent_count": len(subagents),
+                "subagents": [_summarize_subagent(m) for m in subagents],
+            }
+        )
 
     return {
         "success": True,
