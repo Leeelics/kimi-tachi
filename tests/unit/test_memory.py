@@ -16,6 +16,36 @@ try:
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
+    from typing import Any
+
+    AGENT_PROFILES: dict[str, Any] = {}  # type: ignore[var-name]
+
+    class MemoryProfile:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+    class TachiMemory:  # type: ignore[no-redef]
+        def __init__(self, project_path: str = ".") -> None:
+            from pathlib import Path
+
+            self.project_path = Path(project_path).resolve()
+            self.memory: Any = None
+            self.global_memory: Any = None
+
+        async def recall_agent_context(self, agent_type: str, **kwargs: Any) -> dict[str, Any]:
+            return {
+                "agent_type": agent_type,
+                "task": kwargs.get("task", ""),
+                "recent_context": [],
+                "global_knowledge": [],
+                "previous_decisions": [],
+            }
+
+        async def store_agent_output(self, **kwargs: Any) -> None:
+            return None
+
+        async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+            return []
 
 
 # Only apply asyncio mark to async tests

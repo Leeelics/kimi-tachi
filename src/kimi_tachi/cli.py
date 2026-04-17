@@ -21,9 +21,16 @@ try:
     TEAM_AVAILABLE = True
 except ImportError:
     TEAM_AVAILABLE = False
-    TeamManager = None
-    TeamNotFoundError = Exception
-    AgentNotFoundError = Exception
+
+    class TeamManager:  # type: ignore[no-redef]
+        pass
+
+    class TeamNotFoundError(Exception):
+        pass
+
+    class AgentNotFoundError(Exception):
+        pass
+
 
 app = typer.Typer(
     name="kimi-tachi",
@@ -86,7 +93,10 @@ def _run_kimi(agent: str | None, yolo: bool, work_dir: str) -> None:
     cmd = [_get_kimi_path(), "--agent-file", str(agent_file), "--work-dir", work_dir]
     if yolo:
         cmd.append("--yolo")
-    subprocess.run(cmd)
+    try:
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        raise typer.Exit(130) from None
 
 
 def version_callback(value: bool) -> None:

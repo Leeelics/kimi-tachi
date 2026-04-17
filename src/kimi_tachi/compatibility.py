@@ -27,11 +27,11 @@ class VersionInfo(NamedTuple):
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
 
-    def __ge__(self, other: tuple[int, int]) -> bool:
+    def __ge__(self, other: tuple[int, int]) -> bool:  # type: ignore[override]
         """Compare with (major, minor) tuple"""
         return (self.major, self.minor) >= other
 
-    def __lt__(self, other: tuple[int, int]) -> bool:
+    def __lt__(self, other: tuple[int, int]) -> bool:  # type: ignore[override]
         """Compare with (major, minor) tuple"""
         return (self.major, self.minor) < other
 

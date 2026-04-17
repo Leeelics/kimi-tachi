@@ -31,6 +31,28 @@ except ImportError as e:
     MEMNEXUS_AVAILABLE = False
     _import_error = e
 
+    class CodeMemory:  # type: ignore[no-redef]
+        @classmethod
+        async def init(cls, **kwargs: Any) -> Any:
+            raise ImportError("memnexus not available")
+
+    class GlobalMemory:  # type: ignore[no-redef]
+        @classmethod
+        async def init(cls, **kwargs: Any) -> Any:
+            raise ImportError("memnexus not available")
+
+    class SessionExplorer:  # type: ignore[no-redef]
+        pass
+
+    class DecisionDeduplicator:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+    class ExploreOptions:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+
 # Team management
 try:
     from ..team import TeamManager
@@ -113,7 +135,7 @@ class TachiMemory:
 
         self.config = config or MemoryConfig(project_path=project_path)
         self.project_path = Path(self.config.project_path).resolve()
-        self._storage_path = Path(self.config.storage_path)
+        self._storage_path = Path(self.config.storage_path)  # type: ignore[arg-type]
 
         # memnexus components
         self._mn_memory: CodeMemory | None = None
@@ -301,7 +323,12 @@ class TachiMemory:
             try:
                 results = await self._mn_global.search(query=task, limit=3)
                 context["global_knowledge"] = [
-                    {"content": r.content, "project": r.project, "type": r.type} for r in results
+                    {
+                        "content": r.content,
+                        "project": getattr(r, "project", ""),
+                        "type": getattr(r, "type", ""),
+                    }
+                    for r in results
                 ]
             except Exception as e:
                 console.print(f"[dim]Global memory search: {e}[/dim]")
@@ -429,7 +456,7 @@ class TachiMemory:
     def get_exploration_stats(self) -> dict[str, Any]:
         """Get exploration statistics from SessionExplorer."""
         if self._mn_explorer:
-            return self._mn_explorer.get_stats()
+            return self._mn_explorer.get_stats()  # type: ignore[return-type]
         return {"error": "SessionExplorer not available"}
 
     # ========================================================================
@@ -536,6 +563,15 @@ async def get_memory_for_current_team(project_path: str = ".") -> TachiMemory:
     return await get_memory(project_path)
 
 
+def _close_sync(memory_obj: Any) -> None:
+    """Close a memory object synchronously, handling async close()."""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(memory_obj.close())  # type: ignore[misc]
+    except RuntimeError:
+        asyncio.run(memory_obj.close())  # type: ignore[misc]
+
+
 def reset_memory(team_id: str | None = None):
     """
     Reset singleton instance (useful for testing).
@@ -548,14 +584,14 @@ def reset_memory(team_id: str | None = None):
     if team_id:
         # Reset specific team
         if team_id in _team_memory_instances:
-            _team_memory_instances[team_id].close()
+            _close_sync(_team_memory_instances[team_id])
             del _team_memory_instances[team_id]
     else:
         # Reset all
         if _memory_instance:
-            _memory_instance.close()
+            _close_sync(_memory_instance)
         _memory_instance = None
 
         for tm in _team_memory_instances.values():
-            tm.close()
+            _close_sync(tm)
         _team_memory_instances.clear()

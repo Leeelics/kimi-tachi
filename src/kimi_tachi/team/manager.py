@@ -144,7 +144,7 @@ class TeamManager:
 
     def _save_current_team(self) -> None:
         """Persist current team to state file."""
-        self._CURRENT_TEAM_FILE.write_text(self._current_team_id)
+        self._CURRENT_TEAM_FILE.write_text(self._current_team_id or "")
 
     # ========== Query Methods ==========
 
@@ -269,7 +269,7 @@ class TeamManager:
 
     def get_effective_team_id(self) -> str:
         """Get the effective team ID."""
-        return self._explicit_team or self._current_team_id
+        return self._explicit_team or self._current_team_id or ""
 
     # ========== Context Manager for Temporary Switching ==========
 

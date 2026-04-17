@@ -40,8 +40,8 @@ check: ## Run linting, format, and type checks.
 	@uv run ruff check
 	@echo "==> Running ruff format check"
 	@uv run ruff format --check
-	@echo "==> Running pyright (non-blocking)"
-	@uv run pyright || true
+	@echo "==> Running pyright"
+	@uv run pyright
 	@echo "==> Running typos"
 	@typos || true
 
