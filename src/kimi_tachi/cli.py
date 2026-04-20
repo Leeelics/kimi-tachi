@@ -404,6 +404,154 @@ def status():
             typer.echo("    (Use with kimi-cli 1.25.0+ plugin system)")
 
 
+# ---------------------------------------------------------------------------
+# Memory monitoring commands (integrated with memnexus)
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def memory(
+    action: Annotated[str, typer.Argument(help="Action: status, search, init")] = "status",
+    query: Annotated[str | None, typer.Argument(help="Search query (for search action)")] = None,
+    limit: Annotated[int, typer.Option("--limit", "-l", help="Max results for search")] = 10,
+):
+    """Monitor and manage memnexus memory for the current project."""
+    import asyncio
+
+    # Lazy import to avoid pulling memnexus deps when not needed
+    try:
+        from .memory.tachi_memory import TachiMemory
+    except ImportError as e:
+        typer.echo(f"❌ Memory system not available: {e}", err=True)
+        typer.echo("   Install memnexus: uv pip install memnexus>=0.4.0", err=True)
+        raise typer.Exit(1) from None
+
+    if action == "status":
+        _memory_status(TachiMemory)
+    elif action == "search":
+        if not query:
+            typer.echo("Error: query required for search action", err=True)
+            typer.echo('Usage: kimi-tachi memory search "your query"', err=True)
+            raise typer.Exit(1)
+        asyncio.run(_memory_search(TachiMemory, query, limit))
+    elif action == "init":
+        asyncio.run(_memory_init(TachiMemory))
+    else:
+        typer.echo(f"Unknown action: {action}", err=True)
+        typer.echo("Available: status, search, init", err=True)
+        raise typer.Exit(1)
+
+
+def _memory_status(tachi_memory_cls):
+    """Show memory system status."""
+    import asyncio
+    from dataclasses import asdict
+
+    async def _show():
+        try:
+            memory = await tachi_memory_cls.init()
+            raw_stats = memory.get_exploration_stats()
+
+            # Normalize dataclass to dict
+            stats = asdict(raw_stats) if hasattr(raw_stats, "__dataclass_fields__") else raw_stats
+
+            typer.echo("\n🧠 Memory Status:\n")
+
+            # Exploration stats
+            if "error" not in stats:
+                typer.echo(f"  Explored sessions:    {stats.get('total_explored_sessions', 0)}")
+                typer.echo(f"  Unique decisions:     {stats.get('total_unique_decisions', 0)}")
+                typer.echo(f"  Known keywords:       {stats.get('known_keywords_count', 0)}")
+                typer.echo(f"  Session files found:  {stats.get('available_session_files', 0)}")
+            else:
+                typer.echo(f"  ⚠ SessionExplorer: {stats['error']}")
+
+            # Check for memnexus CodeMemory
+            memnexus_dir = Path(".memnexus")
+            if memnexus_dir.exists():
+                typer.echo(f"  ✓ CodeMemory indexed: {memnexus_dir.exists()}")
+            else:
+                typer.echo("  ✗ CodeMemory: Not indexed")
+                typer.echo("    Run: kimi-tachi memory init")
+
+            # Check deduplicator DB
+            dedup_db = Path(".kimi-tachi/memory/deduplicator/explorer.db")
+            if dedup_db.exists():
+                size = dedup_db.stat().st_size
+                typer.echo(f"  ✓ Deduplicator DB:    {size} bytes")
+            else:
+                typer.echo("  ✗ Deduplicator DB: Not found")
+
+            await memory.close()
+        except Exception as e:
+            typer.echo(f"  ⚠ Memory check failed: {e}")
+
+    asyncio.run(_show())
+
+
+async def _memory_search(tachi_memory_cls, query: str, limit: int):
+    """Search project memory."""
+    try:
+        memory = await tachi_memory_cls.init()
+        results = await memory.search(query, limit=limit)
+
+        typer.echo(f'\n🔍 Search: "{query}"\n')
+        if not results:
+            typer.echo("  No results found.")
+            typer.echo("  Try running: kimi-tachi memory init")
+        else:
+            for i, r in enumerate(results, 1):
+                source = r.get("source", "unknown")
+                content = r.get("content", "")[:100]
+                typer.echo(f"  {i}. [{source}] {content}...")
+        await memory.close()
+    except Exception as e:
+        typer.echo(f"❌ Search failed: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+async def _memory_init(tachi_memory_cls):
+    """Initialize memnexus for the current project."""
+    import subprocess
+
+    typer.echo("\n🚀 Initializing memnexus...\n")
+
+    # Step 1: memnexus init
+    result = subprocess.run(["memnexus", "init"], capture_output=True, text=True)
+    if result.returncode != 0 and "already initialized" not in result.stderr.lower():
+        typer.echo(f"  ⚠ init warning: {result.stderr.strip()}")
+    else:
+        typer.echo("  ✓ memnexus initialized")
+
+    # Step 2: index git history
+    typer.echo("  Indexing Git history...")
+    result = subprocess.run(
+        ["memnexus", "index", "--git"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        typer.echo("  ✓ Git history indexed")
+    else:
+        typer.echo(f"  ⚠ Git index warning: {result.stderr.strip()}")
+
+    # Step 3: index codebase
+    typer.echo("  Indexing codebase...")
+    result = subprocess.run(
+        ["memnexus", "index", "--code", "--lang", "python"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        typer.echo("  ✓ Codebase indexed")
+    else:
+        typer.echo(f"  ⚠ Code index warning: {result.stderr.strip()}")
+
+    # Step 4: show final status
+    typer.echo("")
+    subprocess.run(["memnexus", "status"])
+
+
 def main():
     """Main entry point."""
     if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h", "--version", "-V"):
