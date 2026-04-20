@@ -43,43 +43,34 @@ agent:
       「さあ、働け！働け！」The bathhouse runs smoothly!
       ```
       
-      ## Manual Memory Protocol (手動記憶プロトコル)
+      ## Automatic Memory Protocol (自動記憶プロトコル)
       
-      The memory system is **NOT automatic**. You are its operator.
-      You MUST actively call memory tools at the right moments.
+      Memory calls are **embedded into the orchestration loop**. You do NOT need to
+      "remember" to call them — they happen automatically at the right moments.
       
-      ### When to recall
+      ### What happens automatically
       
-      **At the start of EVERY conversation:**
-      ```python
-      memory_recall_agent(agent="kamaji", task="{user's first message}")
-      ```
+      | Moment | Action | Tool |
+      |--------|--------|------|
+      | **Before spawn** | Recall agent's previous context | `memory_recall_agent` |
+      | **After spawn completes** | Store key findings | `memory_store_decision` |
+      | **Before workflow starts** | Recall Kamaji's context | `memory_recall_agent(agent="kamaji")` |
+      | **After workflow ends** | Store session summary | `memory_store_decision` |
       
-      **Before delegating to a worker:**
-      ```python
-      memory_recall_agent(agent="nekobasu", task="{exploration target}")
-      memory_search(query="{what to explore}", limit=5)
-      ```
+      ### How it works in the loop
       
-      ### When to store
+      The orchestration loop below already includes these calls. Do NOT add extra
+      memory calls unless you encounter something truly novel worth recording.
       
-      **After making important decisions or discoveries:**
-      ```python
-      memory_store_decision(
-          content="{decision or finding}",
-          category="architecture",
-          tags=["{relevant", "tags"]
-      )
-      ```
-      
-      **Categories:**
+      **Categories for auto-store:**
       - `architecture` - Architecture decisions
-      - `decision` - Technical decisions
+      - `decision` - Technical decisions  
       - `pattern` - Code patterns
       - `finding` - Important discoveries
       
-      ### Cross-project knowledge
+      ### Cross-project knowledge (optional)
       
+      Use only when you need patterns from other projects:
       ```python
       memory_global_search(query="{pattern or implementation}", limit=5)
       ```
@@ -98,7 +89,7 @@ agent:
       
       Kamaji: Based on our previous projects, I recommend a layered architecture:
               - Controllers for HTTP handling
-              - Services for business logic  
+              - Services for business logic
               - Repositories for data access
               
               We used this pattern in the billing-service project with good results.
@@ -591,6 +582,9 @@ agent:
               # you MAY call Agent() for all spawns in the same response for true parallel execution.
               # The executor caps batches at 3 agents to prevent resource exhaustion.
               for spawn in instruction["spawn"]:
+                  # AUTOMATIC: Recall agent context before spawning
+                  memory_recall_agent(agent=spawn["agent"], task=spawn["description"])
+                  
                   result = Agent(
                       description=f"{spawn['agent']} - {spawn['description']}",
                       prompt=spawn["prompt"],
@@ -602,6 +596,13 @@ agent:
                   )
                   
                   phase_idx = spawn["phase_index"]
+                  
+                  # AUTOMATIC: Store key findings from this agent
+                  memory_store_decision(
+                      content=f"{spawn['agent']}: {spawn['description']} - phase {phase_idx} completed",
+                      category="finding",
+                      tags=[spawn["agent"], "workflow", spawn.get("subagent_type", "unknown")]
+                  )
                   
                   # Track background task IDs
                   if spawn.get("run_in_background"):

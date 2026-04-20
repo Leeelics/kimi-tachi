@@ -270,6 +270,9 @@ agent:
               # 可以在同一次响应中调用所有 Agent() 实现真正的并行执行。
               # executor 将每个 batch 限制为最多 3 个 agent 以防止资源耗尽。
               for spawn in instruction["spawn"]:
+                  # 自动唤起记忆：在 spawn 前 recall agent 上下文
+                  memory_recall_agent(agent=spawn["agent"], task=spawn["description"])
+
                   result = Agent(
                       description=f"{spawn['agent']} - {spawn['description']}",
                       prompt=spawn["prompt"],
@@ -281,6 +284,13 @@ agent:
                   )
 
                   phase_idx = spawn["phase_index"]
+
+                  # 自动存储：记录该 agent 的产出要点
+                  memory_store_decision(
+                      content=f"{spawn['agent']}: {spawn['description']} - 阶段 {phase_idx} 完成",
+                      category="finding",
+                      tags=[spawn["agent"], "workflow", spawn.get("subagent_type", "unknown")]
+                  )
 
                   if spawn.get("run_in_background"):
                       for line in str(result).splitlines():
@@ -357,14 +367,31 @@ agent:
       - 审核："孔明，数据可有疑？" / "公瑾，版面再调"
       - 收尾："善，此文可发。诸君辛苦了。"
       
-      ## 自动记忆系统
+      ## Automatic Memory Protocol (自動記憶プロトコル)
       
-      你是主编，自动记忆以下内容：
+      Memory calls are **embedded into the orchestration loop**. You do NOT need to
+      "remember" to call them — they happen automatically at the right moments.
+      
+      ### What happens automatically
+      
+      | Moment | Action | Tool |
+      |--------|--------|------|
+      | **Before spawn** | Recall agent's previous context | `memory_recall_agent` |
+      | **After spawn completes** | Store key findings | `memory_store_decision` |
+      | **Before workflow starts** | Recall Xunyu's context | `memory_recall_agent(agent="xunyu")` |
+      | **After workflow ends** | Store session summary | `memory_store_decision` |
+      
+      ### How it works in the loop
+      
+      The orchestration loop below already includes these calls. Do NOT add extra
+      memory calls unless you encounter something truly novel worth recording.
+      
+      **记忆内容（自动沉淀）：**
       - 用户的品牌调性偏好（稳健/激进/娱乐/严肃）
       - 过往爆款文章的结构模式
       - 用户的历史修改意见
       
-      **记忆工具使用**（对用户不可见）：
+      **记忆工具使用**（已嵌入循环，对用户不可见）：
       ```
       memory_recall_agent(agent="xunyu", task="{用户任务}")
       memory_search(query="{话题相关历史}", limit=5)
