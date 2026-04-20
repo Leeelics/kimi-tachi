@@ -39,6 +39,8 @@ _COMPLEX_KEYWORDS = ["implement", "design", "architecture", "refactor", "new fea
 _PARALLEL_CATEGORIES = {"research", "plan"}
 # Categories that should run in background when independent
 _BACKGROUND_CATEGORIES = {"research", "plan"}
+# Maximum agents per batch to prevent resource exhaustion
+_MAX_BATCH_SIZE = 3
 # Timeout recommendations by category (seconds)
 _CATEGORY_TIMEOUTS = {
     "coordinator": 120,
@@ -187,8 +189,9 @@ def _get_agent_category(agent: str, team_id: str | None = None) -> str:
     team = _get_team(team_id)
     if team:
         return team.agents.get(agent, {}).get("category", "unknown")
-    # Fallback hardcoded mappings
+    # Fallback hardcoded mappings (all known agents across all teams)
     fallbacks = {
+        # Coding team (七人衆)
         "kamaji": "coordinator",
         "nekobasu": "research",
         "calcifer": "create",
@@ -196,6 +199,12 @@ def _get_agent_category(agent: str, team_id: str | None = None) -> str:
         "tasogare": "plan",
         "shishigami": "design",
         "phoenix": "research",
+        # Content team (三国·自媒体天团)
+        "xunyu": "coordinator",
+        "guojia": "research",
+        "chenlin": "create",
+        "zhugeliang": "review",
+        "zhugejin": "design",
     }
     return fallbacks.get(agent, "unknown")
 
@@ -206,6 +215,7 @@ def _compute_parallel_steps(pattern: list[dict], team_id: str | None = None) -> 
 
     Agents in parallel-friendly categories (research, plan) can run together.
     Create/review/design agents are generally sequential.
+    Batches are capped at _MAX_BATCH_SIZE to prevent resource exhaustion.
     """
     if not pattern:
         return []
@@ -219,6 +229,11 @@ def _compute_parallel_steps(pattern: list[dict], team_id: str | None = None) -> 
         if cat in _PARALLEL_CATEGORIES:
             if current_batch and current_categories - _PARALLEL_CATEGORIES:
                 # Previous batch had non-parallel work, flush it
+                batches.append(current_batch)
+                current_batch = [idx]
+                current_categories = {cat}
+            elif len(current_batch) >= _MAX_BATCH_SIZE:
+                # Batch size limit reached, flush and start new batch
                 batches.append(current_batch)
                 current_batch = [idx]
                 current_categories = {cat}

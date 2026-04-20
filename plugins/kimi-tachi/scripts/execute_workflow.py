@@ -3,11 +3,18 @@
 Kimi-Tachi Workflow Executor
 
 Deterministic execution planner for multi-agent workflows.
-Reads a workflow plan + execution state from stdin and returns structured
-instructions for Kamaji to execute via native tools (Agent, TaskOutput, etc.).
+
+Accepts either:
+  - A pre-built plan:  {"plan": {...}, "state": {...}}
+  - A raw task:        {"task": "...", "workflow_type": "auto", "state": {...}}
+
+When given a raw task, it internally generates the plan before computing
+execution instructions. Returns structured instructions for Kamaji to
+execute via native tools (Agent, TaskOutput, etc.).
 
 Usage:
     echo '{"plan": {...}, "state": {...}}' | python3 execute_workflow.py
+    echo '{"task": "implement auth", "workflow_type": "feature"}' | python3 execute_workflow.py
 """
 
 from __future__ import annotations
@@ -56,6 +63,26 @@ def _build_plan(data: dict) -> WorkflowPlan:
     )
 
 
+def _generate_plan_from_task(params: dict) -> dict:
+    """Generate a plan dict from a raw task description.
+
+    Imports generate_workflow_plan from the sibling workflow.py script.
+    """
+    script_dir = Path(__file__).resolve().parent
+    sys.path.insert(0, str(script_dir))
+    try:
+        from workflow import generate_workflow_plan  # type: ignore[import-not-found]
+
+        return generate_workflow_plan(
+            task=params["task"],
+            workflow_type=params.get("workflow_type", "auto"),
+            work_dir=params.get("work_dir", "."),
+            team_id=params.get("team"),
+        )
+    finally:
+        sys.path.remove(str(script_dir))
+
+
 def main():
     """Main entry point - reads JSON from stdin, outputs JSON to stdout."""
     params = {}
@@ -65,14 +92,29 @@ def main():
 
     plan_data = params.get("plan")
     if not plan_data:
-        print(json.dumps({"action": "error", "error": "Missing required parameter: plan"}))
-        sys.exit(1)
+        task = params.get("task")
+        if task:
+            plan_data = _generate_plan_from_task(params)
+        else:
+            print(
+                json.dumps(
+                    {
+                        "action": "error",
+                        "error": "Missing required parameter: either 'plan' or 'task' must be provided",
+                    }
+                )
+            )
+            sys.exit(1)
 
     state_data = params.get("state", {})
     plan = _build_plan(plan_data)
     state = ExecutionState.from_dict(state_data)
 
     result = execute_workflow(plan, state)
+
+    # Include the plan in the result so Kamaji can cache it for subsequent calls
+    result.plan = plan_data
+
     print(json.dumps(result.to_dict(), indent=2, default=str))
     sys.exit(0 if result.action != "error" else 1)
 

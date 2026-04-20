@@ -101,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Agent directory structure: `agents/*.yaml` → `agents/<team>/*.yaml`
 - Default coordinator loaded from current team's configuration
-- **Project memory directory renamed** from `.memnexus/` to `.mnx/` for brevity
+- **Fixed project memory directory** to use `.memnexus/` consistently with the underlying memnexus library (legacy `.mnx/` directories are auto-migrated)
 - `TachiMemory.close()` is now async (requires `await`)
 
 ### Fixed

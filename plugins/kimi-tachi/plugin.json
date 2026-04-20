@@ -4,35 +4,6 @@
   "description": "Kimi-tachi multi-agent orchestration plugin - run workflows and manage sessions",
   "tools": [
     {
-      "name": "workflow",
-      "description": "Run a multi-agent workflow for a task. Auto-detects team and supports category-based parallel orchestration.",
-      "command": ["python3", "scripts/workflow.py"],
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "task": {
-            "type": "string",
-            "description": "Task description to execute"
-          },
-          "workflow_type": {
-            "type": "string",
-            "default": "auto",
-            "description": "Type of workflow to run (auto, or a pattern defined by the current team)"
-          },
-          "work_dir": {
-            "type": "string",
-            "default": ".",
-            "description": "Working directory for the task"
-          },
-          "team": {
-            "type": "string",
-            "description": "Team ID to use (defaults to current team)"
-          }
-        },
-        "required": ["task"]
-      }
-    },
-    {
       "name": "list_agents",
       "description": "List all available agents for the current (or specified) team with their roles and icons",
       "command": ["python3", "scripts/list_agents.py"],
@@ -109,14 +80,27 @@
     },
     {
       "name": "execute_workflow",
-      "description": "Deterministic workflow executor. Given a plan and execution state, returns the next precise step (spawn agents, wait for background tasks, or complete).",
+      "description": "Deterministic workflow executor. Accepts either a pre-built plan or a raw task description. Returns the next precise step (spawn agents, wait for background tasks, or complete). When given a task, it internally generates the plan first.",
       "command": ["python3", "scripts/execute_workflow.py"],
       "parameters": {
         "type": "object",
         "properties": {
           "plan": {
             "type": "object",
-            "description": "Workflow plan dict returned by the workflow tool"
+            "description": "Pre-built workflow plan dict (alternative to providing task)"
+          },
+          "task": {
+            "type": "string",
+            "description": "Task description to generate a plan from (alternative to providing plan)"
+          },
+          "workflow_type": {
+            "type": "string",
+            "default": "auto",
+            "description": "Workflow type when generating from task (auto, feature, bugfix, quick, etc.)"
+          },
+          "team": {
+            "type": "string",
+            "description": "Team ID to use when generating from task"
           },
           "state": {
             "type": "object",
@@ -124,7 +108,7 @@
             "description": "Execution state tracking completed phases, agent_ids, background_tasks, and current_batch_index"
           }
         },
-        "required": ["plan"]
+        "required": []
       }
     },
     {

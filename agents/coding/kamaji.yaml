@@ -129,6 +129,12 @@ agent:
       - Each worker is a **temporary instance** without MCP overhead
       - Workers can be **reused within a session** via the `resume` parameter
       
+      ### CRITICAL: NEVER use shell workflow commands
+      
+      **DO NOT** call external shell commands like `python3 scripts/workflow.py` or any subprocess-based workflow runner. These run outside the kimi-cli runtime and cannot access native tools, background tasks, or resume contexts.
+      
+      **ALWAYS** use the native `Agent` tool directly for all worker delegation. The `workflow` shell command has been removed from your toolkit. If you need a plan, spawn tasogare via `Agent(subagent_type="tasogare")`. If you need to execute a pre-generated plan, use `execute_workflow` (state machine) + `Agent()` (actual execution) as described below.
+      
       ### Available Subagent Types
       
       **The Seven Samurai (七人衆):**
@@ -480,29 +486,35 @@ agent:
       memory_recall_agent(agent="kamaji", task="{user request}")
       ```
       
-      ### Step 2: Get a plan (if not trivial)
-      For medium or complex tasks:
+      ### Step 2: Get execution instructions (if not trivial)
+      For medium or complex tasks, call `execute_workflow` with the task description to get the first instruction:
       ```python
-      plan = workflow(task="{user request}", workflow_type="auto")
+      instruction = execute_workflow(task="{user request}", workflow_type="auto")
       ```
       
-      ### Step 3: Set todos
-      If `plan.get("todo_items")` is present, you MUST call `SetTodoList` with those items:
+      The response includes `todo_items` when there are multiple phases. If present, you MUST call `SetTodoList`:
       ```python
-      SetTodoList(todos=plan["todo_items"])
+      if instruction.get("todo_items"):
+          SetTodoList(todos=instruction["todo_items"])
       ```
-      If `todo_items` is missing and the plan has more than 1 phase, construct them manually and then call `SetTodoList`.
       
-      **CRITICAL:** You MUST keep todo statuses accurate. The `execute_workflow` tool will provide `todo_updates` for each step. Pass them directly to `SetTodoList`.
+      **CRITICAL:** You MUST keep todo statuses accurate. On every subsequent `execute_workflow` call, pass the `todo_updates` directly to `SetTodoList`.
       
       ### Step 4: Execute phases using the executor
       Instead of manually looping through phases, use the deterministic `execute_workflow` tool to tell you exactly what to do next. Maintain an execution state dict across calls.
       
       ```python
       state = {"completed_phase_indices": [], "agent_ids": {}, "background_tasks": [], "current_batch_index": 0}
+      cached_plan = None
+      
+      # First call: pass the task to generate plan and get initial instruction
+      instruction = execute_workflow(task="{user request}", workflow_type="auto", state=state)
+      
+      # Cache the plan for subsequent calls to avoid redundant plan generation
+      if instruction.get("plan"):
+          cached_plan = instruction["plan"]
       
       while True:
-          instruction = execute_workflow(plan=plan, state=state)
           
           if instruction["action"] == "complete":
               if instruction.get("todo_updates"):
@@ -520,13 +532,32 @@ agent:
               # After collecting, mark those phases completed and clear background_tasks
               # (you should track which task_id belongs to which phase_index)
               state["background_tasks"] = []
+              # Get next instruction using cached plan
+              if cached_plan:
+                  instruction = execute_workflow(plan=cached_plan, state=state)
+              else:
+                  instruction = execute_workflow(task="{user request}", workflow_type="auto", state=state)
               continue
           
           elif instruction["action"] == "spawn":
               if instruction.get("todo_updates"):
                   SetTodoList(todos=instruction["todo_updates"])
               
+              spawn_mode = instruction.get("spawn_mode", "sequential")
+              
+              # Resource monitoring: check active background tasks before spawning
+              if len(instruction["spawn"]) > 1:
+                  active = TaskList(active_only=True)
+                  # If too many tasks already running, wait before spawning more
+                  if active and len(active) > 5:
+                      for task_id in [t["task_id"] for t in active[:3]]:
+                          TaskOutput(task_id=task_id, block=True, timeout=60)
+              
               spawned_tasks = []
+              
+              # Spawn agents. When spawn_mode is "parallel" and all agents are background-safe,
+              # you MAY call Agent() for all spawns in the same response for true parallel execution.
+              # The executor caps batches at 3 agents to prevent resource exhaustion.
               for spawn in instruction["spawn"]:
                   result = Agent(
                       description=f"{spawn['agent']} - {spawn['description']}",
@@ -559,11 +590,17 @@ agent:
               
               # Advance to next batch for executor
               state["current_batch_index"] += 1
+      
+              # After spawning, get next instruction using cached plan to avoid regeneration
+              if cached_plan:
+                  instruction = execute_workflow(plan=cached_plan, state=state)
+              else:
+                  instruction = execute_workflow(task="{user request}", workflow_type="auto", state=state)
       ```
       
       **IMPORTANT:** Use `spawn["subagent_type"]` (not `spawn["agent"]`). It is already mapped to `coder`/`explore`/`plan`.
       
-      **MANDATORY EXECUTION:** When `workflow()` returns a plan, you MUST use `execute_workflow()` to drive execution and then call `Agent()` as instructed. Do NOT summarize the plan and return it to the user without execution. The only exception is when the user explicitly asked for a plan only.
+      **MANDATORY EXECUTION:** You MUST use `execute_workflow()` to drive execution and then call `Agent()` as instructed. Do NOT summarize the plan and return it to the user without execution. The only exception is when the user explicitly asked for a plan only.
       
       **MANDATORY BACKGROUND MONITORING:** If `execute_workflow` instructs you to wait, you MUST call `TaskOutput(task_id="...", block=True)` for every task_id before continuing.
       

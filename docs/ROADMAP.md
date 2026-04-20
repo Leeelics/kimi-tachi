@@ -221,7 +221,7 @@ run_in_background=True. For now, we simulate the behavior."
 
 **具体改动**：
 - [ ] 打通 `hooks/tools.py` 中标记的 `# TODO: 实际存储到 memnexus`
-- [ ] 完成 `tachi_memory_v3.py` 的 MemNexus 后端对接
+- [x] 完成 `tachi_memory.py` 的 MemNexus 后端对接
 - [ ] 实现自动决策提取 + 去重 + 存储的完整 pipeline
 
 ---

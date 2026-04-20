@@ -80,6 +80,8 @@ class ExecutionResult:
     todo_updates: list[dict[str, str]] = field(default_factory=list)
     message: str = ""
     error: str | None = None
+    plan: dict[str, Any] | None = None  # The full plan for Kamaji to cache
+    spawn_mode: str = "sequential"  # "parallel" (all bg) or "sequential" (has fg)
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -94,6 +96,10 @@ class ExecutionResult:
             result["todo_updates"] = self.todo_updates
         if self.error is not None:
             result["error"] = self.error
+        if self.plan is not None:
+            result["plan"] = self.plan
+        if self.spawn_mode != "sequential":
+            result["spawn_mode"] = self.spawn_mode
         return result
 
 
@@ -227,6 +233,13 @@ def execute_workflow(
 
     todo_updates = _compute_todo_updates(plan, state, next_phase_indices)
 
+    # Determine spawn mode: parallel only if ALL agents in batch can run in background
+    spawn_mode = (
+        "parallel"
+        if spawn_instructions and all(s.run_in_background for s in spawn_instructions)
+        else "sequential"
+    )
+
     if len(spawn_instructions) == 1:
         msg = (
             f"Spawn {spawn_instructions[0].agent} for batch {state.current_batch_index} "
@@ -241,4 +254,5 @@ def execute_workflow(
         spawn=spawn_instructions,
         todo_updates=todo_updates,
         message=msg,
+        spawn_mode=spawn_mode,
     )

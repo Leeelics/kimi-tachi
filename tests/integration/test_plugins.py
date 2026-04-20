@@ -65,97 +65,6 @@ class TestKimiTachiPlugin:
         assert "cli_version" in result
         assert "compatible" in result
 
-    def test_workflow_plan(self):
-        """Test workflow tool returns a plan (not executes agents)"""
-        result = self.run_tool(
-            "workflow",
-            {"task": "implement user authentication", "workflow_type": "feature"},
-        )
-
-        assert result["success"] is True
-        assert "phases" in result
-        assert "recommendations" in result
-        assert len(result["phases"]) > 0
-        assert result["workflow_type"] == "feature"
-
-        # Verify phases have required fields
-        for phase in result["phases"]:
-            assert "agent" in phase
-            assert "description" in phase
-            assert "prompt" in phase
-            assert "subagent_type" in phase
-            assert "resume" in phase
-            assert phase["resume"] is None or isinstance(phase["resume"], str)
-            # model is optional; when present it should be a string
-            if "model" in phase:
-                assert isinstance(phase["model"], str)
-
-        # Verify recommendations
-        rec = result["recommendations"]
-        assert "use_plan_mode" in rec
-        assert "plan_mode_reason" in rec
-        assert "use_todo_list" in rec
-        assert "parallel_steps" in rec
-
-        # Verify todo_items and plan_file_path for multi-phase plans
-        assert "todo_items" in result
-        assert len(result["todo_items"]) == len(result["phases"])
-        for item in result["todo_items"]:
-            assert "title" in item
-            assert item["status"] == "pending"
-        assert "plan_file_path" in result
-        assert isinstance(result["plan_file_path"], str)
-
-    def test_workflow_plan_simple_task(self):
-        """Test workflow plan for simple tasks skips plan mode."""
-        result = self.run_tool(
-            "workflow",
-            {"task": "fix typo in readme", "workflow_type": "auto"},
-        )
-
-        assert result["success"] is True
-        assert result["workflow_type"] == "quick"
-        rec = result["recommendations"]
-        assert rec["use_plan_mode"] is False
-        assert (
-            "simple" in rec["plan_mode_reason"].lower()
-            or "directly" in rec["plan_mode_reason"].lower()
-        )
-        # Single-phase plans should not emit todo_items or plan_file_path
-        assert result.get("todo_items") is None
-        assert result.get("plan_file_path") is None
-
-    def test_workflow_plan_model_override(self):
-        """Test that shishigami phase recommends a stronger model."""
-        result = self.run_tool(
-            "workflow",
-            {"task": "design microservices architecture", "workflow_type": "feature"},
-        )
-
-        assert result["success"] is True
-        shishigami_phases = [p for p in result["phases"] if p["agent"] == "shishigami"]
-        assert len(shishigami_phases) >= 1
-        for phase in shishigami_phases:
-            assert phase.get("model") == "kimi-k2.5"
-
-    def test_workflow_plan_content_team(self):
-        """Test workflow for content team maps agents to their own subagent types."""
-        result = self.run_tool(
-            "workflow",
-            {
-                "task": "write an article about AI trends",
-                "workflow_type": "article",
-                "team": "content",
-            },
-        )
-
-        assert result["success"] is True
-        assert result["team"] == "content"
-        assert len(result["phases"]) >= 1
-        for phase in result["phases"]:
-            # Content team agents should map to themselves as subagent types
-            assert phase["subagent_type"] == phase["agent"]
-
     def test_list_tasks_no_data_dir(self):
         """Test list_tasks gracefully handles missing kimi data directory."""
         result = self.run_tool("list_tasks", {})
@@ -408,7 +317,6 @@ class TestPluginJson:
 
         tool_names = {t["name"] for t in plugin["tools"]}
         expected_tools = {
-            "workflow",
             "execute_workflow",
             "list_agents",
             "get_agent_info",
